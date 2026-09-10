@@ -1,6 +1,27 @@
 package juegoferia;
 
+import java.util.*;
+
 public class ArbolPublicacion {
+
+    public static Map<String, Nodo> raicesActivas = new HashMap<>();
+
+    public static void insertarSubArbol(String isla, Nodo nuevaRaiz) {
+        raicesActivas.put(isla, nuevaRaiz);
+        System.out.println("Se insertó una nueva publicación en: " + isla);
+    }
+
+    public static void eliminarSubArbol(String isla) {
+        if (raicesActivas.containsKey(isla)) {
+            raicesActivas.remove(isla);
+            System.out.println("Se eliminó la publicación activa de: " + isla);
+        } else {
+            System.out.println("No había ninguna publicación activa en: " + isla);
+        }
+        
+    }
+
+
     public static Nodo construirArbolEscena1() {
 
         // --- Raíz y sus 4 hijos directos ---
@@ -52,7 +73,7 @@ public class ArbolPublicacion {
         reportar.agregarHijo(reportarAcerto);
         reportar.agregarHijo(reportarSeEquivoco);
 
-        // --- Se devuelve la raíz, con todo el árbol ya colgado de ella ---
+        // --- Se devuelve la raíz, con todo el árbol abajo de ella ---
         return raiz;
     }
 }

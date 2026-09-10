@@ -14,15 +14,25 @@ public class Main {
 
         System.out.println("\n--- Profundizando en cada rama ---");
 
-for (Nodo hijo : raiz.hijos) {
-    System.out.println("\nRama: " + hijo.descripcion);
-    if (hijo.hijos.isEmpty()) {
-        System.out.println("  (es hoja directa, efecto: " + hijo.efecto.getCambios() + ")");
-    } else {
-        for (Nodo nieto : hijo.hijos) {
-            System.out.println("  - " + nieto.descripcion + " -> efecto: " + nieto.efecto.getCambios());
+        for (Nodo hijo : raiz.hijos) {
+            System.out.println("\nRama: " + hijo.descripcion);
+            if (hijo.hijos.isEmpty()) {
+                System.out.println("  (es hoja directa, efecto: " + hijo.efecto.getCambios() + ")");
+            } else {
+                for (Nodo nieto : hijo.hijos) {
+                    System.out.println("  - " + nieto.descripcion + " -> efecto: " + nieto.efecto.getCambios());
+                }
+            }
         }
-    }
-}
+
+        System.out.println("\n--- Probando inserción y eliminación ---");
+
+        ArbolPublicacion.insertarSubArbol("panaderia", raiz);
+        System.out.println("¿Hay algo activo en panadería? " + ArbolPublicacion.raicesActivas.containsKey("panaderia"));
+
+        ArbolPublicacion.eliminarSubArbol("panaderia");
+        System.out.println("¿Hay algo activo en panadería? " + ArbolPublicacion.raicesActivas.containsKey("panaderia"));
+
+        ArbolPublicacion.eliminarSubArbol("colegio");
     }
 }
