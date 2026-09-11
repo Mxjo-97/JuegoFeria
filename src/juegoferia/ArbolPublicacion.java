@@ -76,4 +76,71 @@ public class ArbolPublicacion {
         // --- Se devuelve la raíz, con todo el árbol abajo de ella ---
         return raiz;
     }
+
+    public static Nodo construirArbolEscena2() {
+    Nodo raiz = new Nodo("pub2_raiz", "decision", "Nueva biblioteca en el colegio");
+
+    Nodo verificar = new Nodo("pub2_verificar", "decision", "Verificar");
+    Nodo difundir = new Nodo("pub2_difundir", "hoja", "Difundir sin verificar");
+    difundir.efecto.agregar("confianza", -2);
+
+    Nodo reportar = new Nodo("pub2_reportar", "hoja", "Reportar");
+    reportar.efecto.agregar("reputacion_jugador", -4);
+
+    Nodo ignorar = new Nodo("pub2_ignorar", "hoja", "Tinto/calma");
+    ignorar.efecto.agregar("neutro", 0);
+
+    raiz.agregarHijo(verificar);
+    raiz.agregarHijo(difundir);
+    raiz.agregarHijo(reportar);
+    raiz.agregarHijo(ignorar);
+
+    Nodo compartirInformado = new Nodo("pub2_verificar_compartir", "hoja", "Compartir informado");
+    compartirInformado.efecto.agregar("confianza", 6);
+    compartirInformado.efecto.agregar("convivencia", 4);
+
+    Nodo tintoVerificado = new Nodo("pub2_verificar_ignorar", "hoja", "Tinto/calma (ya verificado)");
+    tintoVerificado.efecto.agregar("neutro", 0);
+
+    verificar.agregarHijo(compartirInformado);
+    verificar.agregarHijo(tintoVerificado);
+
+    return raiz;
+}
+
+public static Nodo construirArbolEscena3() {
+    Nodo raiz = new Nodo("pub3_raiz", "decision", "Yo creo que la alcaldesa Marta no se preocupa por los barrios");
+
+    Nodo verificar = new Nodo("pub3_verificar", "hoja", "Comentar con respeto");
+    verificar.efecto.agregar("convivencia", 2);
+
+    Nodo difundir = new Nodo("pub3_difundir", "hoja", "Difundir (genera debate)");
+    difundir.efecto.agregar("conflictos", 3); // valor aleatorio ±3, aquí fijo como placeholder
+
+    Nodo reportar = new Nodo("pub3_reportar", "hoja", "Reportar (censura)");
+    reportar.efecto.agregar("reputacion_jugador", -3);
+
+    Nodo ignorar = new Nodo("pub3_ignorar", "hoja", "Tinto/calma");
+    ignorar.efecto.agregar("neutro", 0);
+
+    raiz.agregarHijo(verificar);
+    raiz.agregarHijo(difundir);
+    raiz.agregarHijo(reportar);
+    raiz.agregarHijo(ignorar);
+
+    return raiz;
+}
+
+public static Nodo construirArbolEscena4() {
+    Nodo raiz = construirArbolEscena1();
+    raiz.id = "pub4_raiz";
+    raiz.descripcion = "INFORMACIÓN VIRAL: el rumor del colegio se está compartiendo (10 segundos)";
+
+    Nodo tiempoAgotado = new Nodo("pub4_tiempo_agotado", "hoja", "Tiempo agotado (no eligió)");
+    tiempoAgotado.efecto.agregar("desinformacion", 7);
+
+    raiz.agregarHijo(tiempoAgotado);
+
+    return raiz;
+}
 }

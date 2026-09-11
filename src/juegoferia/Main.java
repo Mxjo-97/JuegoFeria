@@ -34,5 +34,16 @@ public class Main {
         System.out.println("¿Hay algo activo en panadería? " + ArbolPublicacion.raicesActivas.containsKey("panaderia"));
 
         ArbolPublicacion.eliminarSubArbol("colegio");
+
+        System.out.println("\n--- Verificando las 3 publicaciones nuevas ---");
+
+        Nodo raiz2 = ArbolPublicacion.construirArbolEscena2();
+        System.out.println("Escena 2 - hijos: " + raiz2.hijos.size());
+
+        Nodo raiz3 = ArbolPublicacion.construirArbolEscena3();
+        System.out.println("Escena 3 - hijos: " + raiz3.hijos.size());
+
+        Nodo raiz4 = ArbolPublicacion.construirArbolEscena4();
+        System.out.println("Escena 4 - hijos: " + raiz4.hijos.size() + " (debería ser 5, no 4)");
     }
 }
