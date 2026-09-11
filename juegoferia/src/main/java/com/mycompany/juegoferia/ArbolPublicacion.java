@@ -1,4 +1,4 @@
-package juegoferia;
+package com.mycompany.juegoferia;
 
 import java.util.*;
 
