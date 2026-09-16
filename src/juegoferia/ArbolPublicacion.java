@@ -24,7 +24,7 @@ public class ArbolPublicacion {
 
     public static Nodo construirArbolEscena1() {
 
-        // --- Raíz y sus 4 hijos directos ---
+        // -- Raíz y sus 4 hijos directos --
         Nodo raiz = new Nodo("pub1_raiz", "decision", "El candidato Juan quiere cerrar el colegio");
         Nodo verificar = new Nodo("pub1_verificar", "decision", "Verificar");
         Nodo difundir  = new Nodo("pub1_difundir", "decision", "Difundir");
