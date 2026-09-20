@@ -85,6 +85,10 @@ private int posicionExteriorY;
         BTvolver2.setBorderPainted(false);
         BTvolver2.setFocusPainted(false);
         BTvolver2.setOpaque(false);
+        BTvolver3.setContentAreaFilled(false);
+        BTvolver3.setBorderPainted(false);
+        BTvolver3.setFocusPainted(false);
+        BTvolver3.setOpaque(false);
         Digitarnombre.setOpaque(false);
         Digitarnombre.setBorder(BorderFactory.createEmptyBorder());
     }
@@ -778,6 +782,7 @@ private boolean estaEnInteraccion(int x, int y) {
         ajustarImagenInicial(jLabel1, ancho, alto);
         ajustarImagenInicial(jLabel2, ancho, alto);
         ajustarImagenInicial(jLabel3, ancho, alto);
+        ajustarImagenInicial(jLabel4, ancho, alto);
     }
 
     private void ajustarImagenInicial(JLabel label, int ancho, int alto) {
@@ -825,6 +830,9 @@ private boolean estaEnInteraccion(int x, int y) {
         Digitarnombre = new javax.swing.JTextField();
         jLabel3 = new javax.swing.JLabel();
         juego = new javax.swing.JPanel();
+        instrucciones = new javax.swing.JPanel();
+        BTvolver3 = new javax.swing.JButton();
+        jLabel4 = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -891,6 +899,16 @@ private boolean estaEnInteraccion(int x, int y) {
 
         Panel_cambiante.add(juego, "juego");
 
+        instrucciones.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
+
+        BTvolver3.addActionListener(this::BTvolver3ActionPerformed);
+        instrucciones.add(BTvolver3, new org.netbeans.lib.awtextra.AbsoluteConstraints(30, 750, 280, 90));
+
+        jLabel4.setIcon(new javax.swing.ImageIcon(getClass().getResource("/imagenes/instrucciones.png"))); // NOI18N
+        instrucciones.add(jLabel4, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 1590, 990));
+
+        Panel_cambiante.add(instrucciones, "inst");
+
         getContentPane().add(Panel_cambiante, java.awt.BorderLayout.CENTER);
 
         pack();
@@ -905,7 +923,11 @@ private boolean estaEnInteraccion(int x, int y) {
     }//GEN-LAST:event_BTjugarActionPerformed
 
     private void BTinstActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTinstActionPerformed
-        // TODO add your handling code here:
+        card = (CardLayout) this.Panel_cambiante.getLayout();
+        card.show(Panel_cambiante, "inst");
+        SwingUtilities.invokeLater(() -> {
+            ajustarImagen(jLabel4);
+        });
     }//GEN-LAST:event_BTinstActionPerformed
 
     private void BTsalirActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTsalirActionPerformed
@@ -940,6 +962,11 @@ private boolean estaEnInteraccion(int x, int y) {
         prepararJuego();
     }//GEN-LAST:event_BTcontinuarActionPerformed
 
+    private void BTvolver3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTvolver3ActionPerformed
+        card = (CardLayout) this.Panel_cambiante.getLayout();
+        card.show(Panel_cambiante, "inicio");
+    }//GEN-LAST:event_BTvolver3ActionPerformed
+
     /**
      * @param args the command line arguments
      */
@@ -973,13 +1000,16 @@ private boolean estaEnInteraccion(int x, int y) {
     private javax.swing.JButton BTsalir;
     private javax.swing.JButton BTvolver;
     private javax.swing.JButton BTvolver2;
+    private javax.swing.JButton BTvolver3;
     private javax.swing.JTextField Digitarnombre;
     private javax.swing.JPanel Panel_cambiante;
     private javax.swing.JPanel elegirroles;
     private javax.swing.JPanel iniciojuego;
+    private javax.swing.JPanel instrucciones;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
+    private javax.swing.JLabel jLabel4;
     private javax.swing.JPanel juego;
     private javax.swing.JPanel ponernombre;
     // End of variables declaration//GEN-END:variables
