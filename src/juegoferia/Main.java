@@ -2,6 +2,11 @@ package juegoferia;
 
 public class Main {
     public static void main(String[] args) {
+        java.awt.EventQueue.invokeLater(() -> {
+    partvisual ventana = new partvisual();
+    ventana.prepararPantallas();
+    ventana.setVisible(true);
+    });
         System.out.println("---");
         System.out.println(" CONSOLA ");
         System.out.println("---\n");
