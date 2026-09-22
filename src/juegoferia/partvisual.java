@@ -443,7 +443,7 @@ int mateoY = (int) (735.0 / 989.0 * juego.getHeight());
 
 // Centrar el abanico respecto a Mateo
 int opcionesX = mateoX - opciones.getWidth() / 2 + 20;
-int opcionesY = mateoY - opciones.getHeight() / 2 - 175;
+int opcionesY = mateoY - opciones.getHeight() / 2 - 165;
 
 opciones.setLocation(opcionesX, opcionesY);
             
@@ -738,6 +738,9 @@ opciones.addMouseListener(new java.awt.event.MouseAdapter() {
     
     
      // REPORTAR - parte derecha
+// ==========================================
+// REPORTAR - parte derecha
+// ==========================================
 } else if (x >= ancho * 0.55
         && y >= alto * 0.30
         && y <= alto * 0.65) {
@@ -759,30 +762,27 @@ opciones.addMouseListener(new java.awt.event.MouseAdapter() {
     situacionMiniatura.setVisible(false);
     iconoPanico.setVisible(false);
 
-    
-
+    // La publicación determina el resultado
     if (publicacionFalsa) {
 
-        // La publicación era falsa
-        // Por lo tanto REPORTAR fue correcto
+        // REPORTAR fue correcto
         seleccionarDecision("acerto");
 
         mostrarConsecuenciaRamaC(true);
 
     } else {
 
-        // La publicación era verdadera
-        // Por lo tanto REPORTAR fue incorrecto
+        // REPORTAR fue incorrecto
         seleccionarDecision("equivoco");
 
         mostrarConsecuenciaRamaC(false);
     }
 
     juego.revalidate();
-    juego.repaint();   
-
-        // TINTO/CALMA - parte inferior
-} else if (y >= alto * 0.65) {
+    juego.repaint();
+    
+} 
+else if (y >= alto * 0.65) {
 
     System.out.println("Elegiste TINTO / CALMA");
 
@@ -1217,7 +1217,10 @@ opciones.addMouseListener(new java.awt.event.MouseAdapter() {
         || dialogoActual == 44
         || dialogoActual == 47
         || dialogoActual == 61
-        || dialogoActual == 63;
+        || dialogoActual == 63
+        || dialogoActual == 92
+    || dialogoActual == 93
+    || dialogoActual == 94;
         
 boolean esPresentador =
         dialogoActual == 52
@@ -1232,9 +1235,15 @@ boolean clicEnPlay;
 
 if (ramaBActiva) {
 
-    // Rama B:
-    // cualquier clic sobre el diálogo avanza
-    clicEnPlay = true;
+    if (esMateo) {
+        // Misma zona de clic que usa Mateo
+        clicEnPlay = x <= ancho * 0.28
+                && y >= alto * 0.55;
+    } else {
+        // Misma zona de clic que usa Doña Rosa
+        clicEnPlay = x >= ancho * 0.60
+                && y >= alto * 0.40;
+    }
 
 } else if (ramaAActiva) {
 
@@ -2213,6 +2222,44 @@ nodoActual = arbolEscena1;
     } else {
         ruta = "/imagenes/dialogos/reporteeroneo.png";
     }
+    
+javax.swing.Timer timerConsecuenciaC =
+        new javax.swing.Timer(
+                2000,
+                e -> {
+
+                    dialogoJuego.setVisible(false);
+                    dialogoActivo = false;
+                    ramaCActiva = false;
+
+                    // Aplicar los efectos
+                    if (nodoActual != null) {
+                        estadoJuego.aplicarEfecto(nodoActual.efecto);
+                    }
+
+                    System.out.println("=================================");
+                    System.out.println("RAMA C COMPLETADA");
+                    System.out.println("=================================");
+
+                    estadoJuego.imprimirEstadoPartida();
+
+                    // Si REPORTAR fue correcto
+                    if (nodoActual != null
+                            && nodoActual.id.equals("pub1_reportar_acerto")) {
+
+                        System.out.println("Reporte acertado.");
+                        mostrarColeccionableRamaA();
+
+                    } else {
+
+                        System.out.println("Reporte erróneo.");
+                        mostrarFinDia7();
+                    }
+                }
+        );
+
+timerConsecuenciaC.setRepeats(false);
+timerConsecuenciaC.start();
 
     java.net.URL recurso = getClass().getResource(ruta);
 
