@@ -4,8 +4,11 @@ public class Main {
     public static void main(String[] args) {
         java.awt.EventQueue.invokeLater(() -> {
     partvisual ventana = new partvisual();
+ventana.setVisible(true);
+
+java.awt.EventQueue.invokeLater(() -> {
     ventana.prepararPantallas();
-    ventana.setVisible(true);
+});
     });
         System.out.println("---");
         System.out.println(" CONSOLA ");
