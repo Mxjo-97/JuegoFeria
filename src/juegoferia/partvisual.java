@@ -6,7 +6,6 @@ package juegoferia;
 
 import java.awt.CardLayout;
 import java.awt.Image;
-import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -50,6 +49,7 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
             private boolean situacionActiva = false;
             private boolean panaderiaAbierta = false;
             private boolean dentroPanaderia = false;
+private boolean posicionesBotonesGuardadas = false;
 private int posicionExteriorX;
 private int posicionExteriorY;
     private int velocidad = 3;
@@ -77,55 +77,13 @@ private int posicionExteriorY;
     arbolEscena1 = ArbolPublicacion.construirArbolEscena1();
     estadoJuego = new EstadoJuego();
     nodoActual = arbolEscena1;
-    
-    addComponentListener(new java.awt.event.ComponentAdapter() {
-            
-    @Override
-    public void componentResized(java.awt.event.ComponentEvent e) {
-        ajustarBotonesInterfaz();
-    }
-    });
         
         this.addKeyListener(this);
         this.setFocusable(true);
         this.requestFocusInWindow();
         this.setExtendedState(JFrame.MAXIMIZED_BOTH);
+        crearPantallasPorCodigo();
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
-        BTjugar.setContentAreaFilled(false);
-        BTjugar.setBorderPainted(false);
-        BTjugar.setFocusPainted(false);
-        BTjugar.setOpaque(false);
-        BTinst.setContentAreaFilled(false);
-        BTinst.setBorderPainted(false);
-        BTinst.setFocusPainted(false);
-        BTinst.setOpaque(false);
-        BTsalir.setContentAreaFilled(false);
-        BTsalir.setBorderPainted(false);
-        BTsalir.setFocusPainted(false);
-        BTsalir.setOpaque(false);
-        BTvolver.setContentAreaFilled(false);
-        BTvolver.setBorderPainted(false);
-        BTvolver.setFocusPainted(false);
-        BTvolver.setOpaque(false);
-        BTcivil.setContentAreaFilled(false);
-        BTcivil.setBorderPainted(false);
-        BTcivil.setFocusPainted(false);
-        BTcivil.setOpaque(false);
-        BTcontinuar.setContentAreaFilled(false);
-        BTcontinuar.setBorderPainted(false);
-        BTcontinuar.setFocusPainted(false);
-        BTcontinuar.setOpaque(false);
-        BTvolver2.setContentAreaFilled(false);
-        BTvolver2.setBorderPainted(false);
-        BTvolver2.setFocusPainted(false);
-        BTvolver2.setOpaque(false);
-        BTvolver3.setContentAreaFilled(false);
-        BTvolver3.setBorderPainted(false);
-        BTvolver3.setFocusPainted(false);
-        BTvolver3.setOpaque(false);
-        Digitarnombre.setOpaque(false);
-        Digitarnombre.setBorder(BorderFactory.createEmptyBorder());
     }
 
     private void ajustarImagen(JLabel label) {
@@ -157,76 +115,451 @@ private int posicionExteriorY;
         label.setBounds(0, 0, ancho, alto);
         label.setIcon(new ImageIcon(imagenEscalada));
     }
+    private void crearPantallasPorCodigo() {
+
+    Panel_cambiante.remove(iniciojuego);
+    Panel_cambiante.remove(elegirroles);
+    Panel_cambiante.remove(ponernombre);
+    Panel_cambiante.remove(instrucciones);
+
+    iniciojuego = crearPantallaInicio();
+    elegirroles = crearPantallaRoles();
+    ponernombre = crearPantallaNombre();
+    instrucciones = crearPantallaInstrucciones();
+
+    Panel_cambiante.add(iniciojuego, "inicio");
+    Panel_cambiante.add(elegirroles, "roles");
+    Panel_cambiante.add(ponernombre, "nombre");
+    Panel_cambiante.add(instrucciones, "inst");
+
+    card = (CardLayout) Panel_cambiante.getLayout();
+
+    card.show(Panel_cambiante, "inicio");
+
+    Panel_cambiante.revalidate();
+    Panel_cambiante.repaint();
+}
+    private javax.swing.JPanel crearPantallaRoles() {
+
+    javax.swing.JPanel panel = new javax.swing.JPanel(null);
+
+    javax.swing.JLabel fondo = new javax.swing.JLabel();
+
+    ImageIcon icono = new ImageIcon(
+            getClass().getResource("/imagenes/Roles.png")
+    );
+
+    fondo.setIcon(icono);
+    panel.add(fondo);
+
+    BTvolver = crearBotonInvisible();
+
+    BTcivil = crearBotonInvisible();
+
+    panel.add(BTvolver);
+    panel.add(BTcivil);
+
+    BTvolver.addActionListener(e -> {
+        card.show(Panel_cambiante, "inicio");
+    });
+
+    BTcivil.addActionListener(e -> {
+        card.show(Panel_cambiante, "nombre");
+    });
+
+    panel.addComponentListener(new java.awt.event.ComponentAdapter() {
+
+        @Override
+        public void componentResized(java.awt.event.ComponentEvent e) {
+            ajustarPantallaRoles(panel, fondo);
+        }
+    });
+
+    return panel;
+}
+    private void ajustarPantallaRoles(
+        javax.swing.JPanel panel,
+        javax.swing.JLabel fondo) {
+
+    int ancho = panel.getWidth();
+    int alto = panel.getHeight();
+
+    if (ancho <= 0 || alto <= 0) {
+        return;
+    }
+
+    double escalaX = ancho / 1591.0;
+    double escalaY = alto / 989.0;
+
+    fondo.setBounds(0, 0, ancho, alto);
+
+    ImageIcon original = new ImageIcon(
+            getClass().getResource("/imagenes/Roles.png")
+    );
+
+    Image imagenEscalada = original.getImage()
+            .getScaledInstance(
+                    ancho,
+                    alto,
+                    Image.SCALE_SMOOTH
+            );
+
+    fondo.setIcon(new ImageIcon(imagenEscalada));
+    BTvolver.setBounds(
+            (int)(40 * escalaX),
+            (int)(880 * escalaY),
+            (int)(220 * escalaX),
+            (int)(70 * escalaY)
+    );
+    BTcivil.setBounds(
+            (int)(860 * escalaX),
+            (int)(350 * escalaY),
+            (int)(320 * escalaX),
+            (int)(330 * escalaY)
+    );
+
+    panel.setComponentZOrder(fondo, panel.getComponentCount() - 1);
+
+    panel.revalidate();
+    panel.repaint();
+}
+    private javax.swing.JPanel crearPantallaNombre() {
+
+    javax.swing.JPanel panel = new javax.swing.JPanel(null);
+
+    javax.swing.JLabel fondo = new javax.swing.JLabel();
+
+    ImageIcon icono = new ImageIcon(
+            getClass().getResource("/imagenes/Nombre.png")
+    );
+
+    fondo.setIcon(icono);
+    panel.add(fondo);
+
+    BTvolver2 = crearBotonInvisible();
+
+    BTcontinuar = crearBotonInvisible();
+
+    Digitarnombre = new javax.swing.JTextField();
+
+
+Digitarnombre.setOpaque(false);
+Digitarnombre.setBorder(null);
+
+
+Digitarnombre.setBackground(new java.awt.Color(0, 0, 0, 0));
+
+
+Digitarnombre.setForeground(new java.awt.Color(80, 60, 40));
+
+
+Digitarnombre.setCaretColor(new java.awt.Color(80, 60, 40));
+
+
+Digitarnombre.setFont(
+        new java.awt.Font("Segoe UI", java.awt.Font.PLAIN, 28)
+);
+
+    panel.add(BTvolver2);
+    panel.add(BTcontinuar);
+    panel.add(Digitarnombre);
+
+    BTvolver2.addActionListener(e -> {
+        card.show(Panel_cambiante, "roles");
+    });
+
+    BTcontinuar.addActionListener(e -> {
+
+    String nombre = Digitarnombre.getText().trim();
+
     
-    private void ajustarBotonesInterfaz() {
+    if (nombre.isEmpty()) {
 
+        System.out.println("Debes escribir un nombre.");
 
+        Digitarnombre.requestFocusInWindow();
 
-    int anchoInicio = iniciojuego.getWidth();
-    int altoInicio = iniciojuego.getHeight();
-
-    if (anchoInicio > 0 && altoInicio > 0) {
-
-        double escalaX = anchoInicio / 1591.0;
-        double escalaY = altoInicio / 989.0;
-
-        BTjugar.setBounds(
-                (int) (580 * escalaX),
-                (int) (420 * escalaY),
-                (int) (410 * escalaX),
-                (int) (100 * escalaY)
-        );
-
-        BTinst.setBounds(
-                (int) (580 * escalaX),
-                (int) (530 * escalaY),
-                (int) (410 * escalaX),
-                (int) (100 * escalaY)
-        );
-
-        BTsalir.setBounds(
-                (int) (580 * escalaX),
-                (int) (650 * escalaY),
-                (int) (410 * escalaX),
-                (int) (80 * escalaY)
-        );
-
-        iniciojuego.revalidate();
-        iniciojuego.repaint();
+        return;
     }
 
-    int anchoNombre = ponernombre.getWidth();
-    int altoNombre = ponernombre.getHeight();
+    // Guardamos el nombre
+    System.out.println("Nombre del jugador: " + nombre);
 
-    if (anchoNombre > 0 && altoNombre > 0) {
+    card.show(Panel_cambiante, "juego");
 
-        double escalaX = anchoNombre / 1591.0;
-        double escalaY = altoNombre / 989.0;
+    if (!juegoPreparado) {
 
-        BTvolver2.setBounds(
-                (int) (50 * escalaX),
-                (int) (760 * escalaY),
-                (int) (210 * escalaX),
-                (int) (60 * escalaY)
-        );
+        prepararJuego();
+        prepararDialogos();
 
-        BTcontinuar.setBounds(
-                (int) (550 * escalaX),
-                (int) (690 * escalaY),
-                (int) (450 * escalaX),
-                (int) (80 * escalaY)
-        );
+        juegoPreparado = true;
 
-        Digitarnombre.setBounds(
-                (int) (550 * escalaX),
-                (int) (550 * escalaY),
-                (int) (510 * escalaX),
-                (int) (70 * escalaY)
-        );
+    } else {
 
-        ponernombre.revalidate();
-        ponernombre.repaint();
+        reiniciarPartida();
     }
+
+    juego.setFocusable(true);
+    juego.requestFocusInWindow();
+
+    if (timerMovimiento != null) {
+        timerMovimiento.start();
+    }
+
+    System.out.println("NUEVA PARTIDA INICIADA");
+});
+
+    panel.addComponentListener(new java.awt.event.ComponentAdapter() {
+
+        @Override
+        public void componentResized(java.awt.event.ComponentEvent e) {
+            ajustarPantallaNombre(panel, fondo);
+        }
+    });
+
+    return panel;
+}
+    private void ajustarPantallaNombre(
+        javax.swing.JPanel panel,
+        javax.swing.JLabel fondo) {
+
+    int ancho = panel.getWidth();
+    int alto = panel.getHeight();
+
+    if (ancho <= 0 || alto <= 0) {
+        return;
+    }
+
+    double escalaX = ancho / 1591.0;
+    double escalaY = alto / 989.0;
+
+    fondo.setBounds(0, 0, ancho, alto);
+
+    ImageIcon original = new ImageIcon(
+            getClass().getResource("/imagenes/Nombre.png")
+    );
+
+    Image imagenEscalada = original.getImage()
+            .getScaledInstance(
+                    ancho,
+                    alto,
+                    Image.SCALE_SMOOTH
+            );
+
+    fondo.setIcon(new ImageIcon(imagenEscalada));
+
+    BTvolver2.setBounds(
+            (int)(50 * escalaX),
+            (int)(880 * escalaY),
+            (int)(210 * escalaX),
+            (int)(60 * escalaY)
+    );
+
+    BTcontinuar.setBounds(
+            (int)(570 * escalaX),
+            (int)(790 * escalaY),
+            (int)(450 * escalaX),
+            (int)(80 * escalaY)
+    );
+
+    Digitarnombre.setBounds(
+            (int)(550 * escalaX),
+            (int)(630 * escalaY),
+            (int)(510 * escalaX),
+            (int)(70 * escalaY)
+    );
+
+    panel.setComponentZOrder(fondo, panel.getComponentCount() - 1);
+
+    panel.revalidate();
+    panel.repaint();
+}
+    private javax.swing.JPanel crearPantallaInstrucciones() {
+
+    javax.swing.JPanel panel = new javax.swing.JPanel(null);
+
+    javax.swing.JLabel fondo = new javax.swing.JLabel();
+
+    ImageIcon icono = new ImageIcon(
+            getClass().getResource("/imagenes/instrucciones.png")
+    );
+
+    fondo.setIcon(icono);
+    panel.add(fondo);
+
+    BTvolver3 = crearBotonInvisible();
+
+    panel.add(BTvolver3);
+
+    BTvolver3.addActionListener(e -> {
+        card.show(Panel_cambiante, "inicio");
+    });
+
+    panel.addComponentListener(new java.awt.event.ComponentAdapter() {
+
+        @Override
+        public void componentResized(java.awt.event.ComponentEvent e) {
+            ajustarPantallaInstrucciones(panel, fondo);
+        }
+    });
+
+    return panel;
+}
+    private void ajustarPantallaInstrucciones(
+        javax.swing.JPanel panel,
+        javax.swing.JLabel fondo) {
+
+    int ancho = panel.getWidth();
+    int alto = panel.getHeight();
+
+    if (ancho <= 0 || alto <= 0) {
+        return;
+    }
+
+    double escalaX = ancho / 1591.0;
+    double escalaY = alto / 989.0;
+
+    fondo.setBounds(0, 0, ancho, alto);
+
+    ImageIcon original = new ImageIcon(
+            getClass().getResource("/imagenes/instrucciones.png")
+    );
+
+    Image imagenEscalada = original.getImage()
+            .getScaledInstance(
+                    ancho,
+                    alto,
+                    Image.SCALE_SMOOTH
+            );
+
+    fondo.setIcon(new ImageIcon(imagenEscalada));
+
+    BTvolver3.setBounds(
+            (int)(40 * escalaX),
+            (int)(860 * escalaY),
+            (int)(280 * escalaX),
+            (int)(90 * escalaY)
+    );
+
+    panel.setComponentZOrder(fondo, panel.getComponentCount() - 1);
+
+    panel.revalidate();
+    panel.repaint();
+}
+    private javax.swing.JPanel crearPantallaInicio() {
+
+    javax.swing.JPanel panel = new javax.swing.JPanel(null);
+
+    javax.swing.JLabel fondo = new javax.swing.JLabel();
+
+    ImageIcon icono = new ImageIcon(
+            getClass().getResource("/imagenes/Inicio.png")
+    );
+
+    fondo.setIcon(icono);
+
+    panel.add(fondo);
+
+    BTjugar = crearBotonInvisible();
+
+    BTinst = crearBotonInvisible();
+
+    BTsalir = crearBotonInvisible();
+
+    panel.add(BTjugar);
+    panel.add(BTinst);
+    panel.add(BTsalir);
+
+    BTjugar.addActionListener(e -> {
+        card.show(Panel_cambiante, "roles");
+    });
+
+    BTinst.addActionListener(e -> {
+        card.show(Panel_cambiante, "inst");
+    });
+
+    BTsalir.addActionListener(e -> {
+        System.exit(0);
+    });
+
+    panel.addComponentListener(new java.awt.event.ComponentAdapter() {
+
+        @Override
+        public void componentResized(java.awt.event.ComponentEvent e) {
+            ajustarPantallaInicio(panel, fondo);
+        }
+    });
+
+    return panel;
+}
+    private javax.swing.JButton crearBotonInvisible() {
+
+    javax.swing.JButton boton = new javax.swing.JButton();
+
+    boton.setContentAreaFilled(false);
+    boton.setBorderPainted(false);
+    boton.setFocusPainted(false);
+    boton.setOpaque(false);
+
+    return boton;
+}   
+    private void ajustarPantallaInicio(
+        javax.swing.JPanel panel,
+        javax.swing.JLabel fondo) {
+
+    int ancho = panel.getWidth();
+    int alto = panel.getHeight();
+
+    if (ancho <= 0 || alto <= 0) {
+        return;
+    }
+
+    double escalaX = ancho / 1591.0;
+    double escalaY = alto / 989.0;
+
+
+    fondo.setBounds(
+            0,
+            0,
+            ancho,
+            alto
+    );
+
+    ImageIcon original = new ImageIcon(
+            getClass().getResource("/imagenes/Inicio.png")
+    );
+
+    Image imagenEscalada = original.getImage()
+            .getScaledInstance(
+                    ancho,
+                    alto,
+                    Image.SCALE_SMOOTH
+            );
+
+    fondo.setIcon(new ImageIcon(imagenEscalada));
+    BTjugar.setBounds(
+            (int)(600 * escalaX),
+            (int)(470 * escalaY),
+            (int)(420 * escalaX),
+            (int)(120 * escalaY)
+    );
+    BTinst.setBounds(
+            (int)(600 * escalaX),
+            (int)(610 * escalaY),
+            (int)(420 * escalaX),
+            (int)(110 * escalaY)
+    );
+    BTsalir.setBounds(
+            (int)(590 * escalaX),
+            (int)(740 * escalaY),
+            (int)(440 * escalaY),
+            (int)(110 * escalaY)
+    );
+
+    panel.setComponentZOrder(fondo, panel.getComponentCount() - 1);
+
+    panel.revalidate();
+    panel.repaint();
 }
     private void prepararJuego() {
 
@@ -287,7 +620,7 @@ private int posicionExteriorY;
                 int x = e.getX();
                 int y = e.getY();
             
-                // CLICK EN EL BOTÓN DE LA SITUACIÓN
+                
 if (situacionActiva) {
 
     boolean clicEnPlaySituacion =
@@ -437,13 +770,13 @@ iconoPanico.addMouseListener(new java.awt.event.MouseAdapter() {
             opciones.setVisible(true);
             
             
-            // Posición del NIÑO CON GORRA (Mateo)
+
 int mateoX = (int) (1415.0 / 1591.0 * juego.getWidth());
 int mateoY = (int) (735.0 / 989.0 * juego.getHeight());
 
 // Centrar el abanico respecto a Mateo
-int opcionesX = mateoX - opciones.getWidth() / 2 + 20;
-int opcionesY = mateoY - opciones.getHeight() / 2 - 165;
+int opcionesX = mateoX - opciones.getWidth() / 2 + 10;
+int opcionesY = mateoY - opciones.getHeight() / 2 - 175;
 
 opciones.setLocation(opcionesX, opcionesY);
             
@@ -495,8 +828,8 @@ ImageIcon iconoOriginal = new ImageIcon(
         getClass().getResource("/imagenes/dialogos/opciones.png")
 );
 
-int anchoOpciones = 220;
-int altoOpciones = 137;
+int anchoOpciones = 270+50;
+int altoOpciones = 162+50;
 
 java.awt.Image imagenOpcionesEscalada =
         iconoOriginal.getImage().getScaledInstance(
@@ -610,7 +943,7 @@ opcionesSecundarias.addMouseListener(new java.awt.event.MouseAdapter() {
 
             iconoPanico.setVisible(false);
 
-// Avanzamos al nodo correcto de REPORTAR
+
 seleccionarDecision("reportar");
 
 ramaAActiva = true;
@@ -642,7 +975,7 @@ mostrarDialogoRamaAReportado();
     abanicoOpcionesVisible = false;
     situacionMiniatura.setVisible(false);
 
-    // Quitamos el signo de exclamación de Mateo
+    // Quitamos el estado de pánico de Mateo
     iconoPanico.setVisible(false);
 
     // Detener movimiento mientras aparece el diálogo
@@ -650,7 +983,6 @@ mostrarDialogoRamaAReportado();
         timerMovimiento.stop();
     }
 
-    // Mostrar diálogo de Tinto / Calma
     mostrarDialogoTintoCalma();
 
     juego.revalidate();
@@ -675,15 +1007,14 @@ opciones.addMouseListener(new java.awt.event.MouseAdapter() {
         int ancho = opciones.getWidth();
         int alto = opciones.getHeight();
 
-        // VERIFICAR - parte superior
+
         if (x >= ancho * 0.25
                 && x <= ancho * 0.75
                 && y <= alto * 0.35) {
 
             seleccionarDecision("verificar");
 
-        // DIFUNDIR - parte izquierda
-        // DIFUNDIR - parte izquierda
+       
 } else if (x <= ancho * 0.45
         && y >= alto * 0.30
         && y <= alto * 0.65) {
@@ -703,7 +1034,6 @@ opciones.addMouseListener(new java.awt.event.MouseAdapter() {
 
     abanicoOpcionesVisible = false;
 
-    // Mostrar las opciones de Rama B
     ImageIcon imagenDifundir =
             new ImageIcon(
                     getClass().getResource(
@@ -737,20 +1067,16 @@ opciones.addMouseListener(new java.awt.event.MouseAdapter() {
     juego.repaint();
     
     
-     // REPORTAR - parte derecha
-// ==========================================
-// REPORTAR - parte derecha
-// ==========================================
+     
 } else if (x >= ancho * 0.55
         && y >= alto * 0.30
         && y <= alto * 0.65) {
 
     System.out.println("Elegiste REPORTAR");
 
-    // Pasamos al nodo REPORTAR
+   
     seleccionarDecision("reportar");
 
-    // Activamos Rama C
     ramaCActiva = true;
 
     // Detener movimiento
@@ -923,7 +1249,6 @@ else if (y >= alto * 0.65) {
 
         System.out.println("Aviso TINTO/CALMA mostrado.");
 
-        // Esperar un momento y continuar automáticamente
         javax.swing.Timer timerTintoCalma =
                 new javax.swing.Timer(
                         2000,
@@ -1178,7 +1503,6 @@ else if (y >= alto * 0.65) {
     dialogoJuego.setVisible(false);
     dialogoActivo = false;
 
-    // Aplicar efectos de la decisión
     if (nodoActual != null) {
         estadoJuego.aplicarEfecto(nodoActual.efecto);
     }
@@ -1205,8 +1529,7 @@ else if (y >= alto * 0.65) {
 
     estadoJuego.imprimirEstadoPartida();
 
-    // Igual que las otras ramas:
-    // consecuencia → coleccionable → fin del día
+
     mostrarColeccionableRamaA();
 
     return;
@@ -1219,8 +1542,7 @@ else if (y >= alto * 0.65) {
         || dialogoActual == 61
         || dialogoActual == 63
         || dialogoActual == 92
-    || dialogoActual == 93
-    || dialogoActual == 94;
+        || dialogoActual == 94;
         
 boolean esPresentador =
         dialogoActual == 52
@@ -1236,44 +1558,42 @@ boolean clicEnPlay;
 if (ramaBActiva) {
 
     if (esMateo) {
-        // Misma zona de clic que usa Mateo
+
         clicEnPlay = x <= ancho * 0.28
                 && y >= alto * 0.55;
     } else {
-        // Misma zona de clic que usa Doña Rosa
+        
         clicEnPlay = x >= ancho * 0.60
                 && y >= alto * 0.40;
     }
 
 } else if (ramaAActiva) {
 
-    // Rama A: PLAY está a la derecha
+
     clicEnPlay =
             x >= ancho * 0.60
             && y >= alto * 0.40;
 
 } else if (ramaCActiva) {
 
-    // Rama C: toda la consecuencia se puede clicar
+
     clicEnPlay = true;
 
 } else if (ramaDActiva) {
 
-    // Rama D: PLAY está a la derecha
+
     clicEnPlay =
             x >= ancho * 0.60
             && y >= alto * 0.40;
 
 } else if (esMateo) {
 
-    // Diálogos de Mateo: PLAY a la izquierda
     clicEnPlay =
             x <= ancho * 0.28
             && y >= alto * 0.55;
 
 } else {
 
-    // Doña Rosa y Presentador: PLAY a la derecha
     clicEnPlay =
             x >= ancho * 0.60
             && y >= alto * 0.40;
@@ -1360,7 +1680,7 @@ if (ramaBActiva) {
 
         estadoJuego.imprimirEstadoPartida();
 
-        // Mostrar coleccionable
+
         mostrarColeccionableRamaA();
 
         return;
@@ -1385,7 +1705,6 @@ if (ramaBActiva) {
 
         estadoJuego.imprimirEstadoPartida();
 
-        // Si acertó, mostrar coleccionable
         if (nodoActual != null
                 && nodoActual.id.equals("pub1_reportar_acerto")) {
 
@@ -1397,7 +1716,6 @@ if (ramaBActiva) {
 
         } else {
 
-            // Si se equivocó, no hay coleccionable
             System.out.println("Reporte erróneo.");
             System.out.println("Reputación del jugador -4");
 
@@ -1422,7 +1740,6 @@ if (ramaBActiva) {
 
         estadoJuego.imprimirEstadoPartida();
 
-        // Mostrar coleccionable
         mostrarColeccionableRamaA();
 
         return;
@@ -1655,7 +1972,7 @@ continuarRamaB.start();
    
    private void mostrarIconoPanico() {
 
-    // Por ahora solamente activamos el JLabel
+ 
     iconoPanico.setVisible(true);
 
     colocarIconoPanico();
@@ -1697,7 +2014,7 @@ private void mostrarDialogo(int numero) {
 
         BufferedImage original = ImageIO.read(recurso);
 
-        // Buscar los límites de la parte visible del PNG
+
         int minX = original.getWidth();
         int minY = original.getHeight();
         int maxX = -1;
@@ -1719,7 +2036,6 @@ private void mostrarDialogo(int numero) {
             }
         }
 
-        // Recortar solamente la burbuja visible
         BufferedImage recortada = original.getSubimage(
                 minX,
                 minY,
@@ -1727,10 +2043,9 @@ private void mostrarDialogo(int numero) {
                 maxY - minY + 1
         );
 
-      // Tamaño de la burbuja en pantalla
 int anchoDialogo;
 
-if (numero == 43 || numero == 44 || numero == 47 || numero == 61 ||  numero == 92 || numero == 93 || numero == 94 ) {
+if (numero == 43 || numero == 44 || numero == 47 || numero == 61 || numero== 63 || numero == 92 || numero == 93 || numero == 94 ) {
 
     // Mateo
     anchoDialogo = 300;
@@ -1774,29 +2089,15 @@ numero == 57 || numero == 58 || numero == 59) {
             - altoDialogo - 20;
 
 
-} else if (numero == 43 || numero == 44 || numero == 47 || numero == 61 || numero == 63) {
+} else if (numero == 43 || numero == 44 || numero == 47
+        || numero == 61 || numero == 63
+        || numero == 92 || numero == 94) {
 
-    xDialogo = (int) (1390.0 / 1591.0 * juego.getWidth()) - 180;
+    xDialogo = (int) (1390.0 / 1591.0 * juego.getWidth()) - 230;
 
     yDialogo = (int) (500.0 / 989.0 * juego.getHeight())
-            - altoDialogo - 20;
+            - altoDialogo - 50;
 
-} else if  (numero == 92
-        || numero == 93
-        || numero == 94) {
-
-    // Mateo - Rama B
-    int mateoX =
-            (int) (1415.0 / 1591.0 * juego.getWidth());
-
-    int mateoY =
-            (int) (735.0 / 989.0 * juego.getHeight());
-
-    xDialogo =
-            mateoX - anchoDialogo / 2;
-
-    yDialogo =
-            mateoY - altoDialogo - 40;
 } else {
 
     xDialogo = (int) (1190.0 / 1591.0 * juego.getWidth()) - 45;
@@ -1818,6 +2119,8 @@ dialogoJuego.setVisible(true);
         e.printStackTrace();
     }
 }
+
+
  
  private boolean estaCercaDeDonaRosa() {
 
@@ -2877,6 +3180,7 @@ private boolean estaEnInteraccion(int x, int y) {
     ajustarImagenInicial(jLabel1, ancho, alto);
     ajustarImagenInicial(jLabel2, ancho, alto);
     ajustarImagenInicial(jLabel3, ancho, alto);
+    ajustarImagenInicial(jLabel4, ancho, alto);
 }
 
     private void ajustarImagenInicial(JLabel label, int ancho, int alto) {
@@ -3036,13 +3340,13 @@ private boolean estaEnInteraccion(int x, int y) {
         iniciojuego.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
         BTjugar.addActionListener(this::BTjugarActionPerformed);
-        iniciojuego.add(BTjugar, new org.netbeans.lib.awtextra.AbsoluteConstraints(610, 550, 410, 100));
+        iniciojuego.add(BTjugar, new org.netbeans.lib.awtextra.AbsoluteConstraints(600, 470, 420, 120));
 
         BTsalir.addActionListener(this::BTsalirActionPerformed);
-        iniciojuego.add(BTsalir, new org.netbeans.lib.awtextra.AbsoluteConstraints(610, 800, 410, 80));
+        iniciojuego.add(BTsalir, new org.netbeans.lib.awtextra.AbsoluteConstraints(590, 740, 440, 110));
 
         BTinst.addActionListener(this::BTinstActionPerformed);
-        iniciojuego.add(BTinst, new org.netbeans.lib.awtextra.AbsoluteConstraints(610, 670, 410, 100));
+        iniciojuego.add(BTinst, new org.netbeans.lib.awtextra.AbsoluteConstraints(600, 610, 420, 110));
 
         jLabel1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/imagenes/Inicio.png"))); // NOI18N
         iniciojuego.add(jLabel1, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, -1, -1));
@@ -3052,29 +3356,28 @@ private boolean estaEnInteraccion(int x, int y) {
         elegirroles.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
         BTvolver.addActionListener(this::BTvolverActionPerformed);
-        elegirroles.add(BTvolver, new org.netbeans.lib.awtextra.AbsoluteConstraints(40, 770, 210, 50));
+        elegirroles.add(BTvolver, new org.netbeans.lib.awtextra.AbsoluteConstraints(40, 880, 220, 70));
 
         BTcivil.addActionListener(this::BTcivilActionPerformed);
-        elegirroles.add(BTcivil, new org.netbeans.lib.awtextra.AbsoluteConstraints(930, 310, 210, 170));
+        elegirroles.add(BTcivil, new org.netbeans.lib.awtextra.AbsoluteConstraints(860, 350, 320, 330));
 
         jLabel2.setIcon(new javax.swing.ImageIcon(getClass().getResource("/imagenes/Roles.png"))); // NOI18N
         elegirroles.add(jLabel2, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 1591, 989));
-        jLabel2.getAccessibleContext().setAccessibleName("");
 
         Panel_cambiante.add(elegirroles, "roles");
 
         ponernombre.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
         BTvolver2.addActionListener(this::BTvolver2ActionPerformed);
-        ponernombre.add(BTvolver2, new org.netbeans.lib.awtextra.AbsoluteConstraints(50, 760, 210, 60));
+        ponernombre.add(BTvolver2, new org.netbeans.lib.awtextra.AbsoluteConstraints(50, 880, 210, 60));
 
         BTcontinuar.addActionListener(this::BTcontinuarActionPerformed);
-        ponernombre.add(BTcontinuar, new org.netbeans.lib.awtextra.AbsoluteConstraints(550, 340, 450, 80));
+        ponernombre.add(BTcontinuar, new org.netbeans.lib.awtextra.AbsoluteConstraints(570, 790, 450, 80));
 
         Digitarnombre.setFont(new java.awt.Font("Segoe UI", 2, 24)); // NOI18N
         Digitarnombre.setForeground(new java.awt.Color(124, 112, 88));
         Digitarnombre.addActionListener(this::DigitarnombreActionPerformed);
-        ponernombre.add(Digitarnombre, new org.netbeans.lib.awtextra.AbsoluteConstraints(550, 250, 510, 70));
+        ponernombre.add(Digitarnombre, new org.netbeans.lib.awtextra.AbsoluteConstraints(550, 630, 510, 70));
 
         jLabel3.setIcon(new javax.swing.ImageIcon(getClass().getResource("/imagenes/Nombre.png"))); // NOI18N
         ponernombre.add(jLabel3, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, -1, -1));
@@ -3097,7 +3400,7 @@ private boolean estaEnInteraccion(int x, int y) {
         instrucciones.setLayout(new org.netbeans.lib.awtextra.AbsoluteLayout());
 
         BTvolver3.addActionListener(this::BTvolver3ActionPerformed);
-        instrucciones.add(BTvolver3, new org.netbeans.lib.awtextra.AbsoluteConstraints(30, 750, 280, 90));
+        instrucciones.add(BTvolver3, new org.netbeans.lib.awtextra.AbsoluteConstraints(40, 860, 280, 90));
 
         jLabel4.setIcon(new javax.swing.ImageIcon(getClass().getResource("/imagenes/instrucciones.png"))); // NOI18N
         instrucciones.add(jLabel4, new org.netbeans.lib.awtextra.AbsoluteConstraints(0, 0, 1590, 990));
