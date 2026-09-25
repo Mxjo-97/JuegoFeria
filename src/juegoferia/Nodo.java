@@ -21,4 +21,17 @@ public class Nodo {
     public void agregarHijo(Nodo hijo) {
         this.hijos.add(hijo);
     }
+    
+    public Nodo buscarHijo(String opcion) {
+    for (Nodo hijo : hijos) {
+        if (hijo.id.endsWith("_" + opcion)) {
+            return hijo;
+        }
+    }
+    return null;
+}
+
+public boolean esHoja() {
+    return hijos.isEmpty();
+}
 }

@@ -36,12 +36,12 @@ public class ArbolPublicacion {
         raiz.agregarHijo(difundir);
         raiz.agregarHijo(reportar);
         raiz.agregarHijo(ignorar);
-
-        // --- Hojas de Verificar ---
+        
         Nodo verificarReportar = new Nodo("pub1_verificar_reportar", "hoja", "Reportar (ya verificado)");
         verificarReportar.efecto.agregar("confianza", 8);
         verificarReportar.efecto.agregar("informacionverificada", 5);
         verificarReportar.efecto.agregar("desinformacion", -3);
+        verificarReportar.coleccionable = new Coleccionable("El rumor del cierre del colegio", "educacion");  // ← NUEVA
 
         Nodo verificarIgnorar = new Nodo("pub1_verificar_ignorar", "hoja", "Tinto/calma (ya verificado)");
         verificarIgnorar.efecto.agregar("informacionverificada", 3);

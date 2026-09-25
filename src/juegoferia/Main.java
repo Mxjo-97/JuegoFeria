@@ -100,5 +100,6 @@ java.awt.EventQueue.invokeLater(() -> {
         System.out.println("Dias restantes ahora: " + partida.getDiasRestantes());
         System.out.println("¿Panaderia resuelta hoy (nuevo dia)?: " + partida.laIslaResuelta("Panaderia"));
         
+        System.out.println("-------------------------------------------------------------------------------");
     }
 }

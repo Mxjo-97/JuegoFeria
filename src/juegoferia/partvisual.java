@@ -39,19 +39,21 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     private boolean ramaBViral = false;
     private boolean consecuenciaRamaBActiva = false;
     private boolean publicacionFalsa = true;
-    private Nodo arbolEscena1;
+    private Nodo arbolActual;
     private EstadoJuego estadoJuego;
     private Nodo nodoActual;
     private boolean celularAbierto = false;
     private boolean twitterAbierto = false;
-        private boolean mensajesAbierto = false;
-            private boolean perfilAbierto = false;
-            private boolean situacionActiva = false;
-            private boolean panaderiaAbierta = false;
-            private boolean dentroPanaderia = false;
-private boolean posicionesBotonesGuardadas = false;
-private int posicionExteriorX;
-private int posicionExteriorY;
+    private boolean mensajesAbierto = false;
+    private boolean perfilAbierto = false;
+    private boolean situacionActiva = false;
+    private boolean panaderiaAbierta = false;
+    private boolean dentroPanaderia = false;
+    private boolean decisionEnCurso = false;
+    private boolean imagenTemporizadaActiva = false;
+    private boolean posicionesBotonesGuardadas = false;
+    private int posicionExteriorX;
+    private int posicionExteriorY;
     private int velocidad = 3;
     private BufferedImage mapaColisiones;
     private BufferedImage mapaInteracciones;
@@ -74,9 +76,9 @@ private int posicionExteriorY;
      this.setUndecorated(true);
     initComponents();
      
-    arbolEscena1 = ArbolPublicacion.construirArbolEscena1();
+    arbolActual = ArbolPublicacion.construirArbolEscena1();
     estadoJuego = new EstadoJuego();
-    nodoActual = arbolEscena1;
+    nodoActual = arbolActual;
         
         this.addKeyListener(this);
         this.setFocusable(true);
@@ -761,32 +763,30 @@ iconoPanico.addMouseListener(new java.awt.event.MouseAdapter() {
     @Override
     public void mouseClicked(java.awt.event.MouseEvent e) {
 
-        if (!abanicoOpcionesVisible) {
-
-            abanicoOpcionesVisible = true;
-
-            situacionMiniatura.setVisible(true);
-
-            opciones.setVisible(true);
-            
-            
-
-int mateoX = (int) (1415.0 / 1591.0 * juego.getWidth());
-int mateoY = (int) (735.0 / 989.0 * juego.getHeight());
-
-// Centrar el abanico respecto a Mateo
-int opcionesX = mateoX - opciones.getWidth() / 2 + 10;
-int opcionesY = mateoY - opciones.getHeight() / 2 - 175;
-
-opciones.setLocation(opcionesX, opcionesY);
-            
-            juego.setComponentZOrder(opciones, 0);
-            juego.setComponentZOrder(situacionMiniatura, 1);
-
-
-            juego.revalidate();
-            juego.repaint();
+        // Si ya se está eligiendo o ya se eligió, no se hace nada
+        if (decisionEnCurso || abanicoOpcionesVisible) {
+            return;
         }
+
+        abanicoOpcionesVisible = true;
+
+        situacionMiniatura.setVisible(true);
+        opciones.setVisible(true);
+
+        int mateoX = (int) (1415.0 / 1591.0 * juego.getWidth());
+        int mateoY = (int) (735.0 / 989.0 * juego.getHeight());
+
+
+        int opcionesX = mateoX - opciones.getWidth() / 2 - 30;
+        int opcionesY = mateoY - opciones.getHeight() / 2 - 175;
+
+        opciones.setLocation(opcionesX, opcionesY);
+
+        juego.setComponentZOrder(opciones, 0);
+        juego.setComponentZOrder(situacionMiniatura, 1);
+
+        juego.revalidate();
+        juego.repaint();
     }
 });
 
@@ -812,7 +812,7 @@ situacionMiniatura.setIcon(
 
 situacionMiniatura.setBounds(
         juego.getWidth() - 320,
-        20,
+        10,
         300,
         186
 );
@@ -828,8 +828,8 @@ ImageIcon iconoOriginal = new ImageIcon(
         getClass().getResource("/imagenes/dialogos/opciones.png")
 );
 
-int anchoOpciones = 270+50;
-int altoOpciones = 162+50;
+int anchoOpciones = 510;
+int altoOpciones = 306;
 
 java.awt.Image imagenOpcionesEscalada =
         iconoOriginal.getImage().getScaledInstance(
@@ -892,114 +892,89 @@ opcionesSecundarias.addMouseListener(new java.awt.event.MouseAdapter() {
         int ancho = opcionesSecundarias.getWidth();
         int alto = opcionesSecundarias.getHeight();
 
-      if (ramaBActiva) {
+      
+        if (ramaBActiva) {
 
-    if (x <= ancho * 0.50
-            && y >= alto * 0.45) {
+            if (x <= ancho * 0.50 && y >= alto * 0.45) {
 
-        System.out.println("Elegiste: SE VUELVE VIRAL");
+                System.out.println("Elegiste: SE VUELVE VIRAL");
 
-        seleccionarDecision("viral");
-        ramaBViral = true;
+                seleccionarDecision("viral");
+                ramaBViral = true;
 
-        opcionesSecundarias.setVisible(false);
+                // Se quita la situación, se conserva el pánico
+                cerrarSituacion(true);
 
-        dialogoActivo = true;
-        dialogoActual = 92;
-        mostrarDialogo(dialogoActual);
+                dialogoActivo = true;
+                dialogoActual = 92;
+                mostrarDialogo(dialogoActual);
 
-        juego.revalidate();
-        juego.repaint();
-        return;
+            } else if (x >= ancho * 0.50 && y >= alto * 0.45) {
 
-    } else if (x >= ancho * 0.50
-            && y >= alto * 0.45) {
+                System.out.println("Elegiste: NO SE VUELVE VIRAL");
 
-        System.out.println("Elegiste: NO SE VUELVE VIRAL");
+                seleccionarDecision("noviral");
+                ramaBViral = false;
 
-        seleccionarDecision("noviral");
-        ramaBViral = false;
+                // Se quita la situación, se conserva el pánico
+                cerrarSituacion(true);
 
-        opcionesSecundarias.setVisible(false);
+                dialogoActivo = true;
+                dialogoActual = 94;
+                mostrarDialogo(dialogoActual);
+            }
 
-        dialogoActivo = true;
-        dialogoActual = 94;
-        mostrarDialogo(dialogoActual);
+            return;
+        }
 
-        juego.revalidate();
-        juego.repaint();
-        return;
+   
+        if (x <= ancho * 0.50 && y >= alto * 0.55) {
+
+            System.out.println("Elegiste REPORTAR (verificado)");
+
+            seleccionarDecision("reportar");
+
+            ramaAActiva = true;
+
+            // Se quita la situación, se conserva el pánico
+            cerrarSituacion(true);
+
+            if (timerMovimiento != null) {
+                timerMovimiento.stop();
+            }
+
+            mostrarDialogoRamaAReportado();
+
+        } else if (x >= ancho * 0.50 && y >= alto * 0.55) {
+
+            System.out.println("Elegiste TINTO / CALMA (verificado)");
+
+            seleccionarDecision("ignorar");
+
+            // Se quita la situación Y el pánico
+            cerrarSituacion(false);
+
+            if (timerMovimiento != null) {
+                timerMovimiento.stop();
+            }
+
+            mostrarDialogoTintoCalma();
+        }
     }
-}
-        if (x <= ancho * 0.50
-                && y >= alto * 0.55) {
-
-            System.out.println("Elegiste REPORTAR");
-
-            opcionesSecundarias.setVisible(false);
-            abanicoOpcionesVisible = false;
-            situacionMiniatura.setVisible(false);
-
-
-            iconoPanico.setVisible(false);
-
-
-seleccionarDecision("reportar");
-
-ramaAActiva = true;
-
-if (timerMovimiento != null) {
-    timerMovimiento.stop();
-}
-
-System.out.println("ANTES DE MOSTRAR DIALOGO");
-
-mostrarDialogoRamaAReportado();
-    
-   System.out.println("DESPUES DE MOSTRAR DIALOGO");
-
-            juego.revalidate();
-            juego.repaint();
-
-        
-         } else if (x >= ancho * 0.50
-        && y >= alto * 0.55) {
-
-    System.out.println("Elegiste TINTO / CALMA");
-
-    // Avanzamos al nodo:
-    // pub1_verificar -> pub1_verificar_ignorar
-    seleccionarDecision("ignorar");
-
-    opcionesSecundarias.setVisible(false);
-    abanicoOpcionesVisible = false;
-    situacionMiniatura.setVisible(false);
-
-    // Quitamos el estado de pánico de Mateo
-    iconoPanico.setVisible(false);
-
-    // Detener movimiento mientras aparece el diálogo
-    if (timerMovimiento != null) {
-        timerMovimiento.stop();
-    }
-
-    mostrarDialogoTintoCalma();
-
-    juego.revalidate();
-    juego.repaint();
-    }
-}
-}
-);
+});
 
 juego.add(opciones);
 juego.setComponentZOrder(opciones, 0);
 
 opciones.addMouseListener(new java.awt.event.MouseAdapter() {
 
-    
     @Override
     public void mouseClicked(java.awt.event.MouseEvent e) {
+
+        // Si ya se tomó una decisión, ignorar más clics en el abanico
+        if (decisionEnCurso) {
+            return;
+        }
 
         int x = e.getX();
         int y = e.getY();
@@ -1012,116 +987,121 @@ opciones.addMouseListener(new java.awt.event.MouseAdapter() {
                 && x <= ancho * 0.75
                 && y <= alto * 0.35) {
 
+            System.out.println("Elegiste VERIFICAR");
+
+            decisionEnCurso = true;
+
+            // La situación sigue visible mientras se elige en el segundo menú
             seleccionarDecision("verificar");
+            
+            situacionMiniatura.setVisible(false);
 
-       
-} else if (x <= ancho * 0.45
-        && y >= alto * 0.30
-        && y <= alto * 0.65) {
 
-    System.out.println("Elegiste DIFUNDIR");
+        } else if (x <= ancho * 0.45
+                && y >= alto * 0.30
+                && y <= alto * 0.65) {
 
-    seleccionarDecision("difundir");
+            System.out.println("Elegiste DIFUNDIR");
 
-    ramaBActiva = true;
+            decisionEnCurso = true;
+            seleccionarDecision("difundir");
+            
+            situacionMiniatura.setVisible(false);
 
-    if (timerMovimiento != null) {
-        timerMovimiento.stop();
-    }
+            ramaBActiva = true;
 
-    situacionMiniatura.setVisible(false);
-    iconoPanico.setVisible(false);
+            if (timerMovimiento != null) {
+                timerMovimiento.stop();
+            }
 
-    abanicoOpcionesVisible = false;
+            abanicoOpcionesVisible = false;
 
-    ImageIcon imagenDifundir =
-            new ImageIcon(
-                    getClass().getResource(
-                            "/imagenes/dialogos/opcionesdifundir.png"
-                    )
+            ImageIcon imagenDifundir =
+                    new ImageIcon(
+                            getClass().getResource(
+                                    "/imagenes/dialogos/opcionesdifundir.png"
+                            )
+                    );
+
+            Image imagenDifundirEscalada =
+                    imagenDifundir.getImage().getScaledInstance(
+                            500,
+                            290,
+                            Image.SCALE_SMOOTH
+                    );
+
+            opcionesSecundarias.setIcon(
+                    new ImageIcon(imagenDifundirEscalada)
             );
 
-    Image imagenDifundirEscalada =
-            imagenDifundir.getImage().getScaledInstance(
-                    500,
-                    290,
-                    Image.SCALE_SMOOTH
+            opcionesSecundarias.setSize(500, 290);
+
+            opcionesSecundarias.setLocation(
+                    (juego.getWidth() - opcionesSecundarias.getWidth()) / 2,
+                    (juego.getHeight() - opcionesSecundarias.getHeight()) / 2
             );
 
-    opcionesSecundarias.setIcon(
-            new ImageIcon(imagenDifundirEscalada)
-    );
+            opcionesSecundarias.setVisible(true);
 
-    opcionesSecundarias.setSize(500, 290);
+            juego.setComponentZOrder(opcionesSecundarias, 0);
 
-    opcionesSecundarias.setLocation(
-            (juego.getWidth() - opcionesSecundarias.getWidth()) / 2,
-            (juego.getHeight() - opcionesSecundarias.getHeight()) / 2
-    );
+            juego.revalidate();
+            juego.repaint();
 
-    opcionesSecundarias.setVisible(true);
-
-    juego.setComponentZOrder(opcionesSecundarias, 0);
-
-    juego.revalidate();
-    juego.repaint();
     
-    
-     
-} else if (x >= ancho * 0.55
-        && y >= alto * 0.30
-        && y <= alto * 0.65) {
+        } else if (x >= ancho * 0.55
+                && y >= alto * 0.30
+                && y <= alto * 0.65) {
 
-    System.out.println("Elegiste REPORTAR");
+            System.out.println("Elegiste REPORTAR");
 
-   
-    seleccionarDecision("reportar");
+            decisionEnCurso = true;
 
-    ramaCActiva = true;
+            seleccionarDecision("reportar");
 
-    // Detener movimiento
-    if (timerMovimiento != null) {
-        timerMovimiento.stop();
-    }
+            ramaCActiva = true;
 
-    // Ocultar elementos de la decisión
-    situacionMiniatura.setVisible(false);
-    iconoPanico.setVisible(false);
+            if (timerMovimiento != null) {
+                timerMovimiento.stop();
+            }
 
-    // La publicación determina el resultado
-    if (publicacionFalsa) {
+            // Se quita la situación pero se conserva el pánico
+            cerrarSituacion(!publicacionFalsa);
 
-        // REPORTAR fue correcto
-        seleccionarDecision("acerto");
+            if (publicacionFalsa) {
 
-        mostrarConsecuenciaRamaC(true);
+                seleccionarDecision("acerto");
+                mostrarConsecuenciaRamaC(true);
 
-    } else {
+            } else {
 
-        // REPORTAR fue incorrecto
-        seleccionarDecision("equivoco");
+                seleccionarDecision("equivoco");
+                mostrarConsecuenciaRamaC(false);
+            }
 
-        mostrarConsecuenciaRamaC(false);
-    }
+            juego.revalidate();
+            juego.repaint();
 
-    juego.revalidate();
-    juego.repaint();
-    
-} 
-else if (y >= alto * 0.65) {
+        
+        } else if (y >= alto * 0.65) {
 
-    System.out.println("Elegiste TINTO / CALMA");
+            System.out.println("Elegiste TINTO / CALMA");
 
-    seleccionarDecision("ignorar");
+            decisionEnCurso = true;
 
-    ramaDActiva = true;
+            seleccionarDecision("ignorar");
 
-    if (timerMovimiento != null) {
-        timerMovimiento.stop();
-    }
+            // Se quita la situación Y el pánico
+            cerrarSituacion(false);
 
-    mostrarDialogoRamaD();
-}
+            ramaDActiva = true;
+
+            if (timerMovimiento != null) {
+                timerMovimiento.stop();
+            }
+
+            mostrarDialogoRamaD();
+        }
     }
 });
 
@@ -1172,7 +1152,7 @@ else if (y >= alto * 0.65) {
         BufferedImage original =
                 ImageIO.read(recurso);
 
-        // Buscar solamente la parte visible del PNG
+
         int minX = original.getWidth();
         int minY = original.getHeight();
         int maxX = -1;
@@ -1236,7 +1216,7 @@ else if (y >= alto * 0.65) {
                 (juego.getHeight() - alto) / 2;
 
         dialogoJuego.setLocation(x, y);
-
+        imagenTemporizadaActiva = true;
         dialogoJuego.setVisible(true);
 
         juego.setComponentZOrder(
@@ -1253,7 +1233,7 @@ else if (y >= alto * 0.65) {
                 new javax.swing.Timer(
                         2000,
                         e -> {
-
+                            imagenTemporizadaActiva = false;
                             dialogoJuego.setVisible(false);
 
                             // Aplicar el +3 de información verificada
@@ -1274,7 +1254,7 @@ else if (y >= alto * 0.65) {
                             estadoJuego.imprimirEstadoPartida();
 
                             // Mostrar coleccionable
-                            mostrarColeccionableRamaA();
+                            mostrarColeccionableDia1();
                         }
                 );
 
@@ -1392,77 +1372,33 @@ else if (y >= alto * 0.65) {
         e.printStackTrace();
     }
 }
-        
-    
-    private void seleccionarDecision(String decision) {
+      
+      private void seleccionarDecision(String decision) {
 
     if (nodoActual == null) {
         return;
     }
 
+    // Bajar por el arbol: buscar el hijo que corresponde a la opcion elegida
+    Nodo siguiente = nodoActual.buscarHijo(decision);
 
-    if (nodoActual == arbolEscena1) {
+    if (siguiente == null) {
+        System.out.println("La opcion '" + decision + "' no existe en " + nodoActual.id);
+        return;
+    }
 
-        if (decision.equals("verificar")) {
+    nodoActual = siguiente;
 
-            nodoActual = nodoActual.hijos.get(0);
-            
-            opcionesSecundarias.setLocation(
-            (juego.getWidth() - opcionesSecundarias.getWidth()) / 2,
-            (juego.getHeight() - opcionesSecundarias.getHeight()) / 2
-    );
-
-    opcionesSecundarias.setVisible(true);
-    juego.setComponentZOrder(opcionesSecundarias, 0);
-
-    juego.revalidate();
-    juego.repaint();
-
-        } else if (decision.equals("difundir")) {
-
-            nodoActual = nodoActual.hijos.get(1);
-
-        } else if (decision.equals("reportar")) {
-
-            nodoActual = nodoActual.hijos.get(2);
-
-        } else if (decision.equals("ignorar")) {
-
-            nodoActual = nodoActual.hijos.get(3);
-        }
-
-    } else if (nodoActual.id.equals("pub1_verificar")) {
-
-        if (decision.equals("reportar")) {
-
-            nodoActual = nodoActual.hijos.get(0);
-
-        } else if (decision.equals("ignorar")) {
-
-            nodoActual = nodoActual.hijos.get(1);
-        }
-
-    } else if (nodoActual.id.equals("pub1_difundir")) {
-
-        if (decision.equals("viral")) {
-
-            nodoActual = nodoActual.hijos.get(0);
-
-        } else if (decision.equals("noviral")) {
-
-            nodoActual = nodoActual.hijos.get(1);
-        }
-
-    } else if (nodoActual.id.equals("pub1_reportar")) {
-
-        if (decision.equals("acerto")) {
-
-            nodoActual = nodoActual.hijos.get(0);
-
-        } else if (decision.equals("equivoco")) {
-
-            nodoActual = nodoActual.hijos.get(1);
-        }
+    // Si "verificar" tiene sub-opciones, se muestra el segundo menu
+    if (decision.equals("verificar") && !nodoActual.esHoja()) {
+        opcionesSecundarias.setLocation(
+                (juego.getWidth() - opcionesSecundarias.getWidth()) / 2,
+                (juego.getHeight() - opcionesSecundarias.getHeight()) / 2
+        );
+        opcionesSecundarias.setVisible(true);
+        juego.setComponentZOrder(opcionesSecundarias, 0);
+        juego.revalidate();
+        juego.repaint();
     }
 
     System.out.println("Decisión elegida: " + decision);
@@ -1472,6 +1408,21 @@ else if (y >= alto * 0.65) {
     opciones.setVisible(false);
     abanicoOpcionesVisible = false;
 }
+    
+    
+    
+        private void cerrarSituacion(boolean conservarPanico) {
+
+        situacionMiniatura.setVisible(false);
+        opciones.setVisible(false);
+        opcionesSecundarias.setVisible(false);
+        abanicoOpcionesVisible = false;
+
+        iconoPanico.setVisible(conservarPanico);
+
+        juego.revalidate();
+        juego.repaint();
+    }
     
     
     private void prepararDialogos() {
@@ -1491,6 +1442,11 @@ else if (y >= alto * 0.65) {
             
             int x = e.getX();
             int y = e.getY();
+            
+            if (imagenTemporizadaActiva) {
+                return;
+            }
+            
 
             int ancho = dialogoJuego.getWidth();
             int alto = dialogoJuego.getHeight();
@@ -1530,7 +1486,7 @@ else if (y >= alto * 0.65) {
     estadoJuego.imprimirEstadoPartida();
 
 
-    mostrarColeccionableRamaA();
+    mostrarColeccionableDia1();
 
     return;
 }
@@ -1544,7 +1500,11 @@ else if (y >= alto * 0.65) {
         || dialogoActual == 92
         || dialogoActual == 94;
         
-boolean esPresentador =
+        boolean esCliente1 = dialogoActual ==100
+                || dialogoActual ==103;
+        
+                
+        boolean esPresentador =
         dialogoActual == 52
         || dialogoActual == 53
         || dialogoActual == 54
@@ -1592,13 +1552,18 @@ if (ramaBActiva) {
             x <= ancho * 0.28
             && y >= alto * 0.55;
 
+} else if (esCliente1) {
+    
+     clicEnPlay =
+            x <= ancho * 0.28
+            && y >= alto * 0.55;
+    
 } else {
 
     clicEnPlay =
             x >= ancho * 0.60
             && y >= alto * 0.40;
 }
-
 
 if (clicEnPlay) {
    
@@ -1681,7 +1646,7 @@ if (ramaBActiva) {
         estadoJuego.imprimirEstadoPartida();
 
 
-        mostrarColeccionableRamaA();
+        mostrarColeccionableDia1();
 
         return;
     }
@@ -1712,7 +1677,7 @@ if (ramaBActiva) {
             System.out.println("Confianza +5");
             System.out.println("Información verificada +2");
 
-            mostrarColeccionableRamaA();
+            mostrarColeccionableDia1();
 
         } else {
 
@@ -1740,7 +1705,7 @@ if (ramaBActiva) {
 
         estadoJuego.imprimirEstadoPartida();
 
-        mostrarColeccionableRamaA();
+        mostrarColeccionableDia1();
 
         return;
     }
@@ -1815,6 +1780,21 @@ if (ramaBActiva) {
     mostrarSituacion();
 }
     
+     else if (dialogoActual >= 100 && dialogoActual < 106) {
+
+    // Conversación final
+    dialogoActual++;
+    mostrarDialogo(dialogoActual);
+
+} else if (dialogoActual == 106) {
+
+    // Terminó la conversación final: aviso de fin de día
+    dialogoActivo = false;
+    dialogoJuego.setVisible(false);
+
+    mostrarFinDia7();
+}
+    
     } 
     
         }
@@ -1872,8 +1852,8 @@ if (ramaBActiva) {
                 (juego.getHeight() - alto) / 2;
 
         dialogoJuego.setLocation(x, y);
-
         dialogoJuego.setVisible(true);
+        imagenTemporizadaActiva = true;
 
         juego.setComponentZOrder(
                 dialogoJuego,
@@ -1887,7 +1867,9 @@ if (ramaBActiva) {
         new javax.swing.Timer(
                 2000,
                 e -> {
-
+                    
+                    imagenTemporizadaActiva = false;
+                    consecuenciaRamaBActiva = false;
                     dialogoJuego.setVisible(false);
 
                     // Aplicar los efectos de la decisión
@@ -1918,7 +1900,7 @@ if (ramaBActiva) {
                     estadoJuego.imprimirEstadoPartida();
 
                     
-                    mostrarColeccionableRamaA();
+                    mostrarColeccionableDia1();
                 }
         );
 
@@ -2001,8 +1983,17 @@ continuarRamaB.start();
     
 private void mostrarDialogo(int numero) {
 
-    String ruta = "/imagenes/dialogos/" + numero + ".png";
-
+    String ruta;
+    switch (numero) {
+        case 100: ruta = "/imagenes/dialogos/cliente1dialogo1.png"; break;
+        case 101: ruta = "/imagenes/dialogos/cliente2dialogo2.png"; break;
+        case 102: ruta = "/imagenes/dialogos/cliente2dialogo3.png"; break;
+        case 103: ruta = "/imagenes/dialogos/cliente1dialogo4.png"; break;
+        case 104: ruta = "/imagenes/dialogos/cliente2dialogo5.png"; break;
+        case 105: ruta = "/imagenes/dialogos/doñarosadialogo6.png"; break;
+        case 106: ruta = "/imagenes/dialogos/doñarosadialogo7.png"; break;
+        default: ruta = "/imagenes/dialogos/" + numero + ".png";
+    }
     java.net.URL recurso = getClass().getResource(ruta);
 
     if (recurso == null) {
@@ -2093,10 +2084,26 @@ numero == 57 || numero == 58 || numero == 59) {
         || numero == 61 || numero == 63
         || numero == 92 || numero == 94) {
 
-    xDialogo = (int) (1390.0 / 1591.0 * juego.getWidth()) - 230;
+    xDialogo = (int) (1390.0 / 1591.0 * juego.getWidth()) - 230 -60;
 
-    yDialogo = (int) (500.0 / 989.0 * juego.getHeight())
+        yDialogo = (int) (500.0 / 989.0 * juego.getHeight())
             - altoDialogo - 50;
+
+} else if (numero == 100 || numero == 103) {
+
+    // Cliente 1: señora del sombrero (izquierda)
+    xDialogo = (int) (60.0 / 1591.0 * juego.getWidth());
+
+    yDialogo = (int) (620.0 / 989.0 * juego.getHeight())
+            - altoDialogo;
+
+} else if (numero == 101 || numero == 102 || numero == 104) {
+
+    // Cliente 2: señor de corbata (centro)
+    xDialogo = (int) (718.0 / 1591.0 * juego.getWidth());
+
+    yDialogo = (int) (670.0 / 989.0 * juego.getHeight())
+            - altoDialogo;
 
 } else {
 
@@ -2111,6 +2118,11 @@ dialogoJuego.setLocation(xDialogo, yDialogo);
 dialogoJuego.setVisible(true);
 
         juego.setComponentZOrder(dialogoJuego, 0);
+        
+
+        if (iconoPanico != null && iconoPanico.isVisible()) {
+            juego.setComponentZOrder(iconoPanico, 0);
+        }
 
         juego.revalidate();
         juego.repaint();
@@ -2141,7 +2153,7 @@ dialogoJuego.setVisible(true);
             + personajeJuego.getHeight() / 2.0) * escalaY
     );
 
-    // Posición aproximada de Doña Rosa
+
     int donaRosaX = 1190;
     int donaRosaY = 250;
 
@@ -2168,7 +2180,7 @@ dialogoJuego.setVisible(true);
 
         BufferedImage original = ImageIO.read(recurso);
 
-        // Buscar solamente la parte visible del PNG
+        
         int minX = original.getWidth();
         int minY = original.getHeight();
         int maxX = -1;
@@ -2197,7 +2209,6 @@ dialogoJuego.setVisible(true);
                 maxY - minY + 1
         );
 
-        // MISMO TAMAÑO QUE DOÑA ROSA
         int anchoDialogo = 360;
 
         double proporcion =
@@ -2235,12 +2246,12 @@ dialogoJuego.setVisible(true);
         yDialogo
 );
 
-// Asegurarnos de que el diálogo esté dentro del juego
+
 if (dialogoJuego.getParent() != juego) {
     juego.add(dialogoJuego);
 }
 
-// Mostrar el diálogo por encima de los demás elementos
+
 dialogoJuego.setVisible(true);
 juego.setComponentZOrder(dialogoJuego, 0);
 
@@ -2260,16 +2271,17 @@ System.out.println("Visible: " + dialogoJuego.isVisible());
 }
  
  
- 
- 
- 
- 
- 
- 
- 
- 
- 
- private void mostrarColeccionableRamaA() {
+ private void mostrarColeccionableDia1() {
+     
+     // Solo se muestra si la hoja a la que llegó el jugador trae coleccionable
+    if (nodoActual == null || nodoActual.coleccionable == null) {
+        dialogoActivo = true;
+        dialogoActual = 100;
+        mostrarDialogo(dialogoActual);   // sigue directo a la conversación final
+        return;
+    }
+    
+    System.out.println("Coleccionable obtenido: " + nodoActual.coleccionable.nombre);
 
     String ruta =
             "/imagenes/dialogos/nuevocoleccionable.png";
@@ -2317,6 +2329,7 @@ System.out.println("Visible: " + dialogoJuego.isVisible());
 
         dialogoJuego.setLocation(x, y);
 
+        imagenTemporizadaActiva = true;
         dialogoJuego.setVisible(true);
 
         juego.setComponentZOrder(
@@ -2332,10 +2345,13 @@ System.out.println("Visible: " + dialogoJuego.isVisible());
                 new javax.swing.Timer(
                         2000,
                         e -> {
-
+                            
+                            imagenTemporizadaActiva = false;
                             dialogoJuego.setVisible(false);
-
-                            mostrarFinDia7();
+                            
+                            dialogoActivo= true;
+                            dialogoActual=100;
+                            mostrarDialogo(dialogoActual);
                         }
                 );
 
@@ -2351,7 +2367,7 @@ System.out.println("Visible: " + dialogoJuego.isVisible());
  private void mostrarFinDia7() {
 
     String ruta =
-            "/imagenes/dialogos/findia7.png";
+            "/imagenes/dialogos/dia1de7.png";
 
     java.net.URL recurso =
             getClass().getResource(ruta);
@@ -2405,7 +2421,8 @@ System.out.println("Visible: " + dialogoJuego.isVisible());
                 x,
                 y
         );
-
+        
+        imagenTemporizadaActiva = true;
         dialogoJuego.setVisible(true);
 
         juego.setComponentZOrder(
@@ -2425,9 +2442,11 @@ System.out.println("Visible: " + dialogoJuego.isVisible());
                 new javax.swing.Timer(
                         5000,
                         e -> {
-
+                            
+                            imagenTemporizadaActiva = false;
                             dialogoJuego.setVisible(false);
-
+                            dialogoActivo=true;
+                            dialogoActual= 100;
                             volverAlInicioDespuesDia7();
                         }
                 );
@@ -2474,15 +2493,16 @@ System.out.println("Visible: " + dialogoJuego.isVisible());
     abanicoOpcionesVisible = false;
     dialogoActivo = false;
     publicacionFalsa=true;
+    decisionEnCurso= false;
     
     ramaBActiva = false;
     ramaBViral = false;
     consecuenciaRamaBActiva = false;
     
     teclaW = false;
-teclaA = false;
-teclaS = false;
-teclaD = false;
+    teclaA = false;
+    teclaS = false;
+    teclaD = false;
 
 // Reiniciar estado de la panadería
 panaderiaAbierta = false;
@@ -2498,7 +2518,7 @@ perfilAbierto = false;
 situacionActiva = false;
 
 // Volver a la raíz del árbol
-nodoActual = arbolEscena1;
+nodoActual = arbolActual;
     
     
 
@@ -2530,7 +2550,8 @@ javax.swing.Timer timerConsecuenciaC =
         new javax.swing.Timer(
                 2000,
                 e -> {
-
+                    
+                    imagenTemporizadaActiva = false;
                     dialogoJuego.setVisible(false);
                     dialogoActivo = false;
                     ramaCActiva = false;
@@ -2551,12 +2572,14 @@ javax.swing.Timer timerConsecuenciaC =
                             && nodoActual.id.equals("pub1_reportar_acerto")) {
 
                         System.out.println("Reporte acertado.");
-                        mostrarColeccionableRamaA();
+                        mostrarColeccionableDia1();
 
                     } else {
 
                         System.out.println("Reporte erróneo.");
-                        mostrarFinDia7();
+                        dialogoActivo = true;
+                        dialogoActual = 100;
+                        mostrarDialogo(dialogoActual);
                     }
                 }
         );
@@ -2575,7 +2598,6 @@ timerConsecuenciaC.start();
 
         BufferedImage original = ImageIO.read(recurso);
 
-        // Buscar solamente la parte visible del PNG
         int minX = original.getWidth();
         int minY = original.getHeight();
         int maxX = -1;
@@ -2605,7 +2627,7 @@ timerConsecuenciaC.start();
                 maxY - minY + 1
         );
 
-        // Tamaño de la consecuencia
+
         int ancho = 500;
 
         double proporcion =
@@ -2628,14 +2650,14 @@ timerConsecuenciaC.start();
 
         dialogoJuego.setSize(ancho, alto);
 
-        // CENTRADO EN LA PANTALLA
+        // centrado en la pantalla
         int x = (juego.getWidth() - ancho) / 2;
         int y = (juego.getHeight() - alto) / 2;
 
         dialogoJuego.setLocation(x, y);
-
+        
+        imagenTemporizadaActiva = true;
         dialogoJuego.setVisible(true);
-
         juego.setComponentZOrder(dialogoJuego, 0);
 
         juego.revalidate();
@@ -3216,35 +3238,26 @@ private boolean estaEnInteraccion(int x, int y) {
 
     publicacionFalsa = true;
 
-    nodoActual = arbolEscena1;
+    nodoActual = arbolActual;
+    
+    decisionEnCurso = false;
 
     estadoJuego = new EstadoJuego();
-
-
 
     teclaW = false;
     teclaA = false;
     teclaS = false;
     teclaD = false;
 
-
-
     panaderiaAbierta = false;
     dentroPanaderia = false;
-
-
-
 
     celularAbierto = false;
     twitterAbierto = false;
     mensajesAbierto = false;
     perfilAbierto = false;
 
-
-
-
     situacionActiva = false;
-
 
     if (dialogoJuego != null) {
         dialogoJuego.setVisible(false);
