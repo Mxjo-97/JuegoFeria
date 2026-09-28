@@ -5,6 +5,7 @@ import java.awt.Image;
 import java.awt.Point;
 import java.awt.Toolkit;
 import java.net.URL;
+import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
@@ -27,7 +28,27 @@ public class Funciones {
                 return;
             }
 
-            AudioInputStream audioIn = AudioSystem.getAudioInputStream(sonidoURL);
+            AudioInputStream original = AudioSystem.getAudioInputStream(sonidoURL);
+AudioFormat base = original.getFormat();
+
+AudioInputStream audioIn = original;
+
+// Si el sonido no es WAV normal de 16 bits, se convierte para que Java lo pueda reproducir
+if (base.getEncoding() != AudioFormat.Encoding.PCM_SIGNED
+        || base.getSampleSizeInBits() != 16) {
+
+    AudioFormat destino = new AudioFormat(
+            AudioFormat.Encoding.PCM_SIGNED,
+            base.getSampleRate(),
+            16,
+            base.getChannels(),
+            base.getChannels() * 2,
+            base.getSampleRate(),
+            false
+    );
+
+    audioIn = AudioSystem.getAudioInputStream(destino, original);
+}
             Clip clip = AudioSystem.getClip();
             clip.open(audioIn);
 

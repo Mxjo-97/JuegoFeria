@@ -648,7 +648,8 @@ if (situacionActiva) {
             && y <= juego.getHeight() * 0.84;
 
     if (clicEnPlaySituacion) {
-
+        
+        Funciones.reproducirSonido("/sonidos/click.wav");
         situacionActiva = false;
 
         // Volver a mostrar el personaje
@@ -915,7 +916,7 @@ opcionesSecundarias.addMouseListener(new java.awt.event.MouseAdapter() {
             if (x <= ancho * 0.50 && y >= alto * 0.45) {
 
                 System.out.println("Elegiste: SE VUELVE VIRAL");
-
+                Funciones.reproducirSonido("/sonidos/click.wav");
                 seleccionarDecision("viral");
                 ramaBViral = true;
 
@@ -929,7 +930,7 @@ opcionesSecundarias.addMouseListener(new java.awt.event.MouseAdapter() {
             } else if (x >= ancho * 0.50 && y >= alto * 0.45) {
 
                 System.out.println("Elegiste: NO SE VUELVE VIRAL");
-
+                Funciones.reproducirSonido("/sonidos/click.wav");
                 seleccionarDecision("noviral");
                 ramaBViral = false;
 
@@ -948,7 +949,7 @@ opcionesSecundarias.addMouseListener(new java.awt.event.MouseAdapter() {
         if (x <= ancho * 0.50 && y >= alto * 0.55) {
 
             System.out.println("Elegiste REPORTAR (verificado)");
-
+            Funciones.reproducirSonido("/sonidos/click.wav");
             seleccionarDecision("reportar");
 
             ramaAActiva = true;
@@ -965,7 +966,7 @@ opcionesSecundarias.addMouseListener(new java.awt.event.MouseAdapter() {
         } else if (x >= ancho * 0.50 && y >= alto * 0.55) {
 
             System.out.println("Elegiste TINTO / CALMA (verificado)");
-
+            Funciones.reproducirSonido("/sonidos/click.wav");
             seleccionarDecision("ignorar");
 
             // Se quita la situación Y el pánico
@@ -1005,7 +1006,7 @@ opciones.addMouseListener(new java.awt.event.MouseAdapter() {
                 && y <= alto * 0.35) {
 
             System.out.println("Elegiste VERIFICAR");
-
+            Funciones.reproducirSonido("/sonidos/click.wav");
             decisionEnCurso = true;
 
             // La situación sigue visible mientras se elige en el segundo menú
@@ -1019,7 +1020,7 @@ opciones.addMouseListener(new java.awt.event.MouseAdapter() {
                 && y <= alto * 0.65) {
 
             System.out.println("Elegiste DIFUNDIR");
-
+            Funciones.reproducirSonido("/sonidos/click.wav");
             decisionEnCurso = true;
             seleccionarDecision("difundir");
             
@@ -1053,7 +1054,7 @@ opciones.addMouseListener(new java.awt.event.MouseAdapter() {
                 && y <= alto * 0.65) {
 
             System.out.println("Elegiste REPORTAR");
-
+            Funciones.reproducirSonido("/sonidos/click.wav");
             decisionEnCurso = true;
 
             seleccionarDecision("reportar");
@@ -1085,7 +1086,7 @@ opciones.addMouseListener(new java.awt.event.MouseAdapter() {
         } else if (y >= alto * 0.65) {
 
             System.out.println("Elegiste TINTO / CALMA");
-
+            Funciones.reproducirSonido("/sonidos/click.wav");
             decisionEnCurso = true;
 
             seleccionarDecision("ignorar");
@@ -1561,6 +1562,8 @@ if (ramaBActiva) {
 }
 
 if (clicEnPlay) {
+    
+    Funciones.reproducirSonido("/sonidos/click.wav");
    
 if (ramaBActiva) {
 
