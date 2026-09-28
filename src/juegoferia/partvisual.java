@@ -88,6 +88,19 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
         this.requestFocusInWindow();
         this.setExtendedState(JFrame.MAXIMIZED_BOTH);
         crearPantallasPorCodigo();
+        
+        
+           java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(evento -> {
+    if (evento.getID() == java.awt.event.MouseEvent.MOUSE_PRESSED
+            && evento.getSource() instanceof javax.swing.AbstractButton boton
+            && boton.isEnabled()
+            && boton.isShowing()) {
+        Funciones.reproducirSonido("/sonidos/click.wav");
+    }
+}, java.awt.AWTEvent.MOUSE_EVENT_MASK);
+        
+        
+        
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     }
 
@@ -774,6 +787,7 @@ iconoPanico.addMouseListener(new java.awt.event.MouseAdapter() {
         abanicoOpcionesVisible = true;
 
         situacionMiniatura.setVisible(true);
+                Funciones.reproducirSonido("/sonidos/sonidos.wav");
         opciones.setVisible(true);
 
         int mateoX = (int) (1415.0 / 1591.0 * juego.getWidth());
@@ -2014,7 +2028,9 @@ int xDialogo, yDialogo;
 
 if (
 numero == 57 || numero == 58 || numero == 59) {
-
+  if (numero == 57) {
+        Funciones.reproducirSonido("/sonidos/noticia.wav");
+    }
     xDialogo = (int) (750.0 / 1591.0 * juego.getWidth())
             - anchoDialogo / 2;
 
