@@ -5,6 +5,8 @@
 package juegoferia;
 
 import java.awt.CardLayout;
+import java.awt.Color;
+import java.awt.Font;
 import java.awt.Image;
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
@@ -15,6 +17,7 @@ import java.awt.event.KeyListener;
 import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import java.io.IOException;
+import javax.swing.SwingConstants;
 
 
 /**
@@ -43,6 +46,8 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     private Nodo arbolActual;
     private EstadoJuego estadoJuego;
     private Nodo nodoActual;
+    private String nombreJugador = "";
+    private JLabel nombrePerfilJuego;
     private boolean celularAbierto = false;
     private boolean twitterAbierto = false;
     private boolean mensajesAbierto = false;
@@ -299,8 +304,8 @@ Digitarnombre.setFont(
 
         return;
     }
+    nombreJugador = nombre; 
 
-    // Guardamos el nombre
     System.out.println("Nombre del jugador: " + nombre);
 
     card.show(Panel_cambiante, "juego");
@@ -733,6 +738,24 @@ if (celularAbierto && estarperfil(x, y)) {
         );
 
         juego.add(fondoJuego);
+        nombrePerfilJuego = new JLabel();
+nombrePerfilJuego.setHorizontalAlignment(SwingConstants.CENTER);
+nombrePerfilJuego.setVerticalAlignment(SwingConstants.CENTER);
+
+nombrePerfilJuego.setFont(new Font("Arial", Font.BOLD, 22));
+nombrePerfilJuego.setForeground(new Color(70, 70, 100));
+
+nombrePerfilJuego.setBounds(
+        (int)(35.0 / 1591.0 * juego.getWidth()),
+        (int)(770.0 / 989.0 * juego.getHeight()),
+        (int)(210.0 / 1591.0 * juego.getWidth()),
+        (int)(45.0 / 989.0 * juego.getHeight())
+);
+
+nombrePerfilJuego.setVisible(false);
+
+juego.add(nombrePerfilJuego);
+juego.setComponentZOrder(nombrePerfilJuego, 0);
 
         ImageIcon iconoPersonaje = new ImageIcon(
                 getClass().getResource("/imagenes/personajecivil.png")
@@ -2950,6 +2973,7 @@ private void actualizarImagenCelular() {
             cambiarFondoJuego("/imagenes/exteriorsin.png");
         }
     }
+    actualizarNombrePerfil();
 }
 private boolean estaEnInteraccion(int x, int y) {
 
@@ -3081,6 +3105,28 @@ private boolean estaEnInteraccion(int x, int y) {
         fondoJuego.setIcon(new ImageIcon(imagenEscalada));
     }
 
+    private void actualizarNombrePerfil() {
+
+     if (nombrePerfilJuego == null) {
+        return;
+    }
+
+    if (perfilAbierto) {
+
+        nombrePerfilJuego.setText(nombreJugador);
+        nombrePerfilJuego.setVisible(true);
+        nombrePerfilJuego.setOpaque(false);
+
+        juego.setComponentZOrder(nombrePerfilJuego, 0);
+
+    } else {
+
+        nombrePerfilJuego.setVisible(false);
+    }
+
+    juego.revalidate();
+    juego.repaint();
+}
     public void prepararPantallas() {
 
     java.awt.Dimension pantalla =
@@ -3311,25 +3357,51 @@ private void volverAlInicio() {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
-    private void BTjugarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTjugarActionPerformed
+    private void BTvolver3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTvolver3ActionPerformed
+        card = (CardLayout) this.Panel_cambiante.getLayout();
+        card.show(Panel_cambiante, "inicio");
+    }//GEN-LAST:event_BTvolver3ActionPerformed
+
+    private void DigitarnombreActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_DigitarnombreActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_DigitarnombreActionPerformed
+
+    private void BTcontinuarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTcontinuarActionPerformed
+        card = (CardLayout) this.Panel_cambiante.getLayout();
+        card.show(Panel_cambiante, "juego");
+
+        // Preparar el juego solamente la primera vez
+        if (!juegoPreparado) {
+
+            prepararJuego();
+            prepararDialogos();
+
+            juegoPreparado = true;
+
+        } else {
+
+            // Si ya había una partida anterior,
+            // simplemente reiniciamos su estado
+            reiniciarPartida();
+        }
+
+        juego.setFocusable(true);
+        juego.requestFocusInWindow();
+
+        if (timerMovimiento != null) {
+            timerMovimiento.start();
+        }
+
+        System.out.println("NUEVA PARTIDA INICIADA");
+    }//GEN-LAST:event_BTcontinuarActionPerformed
+
+    private void BTvolver2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTvolver2ActionPerformed
         card = (CardLayout) this.Panel_cambiante.getLayout();
         card.show(Panel_cambiante, "roles");
         SwingUtilities.invokeLater(() -> {
             ajustarImagen(jLabel2);
         });
-    }//GEN-LAST:event_BTjugarActionPerformed
-
-    private void BTinstActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTinstActionPerformed
-        card = (CardLayout) this.Panel_cambiante.getLayout();
-        card.show(Panel_cambiante, "inst");
-        SwingUtilities.invokeLater(() -> {
-            ajustarImagen(jLabel4);
-        });
-    }//GEN-LAST:event_BTinstActionPerformed
-
-    private void BTsalirActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTsalirActionPerformed
-        System.exit(0);
-    }//GEN-LAST:event_BTsalirActionPerformed
+    }//GEN-LAST:event_BTvolver2ActionPerformed
 
     private void BTvolverActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTvolverActionPerformed
         card = (CardLayout) this.Panel_cambiante.getLayout();
@@ -3341,51 +3413,25 @@ private void volverAlInicio() {
         card.show(Panel_cambiante, "nombre");
     }//GEN-LAST:event_BTcivilActionPerformed
 
-    private void DigitarnombreActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_DigitarnombreActionPerformed
-        // TODO add your handling code here:
-    }//GEN-LAST:event_DigitarnombreActionPerformed
+    private void BTsalirActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTsalirActionPerformed
+        System.exit(0);
+    }//GEN-LAST:event_BTsalirActionPerformed
 
-    private void BTvolver2ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTvolver2ActionPerformed
+    private void BTinstActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTinstActionPerformed
+        card = (CardLayout) this.Panel_cambiante.getLayout();
+        card.show(Panel_cambiante, "inst");
+        SwingUtilities.invokeLater(() -> {
+            ajustarImagen(jLabel4);
+        });
+    }//GEN-LAST:event_BTinstActionPerformed
+
+    private void BTjugarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTjugarActionPerformed
         card = (CardLayout) this.Panel_cambiante.getLayout();
         card.show(Panel_cambiante, "roles");
         SwingUtilities.invokeLater(() -> {
             ajustarImagen(jLabel2);
         });
-    }//GEN-LAST:event_BTvolver2ActionPerformed
-
-    private void BTcontinuarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTcontinuarActionPerformed
-     card = (CardLayout) this.Panel_cambiante.getLayout();
-    card.show(Panel_cambiante, "juego");
-
-    // Preparar el juego solamente la primera vez
-    if (!juegoPreparado) {
-
-        prepararJuego();
-        prepararDialogos();
-
-        juegoPreparado = true;
-
-    } else {
-
-        // Si ya había una partida anterior,
-        // simplemente reiniciamos su estado
-        reiniciarPartida();
-    }
-
-    juego.setFocusable(true);
-    juego.requestFocusInWindow();
-
-    if (timerMovimiento != null) {
-        timerMovimiento.start();
-    }
-
-    System.out.println("NUEVA PARTIDA INICIADA");
-    }//GEN-LAST:event_BTcontinuarActionPerformed
-
-    private void BTvolver3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTvolver3ActionPerformed
-        card = (CardLayout) this.Panel_cambiante.getLayout();
-        card.show(Panel_cambiante, "inicio");
-    }//GEN-LAST:event_BTvolver3ActionPerformed
+    }//GEN-LAST:event_BTjugarActionPerformed
 
     /**
      * @param args the command line arguments
