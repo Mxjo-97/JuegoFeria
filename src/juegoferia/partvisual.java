@@ -18,7 +18,8 @@ import java.awt.image.BufferedImage;
 import javax.imageio.ImageIO;
 import java.io.IOException;
 import javax.swing.SwingConstants;
-
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  *
@@ -316,7 +317,7 @@ Digitarnombre.setFont(
         prepararDialogos();
 
         juegoPreparado = true;
-
+        conectarRed();
     } else {
 
         reiniciarPartida();
@@ -2605,6 +2606,12 @@ timerConsecuenciaC.start();
                 return;
             }
             
+            enviarPosicion();   
+
+if (dialogoActivo) {
+    return;
+}
+            
             if (dialogoActivo) {
                 return;
             }
@@ -2761,6 +2768,7 @@ timerConsecuenciaC.start();
     );
 
     actualizarImagenExterior();
+    refrescarTodosLosRemotos();
 }
     private boolean puedeMoverse(int x, int y) {
 
@@ -2870,7 +2878,9 @@ posicionExteriorY = personajeJuego.getY();
     personajeJuego.setLocation(nuevoX, nuevoY);
 
     cambiarFondoJuego("/imagenes/panaderiasin.png");
-}
+    refrescarTodosLosRemotos();
+
+    }
 
     private void actualizarImagenExterior() {
 
@@ -3161,6 +3171,217 @@ private boolean estaEnInteraccion(int x, int y) {
         label.setIcon(new ImageIcon(imagenEscalada));
     }
     
+    
+    
+    
+    
+    
+    
+    
+    // ===================== MULTIJUGADOR =====================
+private static class JugadorRemoto {
+    String nombre;
+    int x = 5000, y = 5000;
+    String escena = "EXT";
+    JLabel etiqueta = new JLabel();
+}
+
+private ClienteRed red;
+private final Map<Integer, JugadorRemoto> otrosJugadores = new HashMap<>();
+private ImageIcon iconoRemotoExterior;
+private ImageIcon iconoRemotoPanaderia;
+private long ultimoEnvio = 0;
+private int ultimoXEnviado = -1;
+private int ultimoYEnviado = -1;
+private String ultimaEscenaEnviada = "";
+
+private String escenaActual() {
+    return dentroPanaderia ? "PAN" : "EXT";
+}
+
+private void conectarRed() {
+    
+    
+      System.out.println(">>> conectarRed() se llamó");   // <-- de prueba
+    String ip = javax.swing.JOptionPane.showInputDialog(
+            this, "IP del servidor (déjalo vacío para jugar solo):");
+
+    if (ip == null || ip.trim().isEmpty()) {
+        return;
+    }
+
+    red = new ClienteRed(new ClienteRed.Escucha() {
+        @Override
+        public void jugadorEntra(int id, String nombre) {
+            agregarRemoto(id, nombre);
+        }
+
+        @Override
+        public void jugadorMueve(int id, int x, int y, String escena) {
+            moverRemoto(id, x, y, escena);
+        }
+
+        @Override
+        public void jugadorSale(int id) {
+            quitarRemoto(id);
+        }
+
+        @Override
+        public void desconectado() {
+            quitarTodosLosRemotos();
+        }
+    });
+
+    if (!red.conectar(ip.trim(), 5000, nombreJugador)) {
+        red = null;
+        javax.swing.JOptionPane.showMessageDialog(
+                this, "No se pudo conectar. Jugarás solo.");
+    }
+}
+
+private void enviarPosicion() {
+    if (red == null || personajeJuego == null
+            || juego.getWidth() <= 0 || juego.getHeight() <= 0) {
+        return;
+    }
+
+    int nx = personajeJuego.getX() * 10000 / juego.getWidth();
+    int ny = personajeJuego.getY() * 10000 / juego.getHeight();
+    String escena = escenaActual();
+
+    // Solo se envía si algo cambió, y máximo cada 50 ms
+    if (nx == ultimoXEnviado && ny == ultimoYEnviado
+            && escena.equals(ultimaEscenaEnviada)) {
+        return;
+    }
+
+    long ahora = System.currentTimeMillis();
+    if (ahora - ultimoEnvio < 50) {
+        return;
+    }
+
+    ultimoEnvio = ahora;
+    ultimoXEnviado = nx;
+    ultimoYEnviado = ny;
+    ultimaEscenaEnviada = escena;
+
+    red.enviarPosicion(nx, ny, escena);
+}
+
+private void agregarRemoto(int id, String nombre) {
+    if (otrosJugadores.containsKey(id)) {
+        return;
+    }
+
+    JugadorRemoto r = new JugadorRemoto();
+    r.nombre = nombre;
+
+    r.etiqueta.setText(nombre);
+    r.etiqueta.setHorizontalTextPosition(SwingConstants.CENTER);
+    r.etiqueta.setVerticalTextPosition(SwingConstants.TOP);
+    r.etiqueta.setFont(new Font("Arial", Font.BOLD, 14));
+    r.etiqueta.setForeground(Color.WHITE);
+    r.etiqueta.setVisible(false);
+
+    otrosJugadores.put(id, r);
+    juego.add(r.etiqueta);
+
+    // Justo detrás de tu personaje y delante del fondo
+    juego.setComponentZOrder(
+            r.etiqueta,
+            juego.getComponentZOrder(personajeJuego) + 1
+    );
+
+    refrescarRemoto(r);
+}
+
+private void moverRemoto(int id, int x, int y, String escena) {
+    JugadorRemoto r = otrosJugadores.get(id);
+    if (r == null) {
+        return;
+    }
+    r.x = x;
+    r.y = y;
+    r.escena = escena;
+    refrescarRemoto(r);
+}
+
+private void quitarRemoto(int id) {
+    JugadorRemoto r = otrosJugadores.remove(id);
+    if (r != null) {
+        juego.remove(r.etiqueta);
+        juego.repaint();
+    }
+}
+
+private void quitarTodosLosRemotos() {
+    for (JugadorRemoto r : otrosJugadores.values()) {
+        juego.remove(r.etiqueta);
+    }
+    otrosJugadores.clear();
+    juego.repaint();
+}
+
+private void refrescarTodosLosRemotos() {
+    for (JugadorRemoto r : otrosJugadores.values()) {
+        refrescarRemoto(r);
+    }
+}
+
+private void refrescarRemoto(JugadorRemoto r) {
+    if (juego.getWidth() <= 0 || juego.getHeight() <= 0) {
+        return;
+    }
+
+    // Solo lo ves si está en tu misma escena (calle o panadería)
+    boolean mismaEscena = r.escena.equals(escenaActual());
+    r.etiqueta.setVisible(mismaEscena);
+
+    if (!mismaEscena) {
+        return;
+    }
+
+    // Los íconos se crean una sola vez (escalar cada vez sería lentísimo)
+    if (iconoRemotoExterior == null) {
+        Image base = new ImageIcon(
+                getClass().getResource("/imagenes/personajecivil.png")).getImage();
+        iconoRemotoExterior = new ImageIcon(
+                base.getScaledInstance(140, 170, Image.SCALE_SMOOTH));
+        iconoRemotoPanaderia = new ImageIcon(
+                base.getScaledInstance(180, 216, Image.SCALE_SMOOTH));
+    }
+
+    int anchoSprite = dentroPanaderia ? 180 : 140;
+    int altoSprite = dentroPanaderia ? 216 : 170;
+
+    r.etiqueta.setIcon(dentroPanaderia ? iconoRemotoPanaderia : iconoRemotoExterior);
+    r.etiqueta.setSize(r.etiqueta.getPreferredSize());
+
+    int px = r.x * juego.getWidth() / 10000;
+    int py = r.y * juego.getHeight() / 10000;
+
+    // El sprite queda en (px, py); el nombre sobresale por arriba
+    r.etiqueta.setLocation(
+            px - (r.etiqueta.getWidth() - anchoSprite) / 2,
+            py - (r.etiqueta.getHeight() - altoSprite)
+    );
+}
+// =================== FIN MULTIJUGADOR ===================
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     private void reiniciarPartida() {
 
     idPartida++; // invalida TODOS los timers pendientes
@@ -3229,6 +3450,7 @@ private boolean estaEnInteraccion(int x, int y) {
 
     juego.revalidate();
     juego.repaint();
+    refrescarTodosLosRemotos();
 }
 
 // Sirve tanto para el fin del día como para salir a mitad de partida
@@ -3371,19 +3593,16 @@ private void volverAlInicio() {
         card.show(Panel_cambiante, "juego");
 
         // Preparar el juego solamente la primera vez
-        if (!juegoPreparado) {
+     if (!juegoPreparado) {
 
-            prepararJuego();
-            prepararDialogos();
+    prepararJuego();
+    prepararDialogos();
 
-            juegoPreparado = true;
-
-        } else {
-
-            // Si ya había una partida anterior,
-            // simplemente reiniciamos su estado
-            reiniciarPartida();
-        }
+    juegoPreparado = true;
+    conectarRed();       
+} else {
+    reiniciarPartida();
+}
 
         juego.setFocusable(true);
         juego.requestFocusInWindow();
