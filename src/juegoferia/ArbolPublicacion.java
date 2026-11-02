@@ -8,15 +8,15 @@ public class ArbolPublicacion {
 
     public static void insertarSubArbol(String isla, Nodo nuevaRaiz) {
         raicesActivas.put(isla, nuevaRaiz);
-        System.out.println("Se inserto una nueva publicacion en: " + isla);
+        System.out.println("Se insertó una nueva publicación en: " + isla);
     }
 
     public static void eliminarSubArbol(String isla) {
         if (raicesActivas.containsKey(isla)) {
             raicesActivas.remove(isla);
-            System.out.println("Se elimino la publicacion activa de: " + isla);
+            System.out.println("Se eliminó la publicación activa de: " + isla);
         } else {
-            System.out.println("No habia ninguna publicacion activa en: " + isla);
+            System.out.println("No había ninguna publicación activa en: " + isla);
         }
         
     }
@@ -24,7 +24,7 @@ public class ArbolPublicacion {
 
     public static Nodo construirArbolEscena1() {
 
-        // -- Raíz y sus 4 hijos directos --
+        // raíz y sus 4 hijos directos
         Nodo raiz = new Nodo("pub1_raiz", "decision", "El candidato Juan quiere cerrar el colegio");
         Nodo verificar = new Nodo("pub1_verificar", "decision", "Verificar");
         Nodo difundir  = new Nodo("pub1_difundir", "decision", "Difundir");
@@ -36,20 +36,20 @@ public class ArbolPublicacion {
         raiz.agregarHijo(difundir);
         raiz.agregarHijo(reportar);
         raiz.agregarHijo(ignorar);
-        
+
+        // hojas de Verificar
         Nodo verificarReportar = new Nodo("pub1_verificar_reportar", "hoja", "Reportar (ya verificado)");
         verificarReportar.efecto.agregar("confianza", 8);
-        verificarReportar.efecto.agregar("informacionverificada", 5);
+        verificarReportar.efecto.agregar("info_verificada", 5);
         verificarReportar.efecto.agregar("desinformacion", -3);
-        verificarReportar.coleccionable = new Coleccionable("El rumor del cierre del colegio", "educacion");  // ← NUEVA
 
         Nodo verificarIgnorar = new Nodo("pub1_verificar_ignorar", "hoja", "Tinto/calma (ya verificado)");
-        verificarIgnorar.efecto.agregar("informacionverificada", 3);
+        verificarIgnorar.efecto.agregar("info_verificada", 3);
 
         verificar.agregarHijo(verificarReportar);
         verificar.agregarHijo(verificarIgnorar);
 
-        // --- Hojas de Difundir ---
+        // hojas de Difundir
         Nodo difundirViral = new Nodo("pub1_difundir_viral", "hoja", "Se vuelve viral");
         difundirViral.efecto.agregar("desinformacion", 12);
         difundirViral.efecto.agregar("confianza", -6);
@@ -61,19 +61,19 @@ public class ArbolPublicacion {
         difundir.agregarHijo(difundirViral);
         difundir.agregarHijo(difundirNoViral);
 
-        // --- Hojas de Reportar ---
-        Nodo reportarAcerto = new Nodo("pub1_reportar_acerto", "hoja", "Acerto");
+        // hojas de reportar
+        Nodo reportarAcerto = new Nodo("pub1_reportar_acerto", "hoja", "Acertó");
         reportarAcerto.efecto.agregar("confianza", 5);
-        reportarAcerto.efecto.agregar("informacionverificada", 2);
+        reportarAcerto.efecto.agregar("info_verificada", 2);
         reportarAcerto.coleccionable = new Coleccionable("El rumor del cierre del colegio", "educacion");
 
-        Nodo reportarSeEquivoco = new Nodo("pub1_reportar_equivoco", "hoja", "Se equivoco");
-        reportarSeEquivoco.efecto.agregar("reputacionjugador", -4);
+        Nodo reportarSeEquivoco = new Nodo("pub1_reportar_equivoco", "hoja", "Se equivocó");
+        reportarSeEquivoco.efecto.agregar("reputacion_jugador", -4);
 
         reportar.agregarHijo(reportarAcerto);
         reportar.agregarHijo(reportarSeEquivoco);
 
-        // --- Se devuelve la raíz, con todo el árbol abajo de ella ---
+        // Se devuelve la raíz, con todo el árbol abajo de ella 
         return raiz;
     }
 
@@ -82,10 +82,13 @@ public class ArbolPublicacion {
 
     Nodo verificar = new Nodo("pub2_verificar", "decision", "Verificar");
     Nodo difundir = new Nodo("pub2_difundir", "hoja", "Difundir sin verificar");
-    difundir.efecto.agregar("confianza", -2);
+    // "mismo efecto positivo, pero con riesgo aleatorio: -2 confianza"
+    // Se elige una de las dos al azar (50/50) cada vez que se aplica.
+    difundir.efecto.agregarAlternativa(new Efecto().agregar("confianza", 6).agregar("convivencia", 4));
+    difundir.efecto.agregarAlternativa(new Efecto().agregar("confianza", -2));
 
     Nodo reportar = new Nodo("pub2_reportar", "hoja", "Reportar");
-    reportar.efecto.agregar("reputacionjugador", -4);
+    reportar.efecto.agregar("reputacion_jugador", -4);
 
     Nodo ignorar = new Nodo("pub2_ignorar", "hoja", "Tinto/calma");
     ignorar.efecto.agregar("neutro", 0);
@@ -115,10 +118,12 @@ public static Nodo construirArbolEscena3() {
     verificar.efecto.agregar("convivencia", 2);
 
     Nodo difundir = new Nodo("pub3_difundir", "hoja", "Difundir (genera debate)");
-    difundir.efecto.agregar("conflictos", 3); // valor aleatorio ±3, aquí fijo como placeholder
+    // Guion: +-3 conflictos al azar (pleito de comentarios o discusion sana).
+    difundir.efecto.agregarAlternativa(new Efecto().agregar("conflictos", 3));
+    difundir.efecto.agregarAlternativa(new Efecto().agregar("conflictos", -3));
 
     Nodo reportar = new Nodo("pub3_reportar", "hoja", "Reportar (censura)");
-    reportar.efecto.agregar("reputacionjugador", -3);
+    reportar.efecto.agregar("reputacion_jugador", -3);
 
     Nodo ignorar = new Nodo("pub3_ignorar", "hoja", "Tinto/calma");
     ignorar.efecto.agregar("neutro", 0);
@@ -134,9 +139,9 @@ public static Nodo construirArbolEscena3() {
 public static Nodo construirArbolEscena4() {
     Nodo raiz = construirArbolEscena1();
     raiz.id = "pub4_raiz";
-    raiz.descripcion = "INFORMACION VIRAL: el rumor del colegio se está compartiendo (10 segundos)";
+    raiz.descripcion = "INFORMACIÓN VIRAL: el rumor del colegio se está compartiendo (10 segundos)";
 
-    Nodo tiempoAgotado = new Nodo("pub4_tiempo_agotado", "hoja", "Tiempo agotado (no eligio)");
+    Nodo tiempoAgotado = new Nodo("pub4_tiempo_agotado", "hoja", "Tiempo agotado (no eligió)");
     tiempoAgotado.efecto.agregar("desinformacion", 7);
 
     raiz.agregarHijo(tiempoAgotado);
