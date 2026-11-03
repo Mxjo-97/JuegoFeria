@@ -38,7 +38,7 @@ public class PantallaJuego extends JPanel {
     public static double ESCALA_TIEMPO = 1.0;
 
     /** Zona fija de dialogos, en coordenadas de diseno 1591 x 989. Ajustala a tu gusto. */
-public static final Rectangle ZONA_DIALOGO = new Rectangle(250, 50, 1091, 250);
+public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
 
     private static final Rectangle RECT_TITULO_MENU = new Rectangle(395, 200, 800, 130);
     private static final Color CREMA = new Color(255, 236, 208);

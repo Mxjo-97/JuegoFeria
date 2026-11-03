@@ -22,7 +22,7 @@ public class GuionCiudadano {
 
     // Duraciones (ms) de las imagenes que pasan solas. Cambialas aqui.
     private static final int T_TARJETA = 2500;   // pantallas negras con texto
-    private static final int T_IMAGEN = 3500;    // imagenes de escena sin dialogo
+    private static final int T_IMAGEN =  1500;    // imagenes de escena sin dialogo
 
     /** Dev: true = salta las escenas no jugables y entra directo a la parte jugable (para probar rapido). */
     public static boolean SALTAR_ESCENAS = false;
@@ -55,18 +55,18 @@ public class GuionCiudadano {
 
         e.fondo("hace_tres_semanas.png", T_TARJETA);   // tarjeta negra
         e.fondo("playa_noche.png", T_IMAGEN);       // playa de noche, la chica con el celular
-        e.dialogo("151.png");
-        e.dialogo("152.png");
         e.dialogo("153.png");
-        e.fondo("playa_melquiades.png", T_IMAGEN);     // aparece el viejo vendedor
         e.dialogo("154.png");
         e.dialogo("155.png");
+        e.fondo("playa_melquiades.png", T_IMAGEN);     // aparece el viejo vendedor
         e.dialogo("156.png");
+        e.dialogo("157.png");
+        e.dialogo("158.png");
    
 
         e.fondo("actualmente.png", T_TARJETA);         // tarjeta negra
         e.fondo("plaza.png", T_IMAGEN);                // la plaza, dos hombres con el celular
-        // e.dialogos("tu_png_3.png");                  // <- tus dialogos de la plaza, en orden
+        e.dialogos("159.png");                  // <- tus dialogos de la plaza, en orden
 
         return e;
     }
@@ -77,9 +77,22 @@ public class GuionCiudadano {
     public static Escena escena0() {
         Escena e = new Escena("ciudadano/prologo");
 
-        e.fondo("casa.png");
-        // e.dialogos("tu_png_1.png", "tu_png_2.png", ...);   // <- tus dialogos, en el orden del guion
-
+        e.fondo("dormido.png",T_IMAGEN);
+        e.dialogos("196.png");
+        e.dialogos("197.png");
+        e.dialogos("198.png");
+        e.dialogos("199.png");
+        e.fondo("mensajedevoz.png",T_IMAGEN);
+        e.dialogos("205.png");
+        e.dialogos("206.png");
+        e.dialogos("207.png");
+        e.fondo("casa.png",T_IMAGEN);
+        e.dialogos("200.png");
+        e.dialogos("201.png");
+        e.dialogos("202.png");
+        e.dialogos("203.png");
+        e.dialogos("204.png");
+        e.fondo("gopanaderia.png", T_TARJETA);
         return e;
     }
 }
