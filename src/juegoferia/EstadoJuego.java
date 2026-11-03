@@ -22,6 +22,7 @@ public class EstadoJuego {
     public static final String CONVIVENCIA = "convivencia";
     public static final String REPUTACION = "reputacion_jugador";
 
+    
     private static final int MINIMO = 0;
     private static final int MAXIMO = 100;
     private static final int INICIAL_CON_BASE = 50;   // confianza, convivencia y reputación

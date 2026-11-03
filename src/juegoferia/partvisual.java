@@ -74,6 +74,9 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     private static final String IMAGENOPCIONESDIFUNDIR = "/imagenes/dialogos/opcionesdifundir.png";
     private JLabel dialogoJuego;
     private boolean juegoPreparado = false;
+    // Escenas no jugables (cinematicas) del motor de escenas: Escena / Paso / MotorGuion / PantallaJuego
+    private PantallaJuego pantallaEscenas;
+    private MotorGuion motorEscenas;
     private boolean dialogoActivo = false;
     private boolean dialogoDonaRosaIniciado = false;
     private int dialogoActual = 40;
@@ -154,6 +157,10 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     Panel_cambiante.add(elegirroles, "roles");
     Panel_cambiante.add(ponernombre, "nombre");
     Panel_cambiante.add(instrucciones, "inst");
+
+    pantallaEscenas = new PantallaJuego();
+    pantallaEscenas.setAlSalir(this::salirDeEscenas);
+    Panel_cambiante.add(pantallaEscenas, "escenas");
 
     card = (CardLayout) Panel_cambiante.getLayout();
 
@@ -308,28 +315,7 @@ Digitarnombre.setFont(
 
     System.out.println("Nombre del jugador: " + nombre);
 
-    card.show(Panel_cambiante, "juego");
-
-    if (!juegoPreparado) {
-
-        prepararJuego();
-        prepararDialogos();
-
-        juegoPreparado = true;
-
-    } else {
-
-        reiniciarPartida();
-    }
-
-    juego.setFocusable(true);
-    juego.requestFocusInWindow();
-
-    if (timerMovimiento != null) {
-        timerMovimiento.start();
-    }
-
-    System.out.println("NUEVA PARTIDA INICIADA");
+    iniciarEscenasNoJugables();
 });
 
     panel.addComponentListener(new java.awt.event.ComponentAdapter() {
@@ -3161,6 +3147,61 @@ private boolean estaEnInteraccion(int x, int y) {
         label.setIcon(new ImageIcon(imagenEscalada));
     }
     
+    // ===================== ESCENAS NO JUGABLES =====================
+
+    /** Reproduce las escenas no jugables (GuionCiudadano) y, al terminar, arranca la parte jugable. */
+    private void iniciarEscenasNoJugables() {
+        java.util.List<Paso> escenas = GuionCiudadano.escenasNoJugables();
+        if (escenas.isEmpty()) {
+            iniciarParteJugable();
+            return;
+        }
+        GuionCiudadano.resumenTodo();   // imprime el orden y las imagenes que faltan
+
+        pantallaEscenas.reiniciar();
+        pantallaEscenas.setHud(estadoJuego);
+        motorEscenas = new MotorGuion(pantallaEscenas, estadoJuego);
+
+        card.show(Panel_cambiante, "escenas");
+        pantallaEscenas.requestFocusInWindow();
+        motorEscenas.iniciar(escenas, this::iniciarParteJugable);
+    }
+
+    /** Parte jugable (movimiento, celular, panaderia, decisiones): el codigo de siempre de partvisual. */
+    private void iniciarParteJugable() {
+        pantallaEscenas.reiniciar();
+        motorEscenas = null;
+
+        card.show(Panel_cambiante, "juego");
+
+        if (!juegoPreparado) {
+            prepararJuego();
+            prepararDialogos();
+            juegoPreparado = true;
+        } else {
+            reiniciarPartida();
+        }
+
+        juego.setFocusable(true);
+        juego.requestFocusInWindow();
+
+        if (timerMovimiento != null) {
+            timerMovimiento.start();
+        }
+
+        System.out.println("NUEVA PARTIDA INICIADA");
+    }
+
+    /** ESC durante una escena no jugable: corta el guion y vuelve al menu de inicio. */
+    private void salirDeEscenas() {
+        if (motorEscenas != null) {
+            motorEscenas.detener();
+            motorEscenas = null;
+        }
+        pantallaEscenas.reiniciar();
+        volverAlInicio();
+    }
+
     private void reiniciarPartida() {
 
     idPartida++; // invalida TODOS los timers pendientes
