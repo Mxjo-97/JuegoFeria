@@ -62,9 +62,11 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     private int posicionExteriorY;
     private int velocidad = 3;
     private BufferedImage mapaColisiones;
+    private BufferedImage mapaColisionesCasa;
     private BufferedImage mapaInteracciones;
     private BufferedImage mapaClicsCelular;
     private BufferedImage mapaColisionesPanaderia;
+    private boolean casaActiva = true;
     private boolean teclaW = false;
     private boolean teclaA = false;
     private boolean teclaS = false;
@@ -585,6 +587,15 @@ Digitarnombre.setFont(
             e.printStackTrace();
         }
         try {
+            mapaColisionesCasa = ImageIO.read(
+        getClass().getResourceAsStream(
+                "/imagenes/colisiones_casa.png"
+        )
+            );
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        try {
             mapaColisionesPanaderia = ImageIO.read(
         getClass().getResourceAsStream(
                 "/imagenes/colisiones_panaderia.png"
@@ -701,7 +712,7 @@ if (celularAbierto && estarperfil(x, y)) {
             }
         });
         ImageIcon iconoFondo = new ImageIcon(
-                getClass().getResource("/imagenes/exteriorsin.png")
+                getClass().getResource("/imagenes/casapuertasin.png")
         );
 
         Image imagenFondo = iconoFondo.getImage();
@@ -2753,10 +2764,18 @@ timerConsecuenciaC.start();
     BufferedImage mapaActual;
 
 if (dentroPanaderia) {
+
     mapaActual = mapaColisionesPanaderia;
+
+} else if (casaActiva) {
+
+    mapaActual = mapaColisionesCasa;
+
 } else {
+
     mapaActual = mapaColisiones;
 }
+
 
 if (mapaActual == null) {
     return true;
@@ -2797,6 +2816,20 @@ if (mapaActual == null) {
     boolean estaEnPuerta = rojoIzquierda
             || rojoCentro
             || rojoDerecha;
+    
+    // Si está en la casa y llega a la zona roja,
+// pasar al exterior de la panadería.
+if (casaActiva && estaEnPuerta) {
+
+    cambiarAExteriorPanaderia();
+
+    return false;
+}
+    
+    
+    
+    
+    
 
     // Si llegó a la zona roja, abre la puerta
     if (estaEnPuerta && !panaderiaAbierta) {
@@ -2881,6 +2914,70 @@ posicionExteriorY = personajeJuego.getY();
         cambiarFondoJuego("/imagenes/exteriorsin.png");
     }
 }
+    private void actualizarImagenCasa() {
+
+    if (!casaActiva) {
+        return;
+    }
+
+    if (twitterAbierto) {
+        cambiarFondoJuego("/imagenes/casapuertatw.png");
+
+    } else if (mensajesAbierto) {
+        cambiarFondoJuego("/imagenes/casapuertams.png");
+
+    } else if (perfilAbierto) {
+        cambiarFondoJuego("/imagenes/casapuertapf.png");
+
+    } else if (celularAbierto) {
+        cambiarFondoJuego("/imagenes/casapuertacon.png");
+
+    } else {
+        cambiarFondoJuego("/imagenes/casapuertasin.png");
+    }
+}
+  
+  private void cambiarAExteriorPanaderia() {
+
+    // Desactivar el escenario de la casa
+    casaActiva = false;
+
+    // La puerta todavía debe estar cerrada
+    panaderiaAbierta = false;
+    dentroPanaderia = false;
+
+    // Cerrar el celular y sus aplicaciones
+    celularAbierto = false;
+    twitterAbierto = false;
+    mensajesAbierto = false;
+    perfilAbierto = false;
+
+    // Mostrar el exterior de la panadería
+    cambiarFondoJuego("/imagenes/exteriorsin.png");
+
+    // Ubicar al personaje en el exterior
+    personajeJuego.setLocation(700, 600);
+
+    juego.repaint();
+}  
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     private void actualizarImagenPuerta() {
 
     if (!panaderiaAbierta) {
@@ -2909,56 +3006,39 @@ private void actualizarImagenCelular() {
 
         if (twitterAbierto) {
             cambiarFondoJuego("/imagenes/panaderiatw.png");
-
         } else if (mensajesAbierto) {
             cambiarFondoJuego("/imagenes/panaderiams.png");
-
         } else if (perfilAbierto) {
             cambiarFondoJuego("/imagenes/panaderiapf.png");
-
         } else if (celularAbierto) {
             cambiarFondoJuego("/imagenes/panaderiacon.png");
-
         } else {
             cambiarFondoJuego("/imagenes/panaderiasin.png");
         }
 
+    } else if (casaActiva) {
+
+        actualizarImagenCasa();
+
     } else if (panaderiaAbierta) {
 
-        if (twitterAbierto) {
-            cambiarFondoJuego("/imagenes/puertatw.png");
-
-        } else if (mensajesAbierto) {
-            cambiarFondoJuego("/imagenes/puertams.png");
-
-        } else if (perfilAbierto) {
-            cambiarFondoJuego("/imagenes/puertapf.png");
-
-        } else if (celularAbierto) {
-            cambiarFondoJuego("/imagenes/puertacon.png");
-
-        } else {
-            cambiarFondoJuego("/imagenes/puertasin.png");
-        }
+        actualizarImagenPuerta();
 
     } else {
 
         if (twitterAbierto) {
             cambiarFondoJuego("/imagenes/exteriortw.png");
-
         } else if (mensajesAbierto) {
             cambiarFondoJuego("/imagenes/exteriorms.png");
-
         } else if (perfilAbierto) {
             cambiarFondoJuego("/imagenes/exteriorpf.png");
-
         } else if (celularAbierto) {
             cambiarFondoJuego("/imagenes/exteriorcon.png");
-
         } else {
             cambiarFondoJuego("/imagenes/exteriorsin.png");
         }
     }
+
     actualizarNombrePerfil();
 }
 private boolean estaEnInteraccion(int x, int y) {
