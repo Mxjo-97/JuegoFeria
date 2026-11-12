@@ -31,6 +31,15 @@ public class Escena {
         String c = carpeta.startsWith("/") ? carpeta.substring(1) : carpeta;
         this.carpeta = RAIZ + (c.endsWith("/") ? c : c + "/");
     }
+    @SafeVarargs
+public final Escena seleccionarZonas(
+        java.awt.Rectangle[] zonas,
+        java.util.List<Paso>... ramas) {
+
+    pasos.add(Paso.seleccionarZonas(zonas, ramas));
+
+    return this;
+}
 
     private String ruta(String archivo) {
         return archivo.startsWith("/") ? archivo : carpeta + archivo;
@@ -178,3 +187,4 @@ public class Escena {
         return s.length() > 60 ? s.substring(0, 57) + "..." : s;
     }
 }
+

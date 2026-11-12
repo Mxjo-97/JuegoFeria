@@ -23,6 +23,7 @@ import java.util.function.IntConsumer;
 import javax.swing.JPanel;
 import javax.swing.Timer;
 
+
 /**
  * Pantalla del juego, dibujada toda por codigo (sin NetBeans Form).
  * Capas, de abajo hacia arriba: fondo, imagenes sueltas, pista/zonas, dialogo, menu, aviso.
@@ -33,6 +34,7 @@ import javax.swing.Timer;
  * Teclas: H = ver/ocultar indicadores, ESC = volver al menu.
  */
 public class PantallaJuego extends JPanel {
+    private java.util.function.IntConsumer seleccionFin;
 
     /** Dev: poner en 0.05 para probar rapido (los avisos y esperas duran 5%). */
     public static double ESCALA_TIEMPO = 1.0;
@@ -216,8 +218,22 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
         zonasClic = zonas;
         clicFin = fin;
         modo = Modo.CLIC;
+        seleccionFin = null;
         repaint();
     }
+    public void seleccionarZonas(
+        Rectangle[] zonas,
+        java.util.function.IntConsumer fin) {
+
+    zonasClic = zonas;
+    clicFin = null;
+    seleccionFin = fin;
+    pistaClic = null;
+    modo = Modo.CLIC;
+
+    repaint();
+    requestFocusInWindow();
+}
 
     /**
      * Menu de opciones (los 4 botones de siempre u otro menu).
@@ -274,6 +290,7 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
             timerUnico.stop();
             timerUnico = null;
         }
+        
         detenerTimerCuenta();
         sprites.clear();
         fondo = null;
@@ -291,6 +308,7 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
         menuAlElegir = null;
         menuAlAgotar = null;
         menuLimiteMs = 0;
+        seleccionFin = null;
         modo = Modo.NINGUNO;
         repaint();
     }
@@ -312,20 +330,39 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
                 }
                 break;
             case CLIC:
-                for (Rectangle z : zonasClic) {
-                    if (z.contains(b)) {
-                        Runnable f = clicFin;
-                        zonasClic = null;
-                        clicFin = null;
-                        pistaClic = null;
-                        modo = Modo.NINGUNO;
-                        repaint();
-                        Funciones.reproducirSonido("/sonidos/click.wav");
-                        f.run();
-                        return;
-                    }
-                }
-                break;
+
+    if (zonasClic == null) {
+        break;
+    }
+
+    for (int i = 0; i < zonasClic.length; i++) {
+
+        if (zonasClic[i].contains(b)) {
+
+            Runnable f = clicFin;
+            java.util.function.IntConsumer seleccion = seleccionFin;
+
+            zonasClic = null;
+            clicFin = null;
+            seleccionFin = null;
+            pistaClic = null;
+            modo = Modo.NINGUNO;
+
+            repaint();
+
+            Funciones.reproducirSonido("/sonidos/click.wav");
+
+            if (seleccion != null) {
+                seleccion.accept(i);
+            } else if (f != null) {
+                f.run();
+            }
+
+            return;
+        }
+    }
+
+    break;
             case MENU:
                 for (int i = 0; i < menuRects.size(); i++) {
                     if (menuRects.get(i).contains(b)) {
@@ -621,24 +658,29 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
     }
 
     private void dibujarPistaYZonas(Graphics2D g, double sx, double sy) {
-        if (zonasClic != null) {
-            g.setStroke(new BasicStroke(Math.max(2f, (float) (3 * sy)), BasicStroke.CAP_BUTT,
-                    BasicStroke.JOIN_MITER, 10f, new float[]{14f, 10f}, 0f));
-            for (Rectangle z : zonasClic) {
-                Rectangle r = escalar(z, sx, sy);
-                g.setColor(new Color(255, 255, 255, 30));
-                g.fillRoundRect(r.x, r.y, r.width, r.height, 24, 24);
-                g.setColor(new Color(255, 255, 255, 170));
-                g.drawRoundRect(r.x, r.y, r.width, r.height, 24, 24);
-            }
-        }
-        if (pistaClic != null) {
-            Rectangle r = escalar(new Rectangle(395, 30, 800, 90), sx, sy);
-            caja(g, r, sy, CREMA);
-            textoCentrado(g, pistaClic, r, (int) (28 * sy), true, MARRON.darker());
-        }
-    }
 
+    // Mostrar la pista solamente si tiene texto.
+    // Las zonas de clic permanecen activas, pero invisibles.
+    if (pistaClic != null && !pistaClic.trim().isEmpty()) {
+
+        Rectangle r = escalar(
+                new Rectangle(395, 30, 800, 90),
+                sx,
+                sy
+        );
+
+        caja(g, r, sy, CREMA);
+
+        textoCentrado(
+                g,
+                pistaClic,
+                r,
+                (int) (28 * sy),
+                true,
+                MARRON.darker()
+        );
+    }
+}
     private void dibujarHud(Graphics2D g, double sx, double sy) {
         if (!mostrarHud || hudEstado == null) {
             return;

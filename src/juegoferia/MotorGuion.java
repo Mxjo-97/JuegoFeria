@@ -102,6 +102,32 @@ public class MotorGuion {
             case ESPERAR_CLIC:
                 pantalla.esperarClic(p.texto, p.zonas, this::continuar);
                 return true;
+                case SELECCION_ZONAS:
+
+    pantalla.seleccionarZonas(
+        p.zonas,
+        indice -> {
+
+            if (indice < 0 || indice >= p.ramas.size()) {
+                return;
+            }
+
+            System.out.println(
+                "DECISIÓN SELECCIONADA: " + (indice + 1)
+            );
+
+            // Primero se ejecuta la historia elegida.
+            // Después continúa la historia común.
+            pendientes.addAll(
+                0,
+                p.ramas.get(indice)
+            );
+
+            continuar();
+        }
+    );
+
+    return true;
             case DECISION:
                 return abrirMenuODecidir(p.decision.raiz, p.decision);
             default:

@@ -35,6 +35,8 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     private boolean abanicoOpcionesVisible = false;
     private JLabel opciones;
     private JLabel opcionesSecundarias;
+    private boolean guionPanaderiaIniciado = false;
+    private boolean guionMaleconIniciado = false;
     private boolean ramaAActiva = false;
     private boolean ramaTintoCalmaActiva = false;
     private boolean ramaDActiva = false;
@@ -66,6 +68,13 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     private BufferedImage mapaInteracciones;
     private BufferedImage mapaClicsCelular;
     private BufferedImage mapaColisionesPanaderia;
+    
+    // NUEVAS VARIABLES - VALENTINA
+        private BufferedImage mapaColisionesMalecon;
+    private boolean maleconActivo = false;
+    
+    
+    // VIEJAS VARIABLES 
     private boolean casaActiva = true;
     private boolean teclaW = false;
     private boolean teclaA = false;
@@ -604,6 +613,14 @@ Digitarnombre.setFont(
         } catch (IOException e) {
             e.printStackTrace();
         }
+        
+        
+        
+        // CARGAR MAPA MALECÓN - VALENTINA
+        
+                mapaColisionesMalecon = cargarMapa("/imagenes/colisiones_malecon.png");
+        
+        
         try {
             mapaInteracciones = ImageIO.read(
                     getClass().getResource("/imagenes/interacciones_exterior.png")
@@ -2133,7 +2150,7 @@ dialogoJuego.setVisible(true);
             (personajeJuego.getY()
             + personajeJuego.getHeight() / 2.0) * escalaY
     );
-
+    
 
     int donaRosaX = 1190;
     int donaRosaY = 250;
@@ -2144,8 +2161,8 @@ dialogoJuego.setVisible(true);
     );
 
     return distancia <= 180;
+
 }
- 
  private void mostrarDialogoRamaAReportado() {
 
     String ruta = "/imagenes/dialogos/ramaAReportado.png";
@@ -2592,6 +2609,55 @@ timerConsecuenciaC.start();
 
     return rojo > 180 && verde < 100 && azul < 100;
 }
+    private void reproducirGuion(
+        java.util.List<Paso> pasos,
+        Runnable alTerminar) {
+
+    if (pasos == null || pasos.isEmpty()) {
+        if (alTerminar != null) {
+            alTerminar.run();
+        }
+        return;
+    }
+
+    // Detener movimiento
+    if (timerMovimiento != null) {
+        timerMovimiento.stop();
+    }
+
+    // Soltar teclas
+    teclaW = false;
+    teclaA = false;
+    teclaS = false;
+    teclaD = false;
+
+    dialogoActivo = false;
+
+    if (dialogoJuego != null) {
+        dialogoJuego.setVisible(false);
+    }
+
+    pantallaEscenas.reiniciar();
+    pantallaEscenas.setHud(estadoJuego);
+
+    motorEscenas = new MotorGuion(
+            pantallaEscenas,
+            estadoJuego
+    );
+
+    card.show(Panel_cambiante, "escenas");
+    pantallaEscenas.requestFocusInWindow();
+
+    motorEscenas.iniciar(pasos, () -> {
+
+        pantallaEscenas.reiniciar();
+        motorEscenas = null;
+
+        if (alTerminar != null) {
+            alTerminar.run();
+        }
+    });
+}
     private void iniciarMovimiento() {
         if (timerMovimiento != null && timerMovimiento.isRunning()) {
             return;
@@ -2715,16 +2781,18 @@ timerConsecuenciaC.start();
 
             personajeJuego.setLocation(x, y);
             
-            if (!dialogoActivo && !dialogoDonaRosaIniciado
+            if (!guionPanaderiaIniciado
         && estaCercaDeDonaRosa()) {
 
-    dialogoActivo = true;
-    dialogoDonaRosaIniciado = true;
-    dialogoActual = 40;
+    guionPanaderiaIniciado = true;
 
-    mostrarDialogo(dialogoActual);
+    reproducirGuion(
+            GuionCiudadano.escenaPanaderia().build(),
+            this::reanudarJuegoDespuesDeHistoria
+    );
+
+    return;
 }
-
         });
 
         timerMovimiento.start();
@@ -2763,9 +2831,16 @@ timerConsecuenciaC.start();
 
     BufferedImage mapaActual;
 
-if (dentroPanaderia) {
+
+// NUEVO REEMPLAZO - VALENTINA
+    
+    if (dentroPanaderia) {
 
     mapaActual = mapaColisionesPanaderia;
+
+} else if (maleconActivo) {
+
+    mapaActual = mapaColisionesMalecon;
 
 } else if (casaActiva) {
 
@@ -2808,6 +2883,28 @@ if (mapaActual == null) {
     int colorCentro = mapaActual.getRGB(pxCentro, pyPies);
     int colorDerecha = mapaActual.getRGB(pxDerecha, pyPies);
 
+    
+    
+    // NUEVA DETECCIÓN DE COLORES - VALENTINA
+    
+        if (!casaActiva && !dentroPanaderia && !maleconActivo) {
+
+        if (esZonaMalecon(colorIzquierda)
+                || esZonaMalecon(colorCentro)
+                || esZonaMalecon(colorDerecha)) {
+            cambiarAMalecon();
+            return false;
+        }
+
+        if (esZonaCasitas(colorIzquierda)
+                || esZonaCasitas(colorCentro)
+                || esZonaCasitas(colorDerecha)) {
+            cambiarACasa();
+            return false;
+        }
+    }
+    
+    
     // Detectar si alguno de los puntos está en la zona roja
     boolean rojoIzquierda = esZonaPuerta(colorIzquierda);
     boolean rojoCentro = esZonaPuerta(colorCentro);
@@ -2863,6 +2960,85 @@ if (casaActiva && estaEnPuerta) {
             && verde < 100
             && azul < 100;
 }
+    
+    
+    
+    
+    // METODO NUEVO - VALENTINA
+    
+    
+        private boolean esZonaMalecon(int color) {
+        int rojo = (color >> 16) & 0xFF;
+        int verde = (color >> 8) & 0xFF;
+        int azul = color & 0xFF;
+        return azul > 170 && verde > rojo + 25 && rojo < 160;
+    }
+
+    private boolean esZonaCasitas(int color) {
+        int rojo = (color >> 16) & 0xFF;
+        int verde = (color >> 8) & 0xFF;
+        int azul = color & 0xFF;
+        return azul > 160 && rojo > verde && rojo > 100 && verde < 160;
+    }
+
+    private BufferedImage cargarMapa(String ruta) {
+        try (java.io.InputStream in = getClass().getResourceAsStream(ruta)) {
+            if (in == null) {
+                System.out.println("No se encontró: " + ruta);
+                return null;
+            }
+            return ImageIO.read(in);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    private void cambiarAMalecon() {
+
+    maleconActivo = true;
+    casaActiva = false;
+    dentroPanaderia = false;
+    panaderiaAbierta = false;
+
+    personajeJuego.setLocation(
+        (int) (636.0 / 1920.0 * juego.getWidth()),
+        (int) (300.0 / 1080.0 * juego.getHeight())
+    );
+
+    // Mostrar el escenario del malecón
+    actualizarImagenCelular();
+    juego.repaint();
+
+    System.out.println("Entraste al malecón");
+
+    // INICIAR LA HISTORIA AUTOMÁTICAMENTE
+    if (!guionMaleconIniciado) {
+
+        guionMaleconIniciado = true;
+
+        reproducirGuion(
+            GuionCiudadano.escenaMalecon().build(),
+            this::reanudarJuegoDespuesDeHistoria
+        );
+    }}
+
+
+    private void cambiarACasa() {
+        casaActiva = true;
+        maleconActivo = false;
+        dentroPanaderia = false;
+        panaderiaAbierta = false;
+
+        personajeJuego.setLocation(700, 600);
+
+        actualizarImagenCelular();
+        juego.repaint();
+        System.out.println("Regresaste a las casitas");
+    }
+    
+    
+    
     private void entrarPanaderia() {
         posicionExteriorX = personajeJuego.getX();
 posicionExteriorY = personajeJuego.getY();
@@ -3000,9 +3176,17 @@ posicionExteriorY = personajeJuego.getY();
         cambiarFondoJuego("/imagenes/puertasin.png");
     }
 }
+    
+    
+    
+    //REEMPLAZO - VALENTINA
 private void actualizarImagenCelular() {
 
-    if (dentroPanaderia) {
+    if (maleconActivo) {
+
+        cambiarFondoJuego("/imagenes/malecon.png");
+
+    } else if (dentroPanaderia) {
 
         if (twitterAbierto) {
             cambiarFondoJuego("/imagenes/panaderiatw.png");
@@ -3231,22 +3415,37 @@ private boolean estaEnInteraccion(int x, int y) {
 
     /** Reproduce las escenas no jugables (GuionCiudadano) y, al terminar, arranca la parte jugable. */
     private void iniciarEscenasNoJugables() {
-        java.util.List<Paso> escenas = GuionCiudadano.escenasNoJugables();
-        if (escenas.isEmpty()) {
-            iniciarParteJugable();
-            return;
-        }
-        GuionCiudadano.resumenTodo();   // imprime el orden y las imagenes que faltan
 
-        pantallaEscenas.reiniciar();
-        pantallaEscenas.setHud(estadoJuego);
-        motorEscenas = new MotorGuion(pantallaEscenas, estadoJuego);
+    java.util.List<Paso> escenas =
+            GuionCiudadano.escenasNoJugables();
 
-        card.show(Panel_cambiante, "escenas");
-        pantallaEscenas.requestFocusInWindow();
-        motorEscenas.iniciar(escenas, this::iniciarParteJugable);
+    if (escenas.isEmpty()) {
+        iniciarParteJugable();
+        return;
     }
 
+    GuionCiudadano.resumenTodo();
+
+    reproducirGuion(
+            escenas,
+            this::iniciarParteJugable
+    );
+}
+    private void reanudarJuegoDespuesDeHistoria() {
+
+    card.show(Panel_cambiante, "juego");
+
+    juego.setFocusable(true);
+    juego.requestFocusInWindow();
+
+    if (timerMovimiento != null) {
+        timerMovimiento.start();
+    }
+
+    System.out.println(
+            "Historia terminada. Continuando partida."
+    );
+}
     /** Parte jugable (movimiento, celular, panaderia, decisiones): el codigo de siempre de partvisual. */
     private void iniciarParteJugable() {
         pantallaEscenas.reiniciar();
@@ -3301,7 +3500,8 @@ private boolean estaEnInteraccion(int x, int y) {
 
     // --- Diálogos ---
     dialogoActivo = false;
-    dialogoDonaRosaIniciado = false;
+    guionPanaderiaIniciado = false;
+    guionMaleconIniciado = false;
     dialogoActual = 40;
     imagenTemporizadaActiva = false;
 
@@ -3315,7 +3515,11 @@ private boolean estaEnInteraccion(int x, int y) {
     panaderiaAbierta = false;
     dentroPanaderia = false;
     situacionActiva = false;
-
+    maleconActivo = false;
+    casaActiva = true;
+// NUEVAS VARIABLES - VALENTINA
+    
+    
     // --- Teléfono ---
     celularAbierto = false;
     twitterAbierto = false;
@@ -3345,7 +3549,7 @@ private boolean estaEnInteraccion(int x, int y) {
     }
 
     if (fondoJuego != null) {
-        cambiarFondoJuego("/imagenes/exteriorsin.png");
+        cambiarFondoJuego("/imagenes/casapuertasin.png");
     }
 
     juego.revalidate();
