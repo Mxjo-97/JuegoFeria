@@ -37,6 +37,7 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     private JLabel opcionesSecundarias;
     private boolean guionPanaderiaIniciado = false;
     private boolean guionMaleconIniciado = false;
+    private boolean guionJuntaIniciado = false;   // <- nueva
     private boolean ramaAActiva = false;
     private boolean ramaTintoCalmaActiva = false;
     private boolean ramaDActiva = false;
@@ -72,7 +73,13 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     // NUEVAS VARIABLES - VALENTINA
         private BufferedImage mapaColisionesMalecon;
     private boolean maleconActivo = false;
-    
+       // ===== JUNTA DE ACCIÓN COMUNAL (exterior + piso 1 + piso 2) =====
+    private BufferedImage mapaColisionesJuntaExterior;
+    private BufferedImage mapaColisionesJuntaPiso1;
+    private BufferedImage mapaColisionesJuntaPiso2;
+    private boolean juntaActiva = false;
+    private int juntaLugar = 0;                 // 0 = exterior, 1 = piso 1, 2 = piso 2
+    private boolean puertaJuntaAbierta = false;
     
     // VIEJAS VARIABLES 
     private boolean casaActiva = true;
@@ -619,7 +626,10 @@ Digitarnombre.setFont(
         // CARGAR MAPA MALECÓN - VALENTINA
         
                 mapaColisionesMalecon = cargarMapa("/imagenes/colisiones_malecon.png");
-        
+                        // MAPAS DE COLISIÓN DE LA JUNTA
+        mapaColisionesJuntaExterior = cargarMapa("/imagenes/colisiones_junta_exterior.png");
+        mapaColisionesJuntaPiso1 = cargarMapa("/imagenes/colisiones_junta_piso1.png");
+        mapaColisionesJuntaPiso2 = cargarMapa("/imagenes/colisiones_junta_piso2.png");
         
         try {
             mapaInteracciones = ImageIO.read(
@@ -2711,8 +2721,10 @@ timerConsecuenciaC.start();
             }
             if (dentroPanaderia) {
 
-    double escalaX = 1591.0 / juego.getWidth();
-    double escalaY = 989.0 / juego.getHeight();
+// NUEVA VAINA - VALENTINA
+                
+double escalaX = (double) mapaColisionesPanaderia.getWidth() / juego.getWidth();
+double escalaY = (double) mapaColisionesPanaderia.getHeight() / juego.getHeight();
 
     int centroX = (int) (
             (x + personajeJuego.getWidth() / 2.0) * escalaX
@@ -2793,6 +2805,18 @@ timerConsecuenciaC.start();
 
     return;
 }
+            
+            
+            
+            // JUNTA: al acercarse a la puerta azul, se abre y entra al piso 1  - VALENTINA
+            if (juntaActiva && juntaLugar == 0 && !puertaJuntaAbierta
+                    && estaCercaDePuertaJunta(x, y)) {
+                abrirPuertaJunta();
+                return;
+            }
+            
+            
+            
         });
 
         timerMovimiento.start();
@@ -2829,14 +2853,24 @@ timerConsecuenciaC.start();
 }
     private boolean puedeMoverse(int x, int y) {
 
-    BufferedImage mapaActual;
-
 
 // NUEVO REEMPLAZO - VALENTINA
     
-    if (dentroPanaderia) {
+BufferedImage mapaActual;
+
+if (dentroPanaderia) {
 
     mapaActual = mapaColisionesPanaderia;
+
+} else if (juntaActiva) {
+
+    if (juntaLugar == 0) {
+        mapaActual = mapaColisionesJuntaExterior;
+    } else if (juntaLugar == 1) {
+        mapaActual = mapaColisionesJuntaPiso1;
+    } else {
+        mapaActual = mapaColisionesJuntaPiso2;
+    }
 
 } else if (maleconActivo) {
 
@@ -2851,17 +2885,15 @@ timerConsecuenciaC.start();
     mapaActual = mapaColisiones;
 }
 
-
 if (mapaActual == null) {
     return true;
 }
-
     int izquierda = x + 35;
     int derecha = x + personajeJuego.getWidth() - 35;
     int pies = y + personajeJuego.getHeight() - 10;
 
-    double escalaX = 1591.0 / juego.getWidth();
-    double escalaY = 989.0 / juego.getHeight();
+ double escalaX = (double) mapaActual.getWidth() / juego.getWidth();
+double escalaY = (double) mapaActual.getHeight() / juego.getHeight();
 
     int pxIzquierda = (int) (izquierda * escalaX);
     int pxCentro = (int) (((izquierda + derecha) / 2.0) * escalaX);
@@ -2887,8 +2919,16 @@ if (mapaActual == null) {
     
     // NUEVA DETECCIÓN DE COLORES - VALENTINA
     
-        if (!casaActiva && !dentroPanaderia && !maleconActivo) {
-
+    if (!casaActiva && !dentroPanaderia && !maleconActivo && !juntaActiva) {    if (maleconActivo) {
+    if (esZonaJunta(colorIzquierda)
+            || esZonaJunta(colorCentro)
+            || esZonaJunta(colorDerecha)) {
+        cambiarAJunta();
+        return false;
+    }
+}
+    
+    
         if (esZonaMalecon(colorIzquierda)
                 || esZonaMalecon(colorCentro)
                 || esZonaMalecon(colorDerecha)) {
@@ -2903,6 +2943,45 @@ if (mapaActual == null) {
             return false;
         }
     }
+    
+    
+    
+        // MALECÓN -> EXTERIOR DE LA JUNTA (zona amarilla en colisiones_malecon.png)
+    if (maleconActivo
+            && (esZonaAmarilla(colorIzquierda)
+            || esZonaAmarilla(colorCentro)
+            || esZonaAmarilla(colorDerecha))) {
+        irAJunta(0, JUNTA_SPAWN_EXTERIOR_DESDE_MALECON);
+        return false;
+    }
+
+    // DENTRO DE LA JUNTA: escaleras (verde) y salida (amarillo)
+    if (juntaActiva) {
+        boolean amarillo = esZonaAmarilla(colorIzquierda)
+                || esZonaAmarilla(colorCentro)
+                || esZonaAmarilla(colorDerecha);
+        boolean verde = esZonaVerde(colorIzquierda)
+                || esZonaVerde(colorCentro)
+                || esZonaVerde(colorDerecha);
+
+        if (juntaLugar == 1) {
+            if (amarillo) {                       // salida del piso 1 -> calle
+                irAJunta(0, JUNTA_SPAWN_EXTERIOR_DESDE_PISO1);
+                return false;
+            }
+            if (verde) {                          // escalera: sube al piso 2
+                irAJunta(2, JUNTA_SPAWN_PISO2);
+                return false;
+            }
+        } else if (juntaLugar == 2) {
+            if (verde) {                          // escalera: baja al piso 1
+                irAJunta(1, JUNTA_SPAWN_PISO1_DESDE_PISO2);
+                return false;
+            }
+        }
+    }
+    
+    
     
     
     // Detectar si alguno de los puntos está en la zona roja
@@ -2981,6 +3060,128 @@ if (casaActiva && estaEnPuerta) {
         return azul > 160 && rojo > verde && rojo > 100 && verde < 160;
     }
 
+    
+    
+    
+    
+    
+        // ===================== JUNTA DE ACCIÓN COMUNAL - VALENTINA =====================
+
+    // Dónde aparece el personaje (esquina superior izquierda), en coordenadas de diseño 1920 x 1080.
+    // Los PIES del personaje (parte de abajo) tienen que caer sobre BLANCO en el mapa de colisiones.
+    private static final int[] JUNTA_SPAWN_EXTERIOR_DESDE_MALECON = {365, 620};
+    private static final int[] JUNTA_SPAWN_EXTERIOR_DESDE_PISO1 = {1063, 730};
+    private static final int[] JUNTA_SPAWN_PISO1_DESDE_PUERTA = {885, 700};   // AJUSTAR al dibujo
+    private static final int[] JUNTA_SPAWN_PISO1_DESDE_PISO2 = {1400, 500};   // AJUSTAR al dibujo
+    private static final int[] JUNTA_SPAWN_PISO2 = {500, 500};                // AJUSTAR al dibujo
+
+    // Zona frente a la puerta azul (donde se abre), medida sobre el dibujo a 1920 x 1080.
+    private static final java.awt.Rectangle ZONA_PUERTA_JUNTA =
+            new java.awt.Rectangle(1000, 690, 280, 130);
+
+    private boolean esZonaAmarilla(int color) {
+        int rojo = (color >> 16) & 0xFF;
+        int verde = (color >> 8) & 0xFF;
+        int azul = color & 0xFF;
+        return rojo > 200 && verde > 200 && azul < 100;
+    }
+
+    private boolean esZonaVerde(int color) {
+        int rojo = (color >> 16) & 0xFF;
+        int verde = (color >> 8) & 0xFF;
+        int azul = color & 0xFF;
+        return verde > 200 && rojo < 100 && azul < 100;
+    }
+
+    /** Lleva al jugador a un lugar de la junta: 0 = exterior, 1 = piso 1, 2 = piso 2. */
+    private void irAJunta(int lugar, int[] spawn) {
+        juntaActiva = true;
+        juntaLugar = lugar;
+        maleconActivo = false;
+        casaActiva = false;
+        dentroPanaderia = false;
+        panaderiaAbierta = false;
+        puertaJuntaAbierta = false;
+
+        personajeJuego.setLocation(
+                (int) (spawn[0] / 1920.0 * juego.getWidth()),
+                (int) (spawn[1] / 1080.0 * juego.getHeight())
+        );
+
+        actualizarImagenCelular();
+        juego.repaint();
+
+        System.out.println("Junta: " + (lugar == 0 ? "exterior" : "piso " + lugar));
+        
+        
+        
+        
+        
+        
+        // imagen celular - VALENTINA
+        
+            actualizarImagenCelular();
+    juego.repaint();
+
+    System.out.println("Junta: " + (lugar == 0 ? "exterior" : "piso " + lugar));
+
+    // Escena de la Junta: se dispara la primera vez que entra al piso 1
+    if (lugar == 1 && !guionJuntaIniciado) {
+        guionJuntaIniciado = true;
+        reproducirGuion(
+            GuionCiudadano.escenaJunta1().build(),
+            this::reanudarJuegoDespuesDeHistoria
+        );
+    }
+
+        
+        
+        
+    }
+
+    private boolean estaCercaDePuertaJunta(int x, int y) {
+        // pies del personaje, pasados a coordenadas 1920 x 1080
+        int cx = (int) ((x + personajeJuego.getWidth() / 2.0) * 1920.0 / juego.getWidth());
+        int pies = (int) ((y + personajeJuego.getHeight() - 10) * 1080.0 / juego.getHeight());
+        return ZONA_PUERTA_JUNTA.contains(cx, pies);
+    }
+
+    /** Abre la puerta (cambia la imagen), espera un momento y entra al piso 1. */
+    private void abrirPuertaJunta() {
+        puertaJuntaAbierta = true;
+
+        // el jugador se queda quieto mientras se abre la puerta
+        teclaW = false;
+        teclaA = false;
+        teclaS = false;
+        teclaD = false;
+        dialogoActivo = true;
+
+        actualizarImagenCelular();   // muestra junta_puertaabierta.png
+        juego.repaint();
+
+        final int id = idPartida;    // si reinician la partida, este timer se cancela solo
+        javax.swing.Timer espera = new javax.swing.Timer(900, ev -> {
+            if (id != idPartida) {
+                return;
+            }
+            dialogoActivo = false;
+            irAJunta(1, JUNTA_SPAWN_PISO1_DESDE_PUERTA);
+        });
+        espera.setRepeats(false);
+        espera.start();
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     private BufferedImage cargarMapa(String ruta) {
         try (java.io.InputStream in = getClass().getResourceAsStream(ruta)) {
             if (in == null) {
@@ -3023,6 +3224,43 @@ if (casaActiva && estaEnPuerta) {
         );
     }}
 
+    
+    private boolean esZonaJunta(int color) {
+    int rojo = (color >> 16) & 0xFF;
+    int verde = (color >> 8) & 0xFF;
+    int azul = color & 0xFF;
+    return rojo > 200 && verde > 200 && azul < 100;
+}
+
+private void cambiarAJunta() {
+    juntaActiva = true;
+    maleconActivo = false;
+    casaActiva = false;
+    dentroPanaderia = false;
+    panaderiaAbierta = false;
+
+    // Dónde aparece el personaje (coordenadas de diseño 1591 x 989). AJÚSTALAS.
+    personajeJuego.setLocation(
+        (int) (200.0 / 1591.0 * juego.getWidth()),
+        (int) (650.0 / 989.0 * juego.getHeight())
+    );
+
+    actualizarImagenCelular();
+    juego.repaint();
+    System.out.println("Entraste a la Junta Comunal");
+
+    if (!guionJuntaIniciado) {
+        guionJuntaIniciado = true;
+        reproducirGuion(
+            GuionCiudadano.escenaJunta1().build(),
+            this::reanudarJuegoDespuesDeHistoria
+        );
+    }
+}
+    
+    
+    
+    
 
     private void cambiarACasa() {
         casaActiva = true;
@@ -3182,7 +3420,19 @@ posicionExteriorY = personajeJuego.getY();
     //REEMPLAZO - VALENTINA
 private void actualizarImagenCelular() {
 
-    if (maleconActivo) {
+    if (juntaActiva) {
+
+        if (juntaLugar == 0) {
+            cambiarFondoJuego(puertaJuntaAbierta
+                    ? "/imagenes/junta_puertaabierta.png"
+                    : "/imagenes/junta_puertacerrada.png");
+        } else if (juntaLugar == 1) {
+            cambiarFondoJuego("/imagenes/junta_piso1.png");
+        } else {
+            cambiarFondoJuego("/imagenes/junta_piso2.png");
+        }
+
+    } else if (maleconActivo) {
 
         cambiarFondoJuego("/imagenes/malecon.png");
 
@@ -3501,7 +3751,8 @@ private boolean estaEnInteraccion(int x, int y) {
     // --- Diálogos ---
     dialogoActivo = false;
     guionPanaderiaIniciado = false;
-    guionMaleconIniciado = false;
+guionMaleconIniciado = false;
+guionJuntaIniciado = false;   // <- nueva - VALENTINA
     dialogoActual = 40;
     imagenTemporizadaActiva = false;
 
@@ -3516,6 +3767,9 @@ private boolean estaEnInteraccion(int x, int y) {
     dentroPanaderia = false;
     situacionActiva = false;
     maleconActivo = false;
+    juntaActiva = false;
+    juntaLugar = 0;
+    puertaJuntaAbierta = false;
     casaActiva = true;
 // NUEVAS VARIABLES - VALENTINA
     
@@ -3871,3 +4125,6 @@ private void volverAlInicio() {
         }
     }
 }
+
+
+

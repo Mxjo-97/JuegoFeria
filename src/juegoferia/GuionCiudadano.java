@@ -277,21 +277,46 @@ e.dialogos(
 
     return e;
 }
-public static Escena escenaMalecon() {
+ // ===================== MALECÓN =====================
+    // Imagenes en src/imagenes/ciudadano/malecon/ (63.png a 93.png)
 
-   Escena e = new Escena("ciudadano/malecon");
+    public static Escena escenaMalecon() {
 
-e.fondo("malecon.png");
+        Escena e = new Escena("ciudadano/malecon");
 
-// de la 63 a la 93
-String[] fotos = new String[93 - 63 + 1];
+        e.fondo("malecon.png");
+        e.dialogos(rango(63, 93));
 
-for (int i = 63; i <= 93; i++) {
-    fotos[i - 63] = i + ".png";
-}
+        return e;
+    }
 
-e.dialogos(fotos);
+    // ===================== JUNTA DE ACCIÓN COMUNAL (PISO 1) =====================
+    // Dialogos en src/imagenes/ciudadano/junta/ (95.png a 115.png)
 
-    return e;
-}
+    public static Escena escenaJunta1() {
+
+        Escena e = new Escena("ciudadano/junta");
+
+        // Ruta completa (con "/" al inicio): el fondo esta en /imagenes/, no en la carpeta de la escena
+        e.fondo("/imagenes/junta_piso1.png");
+        e.dialogos(rango(95, 115));
+
+        e.resumen();   // imprime en consola [OK] / [FALTA] de cada imagen
+
+        return e;
+    }
+
+    
+    
+   
+    
+    
+     private static String[] rango(int desde, int hasta) {
+        String[] r = new String[hasta - desde + 1];
+        for (int i = desde; i <= hasta; i++) {
+            r[i - desde] = i + ".png";
+        }
+        return r;
+    }
+    
 }
