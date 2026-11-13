@@ -120,7 +120,8 @@ e.fondo("decisiondg1.png");
 // RESULTADO 1: VERIFICAR
 // ======================================
 List<Paso> verificar = new Escena("ciudadano/prologo")
-    .dialogos("verificardg.png")
+    .fondo("panaderiasin.png")
+    .consecuencia("verificardg.png")
     .build();
 
 
@@ -128,7 +129,8 @@ List<Paso> verificar = new Escena("ciudadano/prologo")
 // RESULTADO 2: DIFUNDIR
 // ======================================
 List<Paso> difundir = new Escena("ciudadano/prologo")
-    .dialogos("difundirdg.png")
+        .fondo("panaderiasin.png")
+    .consecuencia("difundirdg.png")
     .build();
 
 
@@ -136,7 +138,8 @@ List<Paso> difundir = new Escena("ciudadano/prologo")
 // RESULTADO 3: REPORTAR
 // ======================================
 List<Paso> reportar = new Escena("ciudadano/prologo")
-    .dialogos("reportardg.png")
+        .fondo("panaderiasin.png")
+    .consecuencia("reportardg.png")
     .build();
 
 
@@ -144,7 +147,8 @@ List<Paso> reportar = new Escena("ciudadano/prologo")
 // RESULTADO 4: TOMARTE UN TINTO
 // ======================================
 List<Paso> tinto = new Escena("ciudadano/prologo")
-    .dialogos("tintodg.png")
+        .fondo("panaderiasin.png")
+    .consecuencia("tintodg.png")
     .build();
 
 
@@ -152,7 +156,8 @@ List<Paso> tinto = new Escena("ciudadano/prologo")
 // RESULTADO 5: GUARDAR SILENCIO
 // ======================================
 List<Paso> silencio = new Escena("ciudadano/prologo")
-    .dialogos("silenciodg.png")
+        .fondo("panaderiasin.png")
+    .consecuencia("silenciodg.png")
     .build();
 
 
@@ -188,7 +193,6 @@ e.seleccionarZonas(
 e.fondo("panaderiasin.png");
 
 e.dialogos(
-    "21.png",
     "22.png",
     "23.png",
     "24.png",
@@ -203,6 +207,7 @@ e.dialogos(
     "30.png"
 );
     e.fondo("panaderiasin.png");
+    e.consecuencia("textopantalla.png");
 
 e.dialogos(
     "31.png",
@@ -224,18 +229,21 @@ e.fondo("decisionrl1.png");
 List<Paso> calma = new Escena("ciudadano/prologo")
     .fondo("panaderiasin.png")
     .dialogos("43.png")
+        .consecuencia("+2.png")
     .build();
 
 // OPCIÓN 2: CALLAR Y MIRAR
 List<Paso> callar = new Escena("ciudadano/prologo")
     .fondo("panaderiasin.png")
-    .dialogos("44.png", "45.png")
+    .dialogos("44.png", "45.png","rosaadicional.png")
     .build();
 
 // OPCIÓN 3: REÍRTE
 List<Paso> reir = new Escena("ciudadano/prologo")
     .fondo("panaderiasin.png")
     .dialogos("46.png", "47.png")
+        .consecuencia("-4.png")
+        .dialogos("lorenaadicional.png")
     .build();
 
 // TRES ZONAS INVISIBLES
@@ -285,7 +293,136 @@ e.dialogos(
         Escena e = new Escena("ciudadano/malecon");
 
         e.fondo("malecon.png");
-        e.dialogos(rango(63, 93));
+        e.dialogos(rango(63, 64));
+        
+        e.fondo("celular_malecon.png");
+        e.esperarClic(
+    "",
+    new Rectangle(815, 515, 135, 130)
+);
+
+e.fondo("celulartw.png");
+e.esperarClic(
+    "",
+    new Rectangle(0, 0, 1591, 989)
+);
+
+e.fondo("decisiondg1.png");
+// ======================================
+// RESULTADO 1: VERIFICAR
+// ======================================
+List<Paso> verificar = new Escena("ciudadano/malecon")
+    .fondo("malecon.png")
+    .consecuencia("verificardg.png")
+    .build();
+
+
+// ======================================
+// RESULTADO 2: DIFUNDIR
+// ======================================
+List<Paso> difundir = new Escena("ciudadano/malecon")
+        .fondo("malecon.png")
+    .consecuencia("difundirdg.png")
+    .build();
+
+
+// ======================================
+// RESULTADO 3: REPORTAR
+// ======================================
+List<Paso> reportar = new Escena("ciudadano/malecon")
+        .fondo("malecon.png")
+    .consecuencia("reportardg.png")
+    .build();
+
+
+// ======================================
+// RESULTADO 4: TOMARTE UN TINTO
+// ======================================
+List<Paso> tinto = new Escena("ciudadano/malecon")
+        .fondo("malecon.png")
+    .consecuencia("tintodg.png")
+    .build();
+
+
+// ======================================
+// RESULTADO 5: GUARDAR SILENCIO
+// ======================================
+List<Paso> silencio = new Escena("ciudadano/malecon")
+        .fondo("malecon.png")
+    .consecuencia("silenciodg.png")
+    .build();
+
+
+// ======================================
+// CINCO ZONAS DE SELECCIÓN
+// ======================================
+e.seleccionarZonas(
+
+    new Rectangle[] {
+
+        new Rectangle(660, 250, 275, 160), // VERIFICAR
+
+        new Rectangle(360, 405, 280, 160), // DIFUNDIR
+
+        new Rectangle(950, 405, 280, 160), // REPORTAR
+
+        new Rectangle(430, 605, 285, 160), // TINTO
+
+        new Rectangle(875, 605, 285, 160)  // SILENCIO
+    },
+
+    verificar,
+    difundir,
+    reportar,
+    tinto,
+    silencio
+);
+e.fondo("malecon.png");
+e.dialogos(rango(65, 66));
+e.fondo("malecon.png");
+e.consecuencia("textopantalla1.png");
+e.dialogos(rango(67, 78));
+e.fondo("decision2.png");
+// OPCIÓN 1: DECIRLE QUE ES DANIELA
+List<Paso> calma = new Escena("ciudadano/malecon")
+    .fondo("malecon.png")
+    .dialogos("80.png")
+        .consecuencia("+2.png")
+        .dialogos("83.png","84.png")
+    .build();
+
+// OPCIÓN 2: CAMBIAR DE TEMA
+List<Paso> callar = new Escena("ciudadano/malecon")
+    .fondo("malecon.png")
+    .dialogos("81.png","83.png","84.png")
+    .build();
+
+// OPCIÓN 3: REÍRTE
+List<Paso> reir = new Escena("ciudadano/malecon")
+    .fondo("malecon.png")
+    .dialogos("82.png")
+        .consecuencia("-3.png")
+    .build();
+
+// TRES ZONAS INVISIBLES
+e.seleccionarZonas(
+
+    new Rectangle[] {
+
+        new Rectangle(407, 485, 265, 261), // CALMA
+
+        new Rectangle(672, 490, 260, 261), // CALLAR
+
+        new Rectangle(920, 467, 273, 279)  // REÍR
+    },
+
+    calma,
+    callar,
+    reir
+);
+e.fondo("malecon.png");
+    e.dialogos(rango(85, 91));
+        
 
         return e;
     }
@@ -297,15 +434,243 @@ e.dialogos(
 
         Escena e = new Escena("ciudadano/junta");
 
-        // Ruta completa (con "/" al inicio): el fondo esta en /imagenes/, no en la carpeta de la escena
-        e.fondo("/imagenes/junta_piso1.png");
-        e.dialogos(rango(95, 115));
+        e.fondo("junta_piso1.png");
+        e.dialogos(rango(95, 96));
+        e.fondo("decisiondg1.png");
+// ======================================
+// RESULTADO 1: VERIFICAR
+// ======================================
+List<Paso> verificar = new Escena("ciudadano/junta")
+    .fondo("panaderiasin.png")
+    .consecuencia("verificardg.png")
+    .build();
 
-        e.resumen();   // imprime en consola [OK] / [FALTA] de cada imagen
+
+// ======================================
+// RESULTADO 2: DIFUNDIR
+// ======================================
+List<Paso> difundir = new Escena("ciudadano/junta")
+        .fondo("junta_piso1.png")
+    .consecuencia("difundirdg.png")
+    .build();
+
+
+// ======================================
+// RESULTADO 3: REPORTAR
+// ======================================
+List<Paso> reportar = new Escena("ciudadano/junta")
+        .fondo("junta_piso1.png")
+    .consecuencia("reportardg.png")
+    .build();
+
+
+// ======================================
+// RESULTADO 4: TOMARTE UN TINTO
+// ======================================
+List<Paso> tinto = new Escena("ciudadano/junta")
+        .fondo("junta_piso1.png")
+    .consecuencia("tintodg.png")
+    .build();
+
+
+// ======================================
+// RESULTADO 5: GUARDAR SILENCIO
+// ======================================
+List<Paso> silencio = new Escena("ciudadano/junta")
+        .fondo("junta_piso1.png")
+    .consecuencia("silenciodg.png")
+    .build();
+
+
+// ======================================
+// CINCO ZONAS DE SELECCIÓN
+// ======================================
+e.seleccionarZonas(
+
+    new Rectangle[] {
+
+        new Rectangle(660, 250, 275, 160), // VERIFICAR
+
+        new Rectangle(360, 405, 280, 160), // DIFUNDIR
+
+        new Rectangle(950, 405, 280, 160), // REPORTAR
+
+        new Rectangle(430, 605, 285, 160), // TINTO
+
+        new Rectangle(875, 605, 285, 160)  // SILENCIO
+    },
+
+    verificar,
+    difundir,
+    reportar,
+    tinto,
+    silencio
+);
+
+e.fondo("junta_piso1.png");
+        e.dialogos(rango(97, 103));
+        e.consecuencia("textopantalla.png");
+        e.fondo("junta_piso1.png");
+        e.dialogos("104.png");
+        e.dialogos("charlaplus.png");
+        // aquí termina: el jugador vuelve a caminar para ir al piso 2
 
         return e;
     }
 
+    // ===================== JUNTA PISO 2 =====================
+    // Se reproduce la primera vez que el jugador sube al piso 2
+
+    public static Escena escenaJuntaPiso2() {
+
+        Escena e = new Escena("ciudadano/junta");
+
+        e.fondo("junta_piso2.png");
+        e.dialogos(rango(105, 113));
+
+        return e;
+    }
+      // ===================== ALCALDÍA (INTERIOR) =====================
+    // Se reproduce la primera vez que el jugador entra a interioralcaldia.png
+
+    public static Escena escenaAlcaldia() {
+
+        Escena e = new Escena("ciudadano/alcaldia");
+
+        e.fondo("interioralcaldia.png");
+        e.dialogos(rango(120, 123));   // CAMBIA estos números por los de tus diálogos
+        e.fondo("decisiondg.png");
+// ======================================
+// RESULTADO 1: VERIFICAR
+// ======================================
+List<Paso> verificar = new Escena("ciudadano/alcaldia")
+    .fondo("interioralcaldia.png")
+    .consecuencia("verificardg.png")
+    .build();
+
+
+// ======================================
+// RESULTADO 2: DIFUNDIR
+// ======================================
+List<Paso> difundir = new Escena("ciudadano/alcaldia")
+        .fondo("interioralcaldia.png")
+    .consecuencia("difundirdg.png")
+    .build();
+
+
+// ======================================
+// RESULTADO 3: REPORTAR
+// ======================================
+List<Paso> reportar = new Escena("ciudadano/alcaldia")
+        .fondo("interioralcaldia.png")
+    .consecuencia("reportardg.png")
+    .build();
+
+
+// ======================================
+// RESULTADO 4: TOMARTE UN TINTO
+// ======================================
+List<Paso> tinto = new Escena("ciudadano/alcaldia")
+        .fondo("interioralcaldia.png")
+    .consecuencia("tintodg.png")
+    .build();
+
+
+// ======================================
+// RESULTADO 5: GUARDAR SILENCIO
+// ======================================
+List<Paso> silencio = new Escena("ciudadano/alcaldia")
+        .fondo("interioralcaldia.png")
+    .consecuencia("silenciodg.png")
+    .build();
+
+
+// ======================================
+// CINCO ZONAS DE SELECCIÓN
+// ======================================
+e.seleccionarZonas(
+
+    new Rectangle[] {
+
+        new Rectangle(660, 250, 275, 160), // VERIFICAR
+
+        new Rectangle(360, 405, 280, 160), // DIFUNDIR
+
+        new Rectangle(950, 405, 280, 160), // REPORTAR
+
+        new Rectangle(430, 605, 285, 160), // TINTO
+
+        new Rectangle(875, 605, 285, 160)  // SILENCIO
+    },
+
+    verificar,
+    difundir,
+    reportar,
+    tinto,
+    silencio
+);
+ e.fondo("interioralcaldia.png");
+        e.dialogos(rango(124, 129));
+        
+        e.fondo("decisiones3.png");
+
+// ======================================
+// OPCIÓN 1: PEDIR QUE RECIBAN DOS MADRES
+// ======================================
+List<Paso> pedirMadres = new Escena("ciudadano/alcaldia")
+    .fondo("interioralcaldia.png")
+        .dialogos("131.png")
+    .consecuencia("+2.png")
+    .consecuencia("+1.png")
+    .build();
+
+
+// ======================================
+// OPCIÓN 2: QUEDARTE EN TU FILA
+// ======================================
+List<Paso> quedarteFila = new Escena("ciudadano/alcaldia")
+    .fondo("interioralcaldia.png")
+    .dialogos("132.png")
+    .build();
+
+
+// ======================================
+// DOS ZONAS DE SELECCIÓN
+// ======================================
+e.seleccionarZonas(
+
+    new Rectangle[] {
+
+        new Rectangle(436, 425, 353, 333), // PEDIR QUE RECIBAN DOS MADRES (izquierda)
+
+        new Rectangle(802, 425, 359, 333)  // QUEDARTE EN TU FILA (derecha)
+    },
+
+    pedirMadres,
+    quedarteFila
+);
+e.fondo("interioralcaldia.png");
+        e.consecuencia("textopantalla.png");
+        e.dialogos(rango(133, 142));
+
+        return e;
+       
+    }
+  // ===================== CASA: HISTORIA FINAL =====================
+    // Se reproduce cuando el jugador toca el azul en casapuertasin.png (al final del juego)
+
+    public static Escena escenaCasaFinal() {
+
+        Escena e = new Escena("ciudadano/casa");
+
+        e.fondo("noche.png");
+        e.dialogos(rango(152, 155));
+        e.fondo("televisorfin.png");
+        e.dialogos(rango(156, 157));
+        e.fondo("final2.png");
+        e.dialogos("boton.png");
+        return e;
+    }
     
     
    

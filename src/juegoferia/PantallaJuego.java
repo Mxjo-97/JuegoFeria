@@ -47,7 +47,7 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
     private static final Color MARRON = new Color(110, 62, 28);
     private static final Color NARANJA = new Color(232, 140, 40);
 
-    private enum Modo { NINGUNO, DIALOGO, AVISO, ESPERA, CLIC, MENU }
+    private enum Modo { NINGUNO, DIALOGO, AVISO, ESPERA, CLIC, MENU, CONSECUENCIA }
 
     private static class Sprite {
         BufferedImage img;
@@ -68,6 +68,10 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
     private BufferedImage avisoImg;
     private String avisoTexto;
     private Timer timerUnico;
+
+    // consecuencia: imagen en el centro que se quita con un clic
+    private BufferedImage consecuenciaImg;
+    private Runnable consecuenciaFin;
 
     // espera de clic
     private Rectangle[] zonasClic;
@@ -116,6 +120,8 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
                     case KeyEvent.VK_ENTER:
                         if (modo == Modo.DIALOGO) {
                             terminarDialogo();
+                        } else if (modo == Modo.CONSECUENCIA) {
+                            terminarConsecuencia();
                         }
                         break;
                     case KeyEvent.VK_H:
@@ -203,6 +209,30 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
             repaint();
             fin.run();
         });
+    }
+
+    /** Consecuencia: imagen en el centro de la pantalla. Se quita con un clic (o ESPACIO / ENTER). */
+    public void mostrarConsecuencia(String ruta, Runnable fin) {
+        consecuenciaImg = Recursos.imagen(ruta, 800, 450);
+        consecuenciaFin = fin;
+        modo = Modo.CONSECUENCIA;
+        repaint();
+        requestFocusInWindow();
+    }
+
+    private void terminarConsecuencia() {
+        if (modo != Modo.CONSECUENCIA) {
+            return;
+        }
+        Runnable f = consecuenciaFin;
+        consecuenciaFin = null;
+        consecuenciaImg = null;
+        modo = Modo.NINGUNO;
+        repaint();
+        Funciones.reproducirSonido("/sonidos/click.wav");
+        if (f != null) {
+            f.run();
+        }
     }
 
     public void esperar(int ms, Runnable fin) {
@@ -300,6 +330,8 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
         dlgFin = null;
         avisoImg = null;
         avisoTexto = null;
+        consecuenciaImg = null;
+        consecuenciaFin = null;
         zonasClic = null;
         clicFin = null;
         pistaClic = null;
@@ -324,6 +356,10 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
 
     private void clic(Point b) {
         switch (modo) {
+            case CONSECUENCIA:
+                // clic en cualquier parte de la pantalla
+                terminarConsecuencia();
+                break;
             case DIALOGO:
                 if (dlgImg != null || ZONA_DIALOGO.contains(b)) {
                     terminarDialogo();
@@ -393,6 +429,8 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
                 repaint();
             }
             mano = h >= 0;
+        } else if (modo == Modo.CONSECUENCIA) {
+            mano = true;
         } else if (modo == Modo.DIALOGO) {
             mano = dlgImg != null || ZONA_DIALOGO.contains(b);
         } else if (modo == Modo.CLIC && zonasClic != null) {
@@ -490,6 +528,9 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
         }
         if (modo == Modo.AVISO) {
             dibujarAviso(g, sx, sy);
+        }
+        if (modo == Modo.CONSECUENCIA && consecuenciaImg != null) {
+            dibujarConsecuencia(g, sx, sy);
         }
         dibujarHud(g, sx, sy);
         g.dispose();
@@ -643,6 +684,20 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
             int segundos = (int) Math.ceil(menuRestanteMs / (1000.0 * ESCALA_TIEMPO));
             textoCentrado(g, "Tiempo restante: " + segundos + " s", barra, (int) (24 * sy), true, Color.WHITE);
         }
+    }
+
+    /** Dibuja la consecuencia centrada, a su tamano (escalado a la pantalla); solo se achica si no cabe. */
+    private void dibujarConsecuencia(Graphics2D g, double sx, double sy) {
+        g.setColor(new Color(0, 0, 0, 110));
+        g.fillRect(0, 0, getWidth(), getHeight());
+
+        double esc = Math.min(sx, sy);
+        double ajuste = Math.min(1.0, Math.min(
+                getWidth() * 0.9 / (consecuenciaImg.getWidth() * esc),
+                getHeight() * 0.9 / (consecuenciaImg.getHeight() * esc)));
+        int w = (int) (consecuenciaImg.getWidth() * esc * ajuste);
+        int h = (int) (consecuenciaImg.getHeight() * esc * ajuste);
+        g.drawImage(consecuenciaImg, (getWidth() - w) / 2, (getHeight() - h) / 2, w, h, null);
     }
 
     private void dibujarAviso(Graphics2D g, double sx, double sy) {

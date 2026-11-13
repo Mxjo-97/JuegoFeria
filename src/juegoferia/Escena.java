@@ -119,6 +119,13 @@ public final Escena seleccionarZonas(
         return this;
     }
 
+    /** Consecuencia: imagen en el CENTRO de la pantalla; se quita cuando el jugador hace clic. */
+    public Escena consecuencia(String archivo) {
+        pasos.add(Paso.consecuencia(ruta(archivo)));
+        anotar("CONSEC.", "", archivo);
+        return this;
+    }
+
     // ===================== INTERACCION / CONTROL =====================
 
     /** Pausa en milisegundos (sin dialogo). */

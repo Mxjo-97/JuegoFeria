@@ -124,9 +124,35 @@ public class GrafoLocaciones {
         return g;
     }
 
+    // ===================== MAPA DE LA ISLA =====================
+    // Nombres de las locaciones (se usan en partvisual para el mapa)
+    public static final String CASAS = "Casas";
+    public static final String PANADERIA = "Panaderia";
+    public static final String MALECON = "Malecon";
+    public static final String JUNTA = "Junta_Comunal";
+    public static final String ALCALDIA = "Alcaldia";
+
+    /**
+     * La isla tal como se recorre en el juego (cada arista es un paso de color en los mapas):
+     *   Casas    --rojo--   Panaderia
+     *   Panaderia --verde-- Alcaldia
+     *   Panaderia --azul--  Malecon
+     *   Malecon  --amarillo-- Junta_Comunal
+     * El peso es la distancia aproximada en el dibujo del mapa.
+     */
+    public static GrafoLocaciones crearMapaIsla() {
+        GrafoLocaciones g = new GrafoLocaciones();
+        g.conectar(CASAS, PANADERIA, 3);
+        g.conectar(PANADERIA, ALCALDIA, 2);
+        g.conectar(PANADERIA, MALECON, 2);
+        g.conectar(MALECON, JUNTA, 2);
+        return g;
+    }
+
     public void imprimir() {
         for (Map.Entry<String, Map<String, Integer>> e : adyacencia.entrySet()) {
             System.out.println(e.getKey() + " -> " + e.getValue());
         }
     }
 }
+

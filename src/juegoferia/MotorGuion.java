@@ -96,6 +96,9 @@ public class MotorGuion {
             case AVISO:
                 pantalla.mostrarAviso(p.ruta, p.texto, p.ms, this::continuar);
                 return true;
+            case CONSECUENCIA:
+                pantalla.mostrarConsecuencia(p.ruta, this::continuar);
+                return true;
             case ESPERA:
                 pantalla.esperar(p.ms, this::continuar);
                 return true;

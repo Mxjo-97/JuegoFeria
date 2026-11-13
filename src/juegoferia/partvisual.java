@@ -38,6 +38,7 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     private boolean guionPanaderiaIniciado = false;
     private boolean guionMaleconIniciado = false;
     private boolean guionJuntaIniciado = false;   // <- nueva
+    private boolean guionJuntaPiso2Iniciado = false;   // conversación del piso 2 (105 a 113)
     private boolean ramaAActiva = false;
     private boolean ramaTintoCalmaActiva = false;
     private boolean ramaDActiva = false;
@@ -80,6 +81,28 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     private boolean juntaActiva = false;
     private int juntaLugar = 0;                 // 0 = exterior, 1 = piso 1, 2 = piso 2
     private boolean puertaJuntaAbierta = false;
+    private boolean salioDeLaPuertaJunta = false;   // para volver a entrar por la puerta abierta
+
+    // ===== ALCALDÍA (exterior + interior) =====
+    private BufferedImage mapaColisionesAlcaldia;
+    private BufferedImage mapaColisionesInteriorAlcaldia;
+    private boolean alcaldiaActiva = false;
+    private int alcaldiaLugar = 0;                  // 0 = afuera (alcaldia.png / puertaabierta.png), 1 = interior
+    private boolean puertaAlcaldiaAbierta = false;
+    private boolean salioDelAmarilloAlcaldia = false;
+    private boolean guionAlcaldiaIniciado = false;
+
+    // Al llegar a un mapa nuevo, los colores de cambio de mapa no hacen nada
+    // hasta que el personaje se salga de ellos (evita el bucle piso 1 <-> piso 2).
+    private boolean esperandoSalirDeZona = false;
+
+    // Historia final de la casa (azul en colisiones_casa.png)
+    private boolean guionCasaFinalIniciado = false;
+
+    // ===== MAPA DE LA ISLA (tecla M) =====
+    private final GrafoLocaciones grafoIsla = GrafoLocaciones.crearMapaIsla();
+    private JLabel mapaIsla;
+    private boolean mapaAbierto = false;
     
     // VIEJAS VARIABLES 
     private boolean casaActiva = true;
@@ -630,6 +653,10 @@ Digitarnombre.setFont(
         mapaColisionesJuntaExterior = cargarMapa("/imagenes/colisiones_junta_exterior.png");
         mapaColisionesJuntaPiso1 = cargarMapa("/imagenes/colisiones_junta_piso1.png");
         mapaColisionesJuntaPiso2 = cargarMapa("/imagenes/colisiones_junta_piso2.png");
+
+        // MAPAS DE COLISIÓN DE LA ALCALDÍA
+        mapaColisionesAlcaldia = cargarMapa("/imagenes/colisiones_alcaldia.png");
+        mapaColisionesInteriorAlcaldia = cargarMapa("/imagenes/colisiones_interioralcaldia.png");
         
         try {
             mapaInteracciones = ImageIO.read(
@@ -2678,7 +2705,7 @@ timerConsecuenciaC.start();
                 return;
             }
             
-            if (dialogoActivo) {
+            if (dialogoActivo || mapaAbierto) {
                 return;
             }
 
@@ -2814,6 +2841,19 @@ double escalaY = (double) mapaColisionesPanaderia.getHeight() / juego.getHeight(
                 abrirPuertaJunta();
                 return;
             }
+
+            // JUNTA: la puerta ya está abierta (salió del piso 1). Primero tiene que
+            // alejarse de la puerta y, si vuelve a ella, entra otra vez al piso 1.
+            if (juntaActiva && juntaLugar == 0 && puertaJuntaAbierta) {
+                boolean enPuerta = estaCercaDePuertaJunta(x, y);
+                if (!enPuerta) {
+                    salioDeLaPuertaJunta = true;
+                } else if (salioDeLaPuertaJunta) {
+                    salioDeLaPuertaJunta = false;
+                    irAJunta(1, JUNTA_SPAWN_PISO1_DESDE_PUERTA);
+                    return;
+                }
+            }
             
             
             
@@ -2861,6 +2901,12 @@ BufferedImage mapaActual;
 if (dentroPanaderia) {
 
     mapaActual = mapaColisionesPanaderia;
+
+} else if (alcaldiaActiva) {
+
+    mapaActual = (alcaldiaLugar == 0)
+            ? mapaColisionesAlcaldia
+            : mapaColisionesInteriorAlcaldia;
 
 } else if (juntaActiva) {
 
@@ -2915,18 +2961,50 @@ double escalaY = (double) mapaActual.getHeight() / juego.getHeight();
     int colorCentro = mapaActual.getRGB(pxCentro, pyPies);
     int colorDerecha = mapaActual.getRGB(pxDerecha, pyPies);
 
+    // RECIÉN LLEGÓ A ESTE MAPA: si está parado sobre un color de cambio de mapa,
+    // se puede caminar por encima pero NO cambia de mapa hasta que se salga de él.
+    if (esperandoSalirDeZona) {
+        boolean sobreZona = esZonaDeCambio(colorIzquierda)
+                || esZonaDeCambio(colorCentro)
+                || esZonaDeCambio(colorDerecha);
+        if (sobreZona) {
+            return true;
+        }
+        esperandoSalirDeZona = false;   // ya se salió: desde ahora los colores funcionan normal
+    }
+
+    // CASA (casapuertasin.png): azul -> historia final. Al terminar, se cierra el juego.
+    if (casaActiva && !guionCasaFinalIniciado
+            && (esZonaAzul(colorIzquierda)
+            || esZonaAzul(colorCentro)
+            || esZonaAzul(colorDerecha))) {
+
+        guionCasaFinalIniciado = true;
+        System.out.println("Casa: empieza la historia final");
+
+        reproducirGuion(
+            GuionCiudadano.escenaCasaFinal().build(),
+            () -> {
+                System.out.println("Fin del juego");
+                System.exit(0);   // cierra el juego
+            }
+        );
+        return false;
+    }
+
     
     
     // NUEVA DETECCIÓN DE COLORES - VALENTINA
     
-    if (!casaActiva && !dentroPanaderia && !maleconActivo && !juntaActiva) {    if (maleconActivo) {
-    if (esZonaJunta(colorIzquierda)
-            || esZonaJunta(colorCentro)
-            || esZonaJunta(colorDerecha)) {
-        cambiarAJunta();
-        return false;
-    }
-}
+    if (!casaActiva && !dentroPanaderia && !maleconActivo && !juntaActiva && !alcaldiaActiva) {
+
+        // verde -> alcaldía
+        if (esZonaVerdeAlcaldia(colorIzquierda)
+                || esZonaVerdeAlcaldia(colorCentro)
+                || esZonaVerdeAlcaldia(colorDerecha)) {
+            irAAlcaldia(0, ALCALDIA_SPAWN_DESDE_PANADERIA, false);
+            return false;
+        }
     
     
         if (esZonaMalecon(colorIzquierda)
@@ -2955,7 +3033,67 @@ double escalaY = (double) mapaActual.getHeight() / juego.getHeight();
         return false;
     }
 
-    // DENTRO DE LA JUNTA: escaleras (verde) y salida (amarillo)
+    // MALECÓN -> EXTERIOR DE LA PANADERÍA con la puerta abierta (zona azul en colisiones_malecon.png)
+    if (maleconActivo
+            && (esZonaAzul(colorIzquierda)
+            || esZonaAzul(colorCentro)
+            || esZonaAzul(colorDerecha))) {
+        volverDelMaleconAPanaderia();
+        return false;
+    }
+
+    // ALCALDÍA
+    //   Afuera:   azul = vuelve a la panadería (puertasin.png)
+    //             amarillo = 1ª vez abre la puerta (puertaabierta.png), 2ª vez entra al interior
+    //   Interior: azul = sale a la alcaldía con la puerta abierta (puertaabierta.png)
+    if (alcaldiaActiva) {
+        boolean amarilloA = esZonaAmarilla(colorIzquierda)
+                || esZonaAmarilla(colorCentro)
+                || esZonaAmarilla(colorDerecha);
+        boolean azulA = esZonaAzul(colorIzquierda)
+                || esZonaAzul(colorCentro)
+                || esZonaAzul(colorDerecha);
+
+        if (alcaldiaLugar == 0) {
+
+            if (azulA) {
+                volverDeAlcaldiaAPanaderia();
+                return false;
+            }
+
+            if (amarilloA) {
+                if (!puertaAlcaldiaAbierta) {
+                    // primera vez: solo se abre la puerta
+                    puertaAlcaldiaAbierta = true;
+                    salioDelAmarilloAlcaldia = false;
+                    actualizarImagenCelular();      // muestra puertaabierta.png
+                    juego.repaint();
+                    System.out.println("Se abrió la puerta de la alcaldía");
+                    return true;
+                }
+                if (salioDelAmarilloAlcaldia) {
+                    // ya estaba abierta y volvió a tocar el amarillo: entra
+                    irAAlcaldia(1, ALCALDIA_SPAWN_INTERIOR, true);
+                    return false;
+                }
+                return true;   // sigue parado en el amarillo después de abrir
+            }
+
+            // se alejó del amarillo: la próxima vez que lo toque, entra
+            salioDelAmarilloAlcaldia = true;
+
+        } else if (alcaldiaLugar == 1) {
+
+            if (azulA) {
+                irAAlcaldia(0, ALCALDIA_SPAWN_DESDE_INTERIOR, true);
+                return false;
+            }
+        }
+    }
+
+    // DENTRO DE LA JUNTA
+    //   Piso 1: azul = salida a la calle (puerta abierta), amarillo = sube al piso 2
+    //   Piso 2: azul = baja al piso 1
     if (juntaActiva) {
         boolean amarillo = esZonaAmarilla(colorIzquierda)
                 || esZonaAmarilla(colorCentro)
@@ -2963,18 +3101,26 @@ double escalaY = (double) mapaActual.getHeight() / juego.getHeight();
         boolean verde = esZonaVerde(colorIzquierda)
                 || esZonaVerde(colorCentro)
                 || esZonaVerde(colorDerecha);
+        boolean azul = esZonaAzul(colorIzquierda)
+                || esZonaAzul(colorCentro)
+                || esZonaAzul(colorDerecha);
 
-        if (juntaLugar == 1) {
-            if (amarillo) {                       // salida del piso 1 -> calle
-                irAJunta(0, JUNTA_SPAWN_EXTERIOR_DESDE_PISO1);
+        if (juntaLugar == 0) {
+            if (azul) {                           // afuera de la junta: azul -> vuelve al malecón
+                volverAlMaleconDesdeJunta();
                 return false;
             }
-            if (verde) {                          // escalera: sube al piso 2
+        } else if (juntaLugar == 1) {
+            if (azul) {                           // salida del piso 1 -> calle, con la puerta abierta
+                irAJunta(0, JUNTA_SPAWN_EXTERIOR_DESDE_PISO1, true);
+                return false;
+            }
+            if (amarillo) {                       // escalera: sube al piso 2
                 irAJunta(2, JUNTA_SPAWN_PISO2);
                 return false;
             }
         } else if (juntaLugar == 2) {
-            if (verde) {                          // escalera: baja al piso 1
+            if (azul) {                           // escalera: baja al piso 1
                 irAJunta(1, JUNTA_SPAWN_PISO1_DESDE_PISO2);
                 return false;
             }
@@ -3050,7 +3196,9 @@ if (casaActiva && estaEnPuerta) {
         int rojo = (color >> 16) & 0xFF;
         int verde = (color >> 8) & 0xFF;
         int azul = color & 0xFF;
-        return azul > 170 && verde > rojo + 25 && rojo < 160;
+        // El azul tiene que ser el color más fuerte: así el borde del verde
+        // (que se mezcla con el blanco y queda verde-menta) ya no cuenta como azul.
+        return azul > 170 && verde > rojo + 25 && rojo < 160 && azul > verde + 20;
     }
 
     private boolean esZonaCasitas(int color) {
@@ -3093,15 +3241,312 @@ if (casaActiva && estaEnPuerta) {
         return verde > 200 && rojo < 100 && azul < 100;
     }
 
+    // ===================== MALECÓN -> PANADERÍA (zona azul) =====================
+
+    // Dónde aparece el personaje al volver del malecón (esquina superior izquierda),
+    // en coordenadas de diseño 1591 x 989. Queda a la izquierda de la zona azul del exterior.
+    private static final int[] PANADERIA_SPAWN_DESDE_MALECON = {1000, 560};
+
+    /** Azul de colisiones_malecon.png (sirve para azul claro y azul puro). */
+    private boolean esZonaAzul(int color) {
+        int rojo = (color >> 16) & 0xFF;
+        int verde = (color >> 8) & 0xFF;
+        int azul = color & 0xFF;
+        return azul > 150 && rojo < 150 && azul > rojo + 40 && azul > verde + 20;
+    }
+
+    /** Vuelve al exterior de la panadería con la puerta abierta (puertasin.png). */
+    private void volverDelMaleconAPanaderia() {
+        maleconActivo = false;
+        juntaActiva = false;
+        casaActiva = false;
+        dentroPanaderia = false;
+        panaderiaAbierta = true;     // así se muestra puertasin.png
+        esperandoSalirDeZona = true;
+
+        personajeJuego.setLocation(
+                (int) (PANADERIA_SPAWN_DESDE_MALECON[0] / 1591.0 * juego.getWidth()),
+                (int) (PANADERIA_SPAWN_DESDE_MALECON[1] / 989.0 * juego.getHeight())
+        );
+
+        actualizarImagenCelular();   // como panaderiaAbierta = true, pone puertasin.png
+        acomodarEnZonaCaminable();
+        juego.repaint();
+
+        System.out.println("Regresaste del malecón a la panadería");
+    }
+
+    // ===================== QUE EL PERSONAJE NO QUEDE ATASCADO =====================
+
+    /** El mapa de colisiones del lugar donde está el personaje ahora. */
+    private BufferedImage mapaColisionActual() {
+        if (dentroPanaderia) {
+            return mapaColisionesPanaderia;
+        } else if (alcaldiaActiva) {
+            return (alcaldiaLugar == 0) ? mapaColisionesAlcaldia : mapaColisionesInteriorAlcaldia;
+        } else if (juntaActiva) {
+            if (juntaLugar == 0) {
+                return mapaColisionesJuntaExterior;
+            } else if (juntaLugar == 1) {
+                return mapaColisionesJuntaPiso1;
+            }
+            return mapaColisionesJuntaPiso2;
+        } else if (maleconActivo) {
+            return mapaColisionesMalecon;
+        } else if (casaActiva) {
+            return mapaColisionesCasa;
+        }
+        return mapaColisiones;
+    }
+
+    /** true si los pies del personaje en (x, y) caen sobre blanco en el mapa actual. */
+    private boolean esCaminable(int x, int y) {
+        BufferedImage mapa = mapaColisionActual();
+        if (mapa == null) {
+            return true;
+        }
+        double escalaX = (double) mapa.getWidth() / juego.getWidth();
+        double escalaY = (double) mapa.getHeight() / juego.getHeight();
+
+        int izquierda = x + 35;
+        int derecha = x + personajeJuego.getWidth() - 35;
+        int pies = y + personajeJuego.getHeight() - 10;
+
+        int[] puntosX = {
+                (int) (izquierda * escalaX),
+                (int) (((izquierda + derecha) / 2.0) * escalaX),
+                (int) (derecha * escalaX)
+        };
+        int py = (int) (pies * escalaY);
+
+        if (py < 0 || py >= mapa.getHeight()) {
+            return false;
+        }
+        for (int px : puntosX) {
+            if (px < 0 || px >= mapa.getWidth()) {
+                return false;
+            }
+            int rgb = mapa.getRGB(px, py);
+            int r = (rgb >> 16) & 0xFF;
+            if (r <= 200) {   // misma regla que puedeMoverse: negro = pared
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Si el personaje apareció encima de negro (pared), lo mueve al punto blanco
+     * más cercano. Así nunca queda congelado al cambiar de mapa.
+     */
+    private void acomodarEnZonaCaminable() {
+        int x0 = personajeJuego.getX();
+        int y0 = personajeJuego.getY();
+
+        if (esCaminable(x0, y0)) {
+            return;
+        }
+
+        BufferedImage mapa = mapaColisionActual();
+        if (mapa != null) {
+            int px = (int) ((x0 + personajeJuego.getWidth() / 2.0) * mapa.getWidth() / juego.getWidth());
+            int py = (int) ((y0 + personajeJuego.getHeight() - 10.0) * mapa.getHeight() / juego.getHeight());
+            if (px >= 0 && py >= 0 && px < mapa.getWidth() && py < mapa.getHeight()) {
+                int rgb = mapa.getRGB(px, py);
+                System.out.println("OJO: el personaje apareció sobre un color que no es blanco: RGB("
+                        + ((rgb >> 16) & 0xFF) + ", " + ((rgb >> 8) & 0xFF) + ", " + (rgb & 0xFF)
+                        + "). Buscando el blanco más cercano...");
+            }
+        }
+
+        int maxX = juego.getWidth() - personajeJuego.getWidth();
+        int maxY = juego.getHeight() - personajeJuego.getHeight();
+
+        for (int radio = 5; radio <= 600; radio += 5) {
+            for (int dx = -radio; dx <= radio; dx += 5) {
+                for (int dy = -radio; dy <= radio; dy += 5) {
+                    if (Math.abs(dx) != radio && Math.abs(dy) != radio) {
+                        continue;   // solo el borde del cuadro, del más cercano al más lejano
+                    }
+                    int x = x0 + dx;
+                    int y = y0 + dy;
+                    if (x < 0 || y < 0 || x > maxX || y > maxY) {
+                        continue;
+                    }
+                    if (esCaminable(x, y)) {
+                        personajeJuego.setLocation(x, y);
+                        System.out.println("Personaje acomodado en x=" + x + ", y=" + y);
+                        return;
+                    }
+                }
+            }
+        }
+
+        System.out.println("OJO: no encontré zona blanca cerca. Revisa que el mapa de colisiones "
+                + "tenga el camino en BLANCO puro (255, 255, 255).");
+    }
+
+    // ===================== ALCALDÍA =====================
+
+    // Dónde aparece el personaje (esquina superior izquierda), en coordenadas de diseño 1591 x 989.
+    // Si cae sobre negro, acomodarEnZonaCaminable() lo mueve solo. AJÚSTALOS a tu dibujo.
+    private static final int[] ALCALDIA_SPAWN_DESDE_PANADERIA = {1000, 560};   // cerca del azul (regreso)
+    private static final int[] ALCALDIA_SPAWN_DESDE_INTERIOR = {400, 650};     // debajo de la puerta (amarillo)
+    private static final int[] ALCALDIA_SPAWN_INTERIOR = {700, 650};           // dentro de la alcaldía
+    private static final int[] PANADERIA_SPAWN_DESDE_ALCALDIA = {460, 480};    // al lado del verde
+
+    /** Verde de colisiones_exterior.png (el camino a la alcaldía). Acepta verde claro y oscuro. */
+    private boolean esZonaVerdeAlcaldia(int color) {
+        int rojo = (color >> 16) & 0xFF;
+        int verde = (color >> 8) & 0xFF;
+        int azul = color & 0xFF;
+        return verde > 120 && verde > rojo + 50 && verde > azul + 50;
+    }
+
+    // ===================== JUNTA -> MALECÓN (azul afuera de la junta) =====================
+
+    // Dónde aparece el personaje al volver al malecón (esquina superior izquierda),
+    // en coordenadas de diseño 1591 x 989. Queda al lado del amarillo que lleva a la junta.
+    private static final int[] MALECON_SPAWN_DESDE_JUNTA = {1150, 250};
+
+    /** Vuelve al malecón desde afuera de la junta. La historia del malecón no se repite. */
+    private void volverAlMaleconDesdeJunta() {
+        juntaActiva = false;
+        juntaLugar = 0;
+        puertaJuntaAbierta = false;
+        alcaldiaActiva = false;
+        casaActiva = false;
+        dentroPanaderia = false;
+        panaderiaAbierta = false;
+        maleconActivo = true;
+        esperandoSalirDeZona = true;   // si aparece sobre el amarillo, no vuelve de una a la junta
+
+        cambiarTamanoPersonaje(TAMANO_PERSONAJE_NORMAL);
+
+        personajeJuego.setLocation(
+                (int) (MALECON_SPAWN_DESDE_JUNTA[0] / 1591.0 * juego.getWidth()),
+                (int) (MALECON_SPAWN_DESDE_JUNTA[1] / 989.0 * juego.getHeight())
+        );
+
+        actualizarImagenCelular();     // muestra malecon.png
+        acomodarEnZonaCaminable();
+        juego.repaint();
+
+        System.out.println("Regresaste de la junta al malecón");
+    }
+
+    /** true si el color es de los que cambian de mapa (amarillo, azul, verde o morado). */
+    private boolean esZonaDeCambio(int color) {
+        return esZonaAmarilla(color)
+                || esZonaAzul(color)
+                || esZonaVerde(color)
+                || esZonaVerdeAlcaldia(color)
+                || esZonaMalecon(color)
+                || esZonaCasitas(color);
+    }
+
+    /** Lleva al jugador a la alcaldía: lugar 0 = afuera, 1 = interior. */
+    private void irAAlcaldia(int lugar, int[] spawn, boolean puertaAbierta) {
+        alcaldiaActiva = true;
+        alcaldiaLugar = lugar;
+        puertaAlcaldiaAbierta = (lugar == 1) || puertaAbierta;
+        salioDelAmarilloAlcaldia = false;   // si aparece sobre el amarillo, no entra de una
+        esperandoSalirDeZona = true;
+
+        juntaActiva = false;
+        maleconActivo = false;
+        casaActiva = false;
+        dentroPanaderia = false;
+        panaderiaAbierta = false;
+
+        // Dentro de la alcaldía el personaje es más grande; afuera, tamaño normal
+        cambiarTamanoPersonaje(lugar == 1 ? TAMANO_PERSONAJE_ALCALDIA : TAMANO_PERSONAJE_NORMAL);
+
+        personajeJuego.setLocation(
+                (int) (spawn[0] / 1591.0 * juego.getWidth()),
+                (int) (spawn[1] / 989.0 * juego.getHeight())
+        );
+
+        actualizarImagenCelular();
+        acomodarEnZonaCaminable();
+        juego.repaint();
+
+        System.out.println("Alcaldía: " + (lugar == 0 ? "afuera" : "interior"));
+
+        // La historia de la alcaldía empieza la primera vez que entra al interior
+        if (lugar == 1 && !guionAlcaldiaIniciado) {
+            guionAlcaldiaIniciado = true;
+            reproducirGuion(
+                GuionCiudadano.escenaAlcaldia().build(),
+                this::reanudarJuegoDespuesDeHistoria
+            );
+        }
+    }
+
+    /** Azul de la alcaldía: vuelve al exterior de la panadería con la puerta abierta (puertasin.png). */
+    private void volverDeAlcaldiaAPanaderia() {
+        alcaldiaActiva = false;
+        alcaldiaLugar = 0;
+        juntaActiva = false;
+        maleconActivo = false;
+        casaActiva = false;
+        dentroPanaderia = false;
+        panaderiaAbierta = true;     // así se muestra puertasin.png
+        esperandoSalirDeZona = true;
+
+        personajeJuego.setLocation(
+                (int) (PANADERIA_SPAWN_DESDE_ALCALDIA[0] / 1591.0 * juego.getWidth()),
+                (int) (PANADERIA_SPAWN_DESDE_ALCALDIA[1] / 989.0 * juego.getHeight())
+        );
+
+        actualizarImagenCelular();
+        acomodarEnZonaCaminable();
+        juego.repaint();
+
+        System.out.println("Regresaste de la alcaldía a la panadería");
+    }
+
+    // ===================== TAMAÑO DEL PERSONAJE =====================
+
+    // Tamaño normal (calle, malecón, casa) y tamaño dentro de la junta (piso 1 y piso 2).
+    // Para hacerlo más grande o más pequeño, cambia estos números (ancho, alto).
+    private static final int[] TAMANO_PERSONAJE_NORMAL = {140, 170};
+    private static final int[] TAMANO_PERSONAJE_JUNTA = {185, 225};
+    private static final int[] TAMANO_PERSONAJE_ALCALDIA = {230, 280};   // dentro de interioralcaldia.png
+
+    /** Cambia el tamaño del personaje (la imagen y el cuadro que se usa para las colisiones). */
+    private void cambiarTamanoPersonaje(int[] tamano) {
+        if (personajeJuego.getWidth() == tamano[0] && personajeJuego.getHeight() == tamano[1]) {
+            return;   // ya tiene ese tamaño
+        }
+        Image img = new ImageIcon(getClass().getResource("/imagenes/personajecivil.png"))
+                .getImage().getScaledInstance(tamano[0], tamano[1], Image.SCALE_SMOOTH);
+        personajeJuego.setIcon(new ImageIcon(img));
+        personajeJuego.setSize(tamano[0], tamano[1]);
+    }
+
     /** Lleva al jugador a un lugar de la junta: 0 = exterior, 1 = piso 1, 2 = piso 2. */
     private void irAJunta(int lugar, int[] spawn) {
+        irAJunta(lugar, spawn, false);
+    }
+
+    /**
+     * Igual que el anterior, pero si puertaAbierta = true y va al exterior,
+     * se muestra junta_puertaabierta.png (por ejemplo, al salir del piso 1).
+     */
+    private void irAJunta(int lugar, int[] spawn, boolean puertaAbierta) {
         juntaActiva = true;
         juntaLugar = lugar;
         maleconActivo = false;
         casaActiva = false;
         dentroPanaderia = false;
         panaderiaAbierta = false;
-        puertaJuntaAbierta = false;
+        puertaJuntaAbierta = (lugar == 0) && puertaAbierta;
+        salioDeLaPuertaJunta = false;
+        esperandoSalirDeZona = true;        // si aparece sobre la escalera, no vuelve a subir/bajar
+
+        // Dentro de la junta el personaje es más grande; afuera vuelve a su tamaño normal
+        cambiarTamanoPersonaje(lugar == 0 ? TAMANO_PERSONAJE_NORMAL : TAMANO_PERSONAJE_JUNTA);
 
         personajeJuego.setLocation(
                 (int) (spawn[0] / 1920.0 * juego.getWidth()),
@@ -3109,27 +3554,25 @@ if (casaActiva && estaEnPuerta) {
         );
 
         actualizarImagenCelular();
+        acomodarEnZonaCaminable();   // por si el spawn cae sobre negro
         juego.repaint();
 
         System.out.println("Junta: " + (lugar == 0 ? "exterior" : "piso " + lugar));
-        
-        
-        
-        
-        
-        
-        // imagen celular - VALENTINA
-        
-            actualizarImagenCelular();
-    juego.repaint();
-
-    System.out.println("Junta: " + (lugar == 0 ? "exterior" : "piso " + lugar));
 
     // Escena de la Junta: se dispara la primera vez que entra al piso 1
     if (lugar == 1 && !guionJuntaIniciado) {
         guionJuntaIniciado = true;
         reproducirGuion(
             GuionCiudadano.escenaJunta1().build(),
+            this::reanudarJuegoDespuesDeHistoria
+        );
+    }
+
+    // Conversación del piso 2: se dispara la primera vez que sube al piso 2
+    if (lugar == 2 && !guionJuntaPiso2Iniciado) {
+        guionJuntaPiso2Iniciado = true;
+        reproducirGuion(
+            GuionCiudadano.escenaJuntaPiso2().build(),
             this::reanudarJuegoDespuesDeHistoria
         );
     }
@@ -3199,6 +3642,7 @@ if (casaActiva && estaEnPuerta) {
 
     maleconActivo = true;
     casaActiva = false;
+    esperandoSalirDeZona = true;
     dentroPanaderia = false;
     panaderiaAbierta = false;
 
@@ -3351,6 +3795,191 @@ posicionExteriorY = personajeJuego.getY();
     }
 }
   
+    // ===================== MAPA DE LA ISLA =====================
+
+    // Zonas de clic sobre mapa.png, en coordenadas de diseño 1591 x 989.
+    private static final java.awt.Rectangle MAPA_ALCALDIA = new java.awt.Rectangle(120, 70, 355, 330);
+    private static final java.awt.Rectangle MAPA_PANADERIA = new java.awt.Rectangle(525, 140, 315, 250);
+    private static final java.awt.Rectangle MAPA_JUNTA = new java.awt.Rectangle(1030, 120, 320, 270);
+    private static final java.awt.Rectangle MAPA_MALECON = new java.awt.Rectangle(720, 395, 620, 200);
+    private static final java.awt.Rectangle MAPA_CASAS = new java.awt.Rectangle(190, 585, 925, 285);
+
+    /** Abre el mapa encima del juego. Llama a este método desde un botón si quieres. */
+    public void abrirMapaIsla() {
+
+        // No se abre durante diálogos, situaciones o avisos
+        if (!juegoPreparado || mapaAbierto || dialogoActivo || situacionActiva
+                || imagenTemporizadaActiva) {
+            return;
+        }
+
+        if (mapaIsla == null) {
+            mapaIsla = new JLabel();
+
+            mapaIsla.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mousePressed(java.awt.event.MouseEvent e) {
+                    clicEnMapaIsla(e.getX(), e.getY());
+                }
+            });
+            // Para que el mouse sobre el mapa no abra el celular de abajo
+            mapaIsla.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() { });
+
+            juego.add(mapaIsla);
+        }
+
+        java.net.URL recurso = getClass().getResource("/imagenes/mapa.png");
+        if (recurso == null) {
+            System.out.println("No se encontró: /imagenes/mapa.png");
+            return;
+        }
+
+        Image img = new ImageIcon(recurso).getImage()
+                .getScaledInstance(juego.getWidth(), juego.getHeight(), Image.SCALE_SMOOTH);
+        mapaIsla.setIcon(new ImageIcon(img));
+        mapaIsla.setBounds(0, 0, juego.getWidth(), juego.getHeight());
+
+        // El personaje se queda quieto mientras el mapa está abierto
+        teclaW = false;
+        teclaA = false;
+        teclaS = false;
+        teclaD = false;
+        mapaAbierto = true;
+
+        mapaIsla.setVisible(true);
+        juego.setComponentZOrder(mapaIsla, 0);
+        juego.revalidate();
+        juego.repaint();
+
+        String aqui = lugarActualEnGrafo();
+        System.out.println("Mapa abierto. Estás en: " + aqui
+                + " | Puedes ir directo a: " + grafoIsla.vecinos(aqui));
+    }
+
+    public void cerrarMapaIsla() {
+        mapaAbierto = false;
+        if (mapaIsla != null) {
+            mapaIsla.setVisible(false);
+        }
+        juego.requestFocusInWindow();
+        juego.repaint();
+    }
+
+    /** Qué locación del grafo corresponde a donde está el personaje ahora. */
+    private String lugarActualEnGrafo() {
+        if (alcaldiaActiva) {
+            return GrafoLocaciones.ALCALDIA;
+        } else if (juntaActiva) {
+            return GrafoLocaciones.JUNTA;
+        } else if (maleconActivo) {
+            return GrafoLocaciones.MALECON;
+        } else if (casaActiva) {
+            return GrafoLocaciones.CASAS;
+        }
+        return GrafoLocaciones.PANADERIA;   // exterior o dentro de la panadería
+    }
+
+    private void clicEnMapaIsla(int xPantalla, int yPantalla) {
+
+        // pasar el clic a coordenadas de diseño 1591 x 989
+        int x = (int) (xPantalla * 1591.0 / juego.getWidth());
+        int y = (int) (yPantalla * 989.0 / juego.getHeight());
+
+        String destino = null;
+        if (MAPA_ALCALDIA.contains(x, y)) {
+            destino = GrafoLocaciones.ALCALDIA;
+        } else if (MAPA_PANADERIA.contains(x, y)) {
+            destino = GrafoLocaciones.PANADERIA;
+        } else if (MAPA_JUNTA.contains(x, y)) {
+            destino = GrafoLocaciones.JUNTA;
+        } else if (MAPA_MALECON.contains(x, y)) {
+            destino = GrafoLocaciones.MALECON;
+        } else if (MAPA_CASAS.contains(x, y)) {
+            destino = GrafoLocaciones.CASAS;
+        }
+
+        if (destino == null) {
+            return;   // clic fuera de los lugares: no pasa nada
+        }
+
+        Funciones.reproducirSonido("/sonidos/click.wav");
+        viajarPorGrafo(destino);
+    }
+
+    /** Usa el grafo para calcular el camino y lleva al jugador al destino. */
+    private void viajarPorGrafo(String destino) {
+
+        String origen = lugarActualEnGrafo();
+
+        java.util.List<String> camino = grafoIsla.caminoMasCorto(origen, destino);
+        int distancia = grafoIsla.distanciaTotal(camino);
+
+        System.out.println("=================================");
+        System.out.println("VIAJE POR EL MAPA");
+        System.out.println("Desde: " + origen + "  Hasta: " + destino);
+        System.out.println("Camino (BFS): " + String.join(" -> ", camino));
+        System.out.println("Distancia total: " + distancia);
+        System.out.println("=================================");
+
+        cerrarMapaIsla();
+
+        if (camino.isEmpty()) {
+            System.out.println("No hay camino en el grafo hacia " + destino);
+            return;
+        }
+
+        irALocacion(destino);
+    }
+
+    /** Lleva al personaje a la foto de cada locación. */
+    private void irALocacion(String locacion) {
+
+        // Salir de donde esté
+        casaActiva = false;
+        dentroPanaderia = false;
+        panaderiaAbierta = false;
+        maleconActivo = false;
+        juntaActiva = false;
+        juntaLugar = 0;
+        puertaJuntaAbierta = false;
+        alcaldiaActiva = false;
+        alcaldiaLugar = 0;
+        puertaAlcaldiaAbierta = false;
+        cambiarTamanoPersonaje(TAMANO_PERSONAJE_NORMAL);
+        esperandoSalirDeZona = true;   // si aparece sobre un color, no cambia de mapa de una
+
+        switch (locacion) {
+
+            case GrafoLocaciones.CASAS:          // casapuertasin.png
+                cambiarACasa();
+                break;
+
+            case GrafoLocaciones.PANADERIA:      // exteriorsin.png
+                personajeJuego.setLocation(700, 600);
+                actualizarImagenCelular();
+                acomodarEnZonaCaminable();
+                break;
+
+            case GrafoLocaciones.MALECON:        // malecon.png
+                cambiarAMalecon();
+                break;
+
+            case GrafoLocaciones.JUNTA:          // junta_puertacerrada.png
+                irAJunta(0, JUNTA_SPAWN_EXTERIOR_DESDE_MALECON);
+                break;
+
+            case GrafoLocaciones.ALCALDIA:       // alcaldia.png
+                irAAlcaldia(0, ALCALDIA_SPAWN_DESDE_PANADERIA, false);
+                break;
+
+            default:
+                break;
+        }
+
+        esperandoSalirDeZona = true;
+        juego.repaint();
+    }
+
   private void cambiarAExteriorPanaderia() {
 
     // Desactivar el escenario de la casa
@@ -3420,7 +4049,17 @@ posicionExteriorY = personajeJuego.getY();
     //REEMPLAZO - VALENTINA
 private void actualizarImagenCelular() {
 
-    if (juntaActiva) {
+    if (alcaldiaActiva) {
+
+        if (alcaldiaLugar == 0) {
+            cambiarFondoJuego(puertaAlcaldiaAbierta
+                    ? "/imagenes/puertaabierta.png"
+                    : "/imagenes/alcaldia.png");
+        } else {
+            cambiarFondoJuego("/imagenes/interioralcaldia.png");
+        }
+
+    } else if (juntaActiva) {
 
         if (juntaLugar == 0) {
             cambiarFondoJuego(puertaJuntaAbierta
@@ -3753,6 +4392,7 @@ private boolean estaEnInteraccion(int x, int y) {
     guionPanaderiaIniciado = false;
 guionMaleconIniciado = false;
 guionJuntaIniciado = false;   // <- nueva - VALENTINA
+guionJuntaPiso2Iniciado = false;
     dialogoActual = 40;
     imagenTemporizadaActiva = false;
 
@@ -3770,6 +4410,16 @@ guionJuntaIniciado = false;   // <- nueva - VALENTINA
     juntaActiva = false;
     juntaLugar = 0;
     puertaJuntaAbierta = false;
+    salioDeLaPuertaJunta = false;
+    alcaldiaActiva = false;
+    alcaldiaLugar = 0;
+    puertaAlcaldiaAbierta = false;
+    salioDelAmarilloAlcaldia = false;
+    guionAlcaldiaIniciado = false;
+    esperandoSalirDeZona = false;
+    guionCasaFinalIniciado = false;
+    mapaAbierto = false;
+    if (mapaIsla != null) mapaIsla.setVisible(false);
     casaActiva = true;
 // NUEVAS VARIABLES - VALENTINA
     
@@ -3809,6 +4459,7 @@ guionJuntaIniciado = false;   // <- nueva - VALENTINA
     juego.revalidate();
     juego.repaint();
 }
+
 
 // Sirve tanto para el fin del día como para salir a mitad de partida
 private void volverAlInicio() {
@@ -4082,6 +4733,21 @@ private void volverAlInicio() {
             case KeyEvent.VK_D:
                 teclaD = true;
                 break;
+                case KeyEvent.VK_M:
+             // Abrir / cerrar el mapa de la isla
+             System.out.println("Tecla M presionada");
+             if (mapaAbierto) {
+                 cerrarMapaIsla();
+             } else {
+                 abrirMapaIsla();
+             }
+             break;
+
+         case KeyEvent.VK_ESCAPE:
+             if (mapaAbierto) {
+                 cerrarMapaIsla();
+             }
+             break;
 
             case KeyEvent.VK_X:
 

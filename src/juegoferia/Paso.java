@@ -25,6 +25,7 @@ public class Paso {
         DIALOGO_IMG,
         DIALOGO_TXT,
         AVISO,
+        CONSECUENCIA,
         ESPERA,
         ESPERAR_CLIC,
         DECISION,
@@ -120,6 +121,13 @@ public class Paso {
         Paso p = new Paso(Tipo.AVISO);
         p.texto = texto;
         p.ms = ms;
+        return p;
+    }
+
+    /** Consecuencia: imagen centrada que se quita con un clic. */
+    public static Paso consecuencia(String ruta) {
+        Paso p = new Paso(Tipo.CONSECUENCIA);
+        p.ruta = ruta;
         return p;
     }
 
