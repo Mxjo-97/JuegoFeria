@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.function.IntConsumer;
 import javax.swing.JPanel;
 import javax.swing.Timer;
+import java.awt.AlphaComposite;
+import java.util.HashMap;
 
 
 /**
@@ -34,6 +36,29 @@ import javax.swing.Timer;
  * Teclas: H = ver/ocultar indicadores, ESC = volver al menu.
  */
 public class PantallaJuego extends JPanel {
+    
+    
+    
+        // Variables para el nombre del jugador
+    private String nombreJugador;
+    private boolean mostrarNombreJugador = false;
+    
+        // ---- Tamano y posicion de las burbujas de dialogo ----
+    private static final double ANCHO_BURBUJA = 0.50;     // 50% del ancho de la pantalla
+    private static final double ALTO_MAX_BURBUJA = 0.34;  // tope de alto (% de la pantalla)
+    private static final double MARGEN_ABAJO = 0.015;     // separacion del borde de abajo
+    // Centro de la placa del nombre dentro de la burbuja (0.0 a 1.0), para el nombre del jugador
+    private static final double NOMBRE_REL_X = 0.51;
+    private static final double NOMBRE_REL_Y = 0.10;
+
+    private final Map<String, BufferedImage> burbujas = new HashMap<>();
+    private long dlgInicioMs;
+    private Timer timerAnimDialogo;
+    
+    
+    
+    
+    
     private java.util.function.IntConsumer seleccionFin;
 
     /** Dev: poner en 0.05 para probar rapido (los avisos y esperas duran 5%). */
@@ -103,7 +128,6 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
             public void mousePressed(MouseEvent e) {
                 clic(aBase(e.getPoint()));
             }
-
             @Override
             public void mouseMoved(MouseEvent e) {
                 mover(aBase(e.getPoint()));
@@ -146,6 +170,12 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
         this.hudEstado = estado;
     }
 
+      public void setNombreJugador(String nombre) {
+        this.nombreJugador = nombre;
+        this.mostrarNombreJugador = (nombre != null && !nombre.isEmpty());
+        repaint();
+    }
+    
     public void setAlSalir(Runnable r) {
         this.alSalir = r;
     }
@@ -171,13 +201,48 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
         repaint();
     }
 
-    public void mostrarDialogoImagen(String ruta, Runnable fin) {
-        dlgImg = Recursos.dialogo(ruta);
+            public void mostrarDialogoImagen(String ruta, Runnable fin) {
+        dlgImg = burbujas.computeIfAbsent(ruta, r -> recortarTransparente(Recursos.dialogo(r)));
         dlgQuien = null;
         dlgTexto = null;
         dlgFin = fin;
         modo = Modo.DIALOGO;
+
+        // animacion de entrada: repinta unos 300 ms y se detiene sola
+        dlgInicioMs = System.currentTimeMillis();
+        if (timerAnimDialogo != null) {
+            timerAnimDialogo.stop();
+        }
+        timerAnimDialogo = new Timer(16, ev -> {
+            repaint();
+            if (System.currentTimeMillis() - dlgInicioMs > 300) {
+                ((Timer) ev.getSource()).stop();
+            }
+        });
+        timerAnimDialogo.start();
         repaint();
+    }
+
+    /** Quita el espacio transparente de los bordes, para que todas las burbujas queden parejas. */
+    private static BufferedImage recortarTransparente(BufferedImage img) {
+        if (img == null) {
+            return null;
+        }
+        int minX = img.getWidth(), minY = img.getHeight(), maxX = -1, maxY = -1;
+        for (int y = 0; y < img.getHeight(); y++) {
+            for (int x = 0; x < img.getWidth(); x++) {
+                if (((img.getRGB(x, y) >> 24) & 0xFF) > 10) {
+                    if (x < minX) minX = x;
+                    if (y < minY) minY = y;
+                    if (x > maxX) maxX = x;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+        if (maxX < 0) {
+            return img;
+        }
+        return img.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
     }
 
     public void mostrarDialogoTexto(String quien, String texto, Runnable fin) {
@@ -319,6 +384,10 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
         if (timerUnico != null) {
             timerUnico.stop();
             timerUnico = null;
+         if (timerAnimDialogo != null) {
+            timerAnimDialogo.stop();
+            timerAnimDialogo = null;
+        }
         }
         
         detenerTimerCuenta();
@@ -440,8 +509,7 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
                 }
             }
         }
-        setCursor(mano ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : Cursor.getDefaultCursor());
-    }
+setCursor(mano ? Cursores.MANO : Cursores.NORMAL);    }
 
     private void terminarDialogo() {
         if (modo != Modo.DIALOGO) {
@@ -601,15 +669,41 @@ public static final Rectangle ZONA_DIALOGO = new Rectangle(150, 700, 1291, 250);
     private void dibujarDialogo(Graphics2D g, double sx, double sy) {
         Rectangle z = escalar(ZONA_DIALOGO, sx, sy);
 
-        if (dlgImg != null) {
-            // Posicion UNICA para todas las burbujas: centradas en ZONA_DIALOGO, pegadas abajo.
-            // Escala fija (la de la pantalla); solo se reduce si la burbuja no cabe en la zona.
-            double esc = Math.min(sx, sy);
-            double ajuste = Math.min(1.0, Math.min(z.width / (dlgImg.getWidth() * esc),
-                    z.height / (dlgImg.getHeight() * esc)));
-            int w = (int) (dlgImg.getWidth() * esc * ajuste);
-            int h = (int) (dlgImg.getHeight() * esc * ajuste);
-            g.drawImage(dlgImg, z.x + (z.width - w) / 2, z.y + z.height - h, w, h, null);
+             if (dlgImg != null) {
+            int W = getWidth(), H = getHeight();
+
+            // mismo ancho para todas; si una es muy alta, se limita por el alto
+            double esc = (W * ANCHO_BURBUJA) / dlgImg.getWidth();
+            if (dlgImg.getHeight() * esc > H * ALTO_MAX_BURBUJA) {
+                esc = (H * ALTO_MAX_BURBUJA) / dlgImg.getHeight();
+            }
+            int w = (int) (dlgImg.getWidth() * esc);
+            int h = (int) (dlgImg.getHeight() * esc);
+
+            // animacion de entrada: sube con un pequeno rebote y aparece con fundido
+            double t = Math.min(1.0, (System.currentTimeMillis() - dlgInicioMs) / 260.0);
+            double e = 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2);
+            double zoom = 0.85 + 0.15 * e;
+            int w2 = (int) (w * zoom);
+            int h2 = (int) (h * zoom);
+            int x = (W - w2) / 2;
+            int y = H - (int) (H * MARGEN_ABAJO) - h2 + (int) ((1 - e) * 30 * sy);
+
+            Graphics2D ga = (Graphics2D) g.create();
+            ga.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER,
+                    (float) Math.min(1.0, t * 2)));
+            ga.drawImage(dlgImg, x, y, w2, h2, null);
+
+            if (mostrarNombreJugador && nombreJugador != null && !nombreJugador.isEmpty()) {
+                Rectangle placa = new Rectangle(
+                        x + (int) (w2 * (NOMBRE_REL_X - 0.19)),
+                        y + (int) (h2 * (NOMBRE_REL_Y - 0.10)),
+                        (int) (w2 * 0.38),
+                        (int) (h2 * 0.20));
+                textoCentrado(ga, nombreJugador, placa, (int) (h2 * 0.15), false,
+                        new Color(60, 40, 20));
+            }
+            ga.dispose();
             return;
         }
 

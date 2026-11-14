@@ -19,13 +19,15 @@ import javax.imageio.ImageIO;
 import java.io.IOException;
 import javax.swing.SwingConstants;
 
-
 /**
  *
  * @author Mary
  */
 public class partvisual extends javax.swing.JFrame implements KeyListener {
-
+    private final AnimacionPersonaje animacion = new AnimacionPersonaje();
+private boolean mirandoIzquierda = false;
+private static final boolean ESPEJAR_IZQUIERDA = true; 
+    private IntroLlegada introLlegada;
     private CardLayout card;
     private int idPartida =0;
     private JLabel fondoJuego;
@@ -40,6 +42,9 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     private boolean guionJuntaIniciado = false;   // <- nueva
     private boolean guionJuntaPiso2Iniciado = false;   // conversación del piso 2 (105 a 113)
     private boolean ramaAActiva = false;
+    
+    
+    
     private boolean ramaTintoCalmaActiva = false;
     private boolean ramaDActiva = false;
     private boolean ramaCActiva = false;
@@ -124,9 +129,18 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     private static final java.util.logging.Logger logger
             = java.util.logging.Logger.getLogger(partvisual.class.getName());
 
-    public partvisual() {
-     this.setUndecorated(true);
-    initComponents();
+        public partvisual() {
+        this.setUndecorated(true);
+        initComponents();
+        
+        // --- OCULTAR LOS BOTONES VIEJOS - VALENTINA ---
+        BTjugar.setVisible(false);
+        BTinst.setVisible(false);
+        BTsalir.setVisible(false);
+        // -------------------------------------------------------------
+        
+        setCursor(Cursores.NORMAL);
+
      
     arbolActual = ArbolPublicacion.construirArbolEscena1();
     estadoJuego = new EstadoJuego();
@@ -137,7 +151,7 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
         this.requestFocusInWindow();
         this.setExtendedState(JFrame.MAXIMIZED_BOTH);
         crearPantallasPorCodigo();
-        
+        CursorJuego.instalar(this);
         
            java.awt.Toolkit.getDefaultToolkit().addAWTEventListener(evento -> {
     if (evento.getID() == java.awt.event.MouseEvent.MOUSE_PRESSED
@@ -202,6 +216,12 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     pantallaEscenas = new PantallaJuego();
     pantallaEscenas.setAlSalir(this::salirDeEscenas);
     Panel_cambiante.add(pantallaEscenas, "escenas");
+    
+
+// intro llegada - VALENTINA
+    introLlegada = new IntroLlegada();
+Panel_cambiante.add(introLlegada, "intro");
+
 
     card = (CardLayout) Panel_cambiante.getLayout();
 
@@ -210,90 +230,12 @@ public class partvisual extends javax.swing.JFrame implements KeyListener {
     Panel_cambiante.revalidate();
     Panel_cambiante.repaint();
 }
-    private javax.swing.JPanel crearPantallaRoles() {
-
-    javax.swing.JPanel panel = new javax.swing.JPanel(null);
-
-    javax.swing.JLabel fondo = new javax.swing.JLabel();
-
-    ImageIcon icono = new ImageIcon(
-            getClass().getResource("/imagenes/Roles.png")
-    );
-
-    fondo.setIcon(icono);
-    panel.add(fondo);
-
-    BTvolver = crearBotonInvisible();
-
-    BTcivil = crearBotonInvisible();
-
-    panel.add(BTvolver);
-    panel.add(BTcivil);
-
-    BTvolver.addActionListener(e -> {
-        card.show(Panel_cambiante, "inicio");
-    });
-
-    BTcivil.addActionListener(e -> {
-        card.show(Panel_cambiante, "nombre");
-    });
-
-    panel.addComponentListener(new java.awt.event.ComponentAdapter() {
-
-        @Override
-        public void componentResized(java.awt.event.ComponentEvent e) {
-            ajustarPantallaRoles(panel, fondo);
-        }
-    });
-
-    return panel;
+  private javax.swing.JPanel crearPantallaRoles() {
+    return new PantallaRoles(
+            () -> card.show(Panel_cambiante, "inicio"),
+            () -> card.show(Panel_cambiante, "nombre"));
 }
-    private void ajustarPantallaRoles(
-        javax.swing.JPanel panel,
-        javax.swing.JLabel fondo) {
-
-    int ancho = panel.getWidth();
-    int alto = panel.getHeight();
-
-    if (ancho <= 0 || alto <= 0) {
-        return;
-    }
-
-    double escalaX = ancho / 1591.0;
-    double escalaY = alto / 989.0;
-
-    fondo.setBounds(0, 0, ancho, alto);
-
-    ImageIcon original = new ImageIcon(
-            getClass().getResource("/imagenes/Roles.png")
-    );
-
-    Image imagenEscalada = original.getImage()
-            .getScaledInstance(
-                    ancho,
-                    alto,
-                    Image.SCALE_SMOOTH
-            );
-
-    fondo.setIcon(new ImageIcon(imagenEscalada));
-    BTvolver.setBounds(
-            (int)(40 * escalaX),
-            (int)(880 * escalaY),
-            (int)(220 * escalaX),
-            (int)(70 * escalaY)
-    );
-    BTcivil.setBounds(
-            (int)(860 * escalaX),
-            (int)(350 * escalaY),
-            (int)(320 * escalaX),
-            (int)(330 * escalaY)
-    );
-
-    panel.setComponentZOrder(fondo, panel.getComponentCount() - 1);
-
-    panel.revalidate();
-    panel.repaint();
-}
+  
     private javax.swing.JPanel crearPantallaNombre() {
 
     javax.swing.JPanel panel = new javax.swing.JPanel(null);
@@ -353,10 +295,10 @@ Digitarnombre.setFont(
         return;
     }
     nombreJugador = nombre; 
-
+    if (pantallaEscenas != null) pantallaEscenas.setNombreJugador(nombreJugador); 
     System.out.println("Nombre del jugador: " + nombre);
 
-    iniciarEscenasNoJugables();
+    iniciarIntroLlegada();;
 });
 
     panel.addComponentListener(new java.awt.event.ComponentAdapter() {
@@ -496,52 +438,33 @@ Digitarnombre.setFont(
     panel.revalidate();
     panel.repaint();
 }
-    private javax.swing.JPanel crearPantallaInicio() {
-
-    javax.swing.JPanel panel = new javax.swing.JPanel(null);
-
-    javax.swing.JLabel fondo = new javax.swing.JLabel();
-
-    ImageIcon icono = new ImageIcon(
-            getClass().getResource("/imagenes/Inicio.png")
-    );
-
-    fondo.setIcon(icono);
-
-    panel.add(fondo);
-
-    BTjugar = crearBotonInvisible();
-
-    BTinst = crearBotonInvisible();
-
-    BTsalir = crearBotonInvisible();
-
-    panel.add(BTjugar);
-    panel.add(BTinst);
-    panel.add(BTsalir);
-
-    BTjugar.addActionListener(e -> {
-        card.show(Panel_cambiante, "roles");
-    });
-
-    BTinst.addActionListener(e -> {
-        card.show(Panel_cambiante, "inst");
-    });
-
-    BTsalir.addActionListener(e -> {
-        System.exit(0);
-    });
-
-    panel.addComponentListener(new java.awt.event.ComponentAdapter() {
-
-        @Override
-        public void componentResized(java.awt.event.ComponentEvent e) {
-            ajustarPantallaInicio(panel, fondo);
-        }
-    });
-
-    return panel;
-}
+    
+  
+    
+    
+  
+    
+    
+    
+    
+      private javax.swing.JPanel crearPantallaInicio() {
+        // En lugar de crear botones invisibles, devolvemos tu nueva clase animada
+        return new PantallaInicio(
+                () -> card.show(Panel_cambiante, "roles"),
+                () -> card.show(Panel_cambiante, "inst"),
+                () -> System.exit(0),
+                () -> {
+                    // Acción del botón de Minijuegos
+                    System.out.println("¡Abriendo sección de MINIJUEGOS!");
+                    // Cuando tengas el panel de minijuegos listo, cambia esto por:
+                    // card.show(Panel_cambiante, "minijuegos");
+                }
+        );
+    }
+      
+      
+      
+      
     private javax.swing.JButton crearBotonInvisible() {
 
     javax.swing.JButton boton = new javax.swing.JButton();
@@ -551,66 +474,70 @@ Digitarnombre.setFont(
     boton.setFocusPainted(false);
     boton.setOpaque(false);
 
+    
+    
+    boton.setCursor(Cursores.MANO);
+    
     return boton;
 }   
-    private void ajustarPantallaInicio(
-        javax.swing.JPanel panel,
-        javax.swing.JLabel fondo) {
-
-    int ancho = panel.getWidth();
-    int alto = panel.getHeight();
-
-    if (ancho <= 0 || alto <= 0) {
-        return;
-    }
-
-    double escalaX = ancho / 1591.0;
-    double escalaY = alto / 989.0;
-
-
-    fondo.setBounds(
-            0,
-            0,
-            ancho,
-            alto
-    );
-
-    ImageIcon original = new ImageIcon(
-            getClass().getResource("/imagenes/Inicio.png")
-    );
-
-    Image imagenEscalada = original.getImage()
-            .getScaledInstance(
-                    ancho,
-                    alto,
-                    Image.SCALE_SMOOTH
-            );
-
-    fondo.setIcon(new ImageIcon(imagenEscalada));
-    BTjugar.setBounds(
-            (int)(600 * escalaX),
-            (int)(470 * escalaY),
-            (int)(420 * escalaX),
-            (int)(120 * escalaY)
-    );
-    BTinst.setBounds(
-            (int)(600 * escalaX),
-            (int)(610 * escalaY),
-            (int)(420 * escalaX),
-            (int)(110 * escalaY)
-    );
-    BTsalir.setBounds(
-            (int)(590 * escalaX),
-            (int)(740 * escalaY),
-            (int)(440 * escalaY),
-            (int)(110 * escalaY)
-    );
-
-    panel.setComponentZOrder(fondo, panel.getComponentCount() - 1);
-
-    panel.revalidate();
-    panel.repaint();
-}
+//    private void ajustarPantallaInicio(
+//        javax.swing.JPanel panel,
+//        javax.swing.JLabel fondo) {
+//
+//    int ancho = panel.getWidth();
+//    int alto = panel.getHeight();
+//
+//    if (ancho <= 0 || alto <= 0) {
+//        return;
+//    }
+//
+//    double escalaX = ancho / 1591.0;
+//    double escalaY = alto / 989.0;
+//
+//
+//    fondo.setBounds(
+//            0,
+//            0,
+//            ancho,
+//            alto
+//    );
+//
+//    ImageIcon original = new ImageIcon(
+//            getClass().getResource("/imagenes/Inicio.png")
+//    );
+//
+//    Image imagenEscalada = original.getImage()
+//            .getScaledInstance(
+//                    ancho,
+//                    alto,
+//                    Image.SCALE_SMOOTH
+//            );
+//
+//    fondo.setIcon(new ImageIcon(imagenEscalada));
+//    BTjugar.setBounds(
+//            (int)(600 * escalaX),
+//            (int)(470 * escalaY),
+//            (int)(420 * escalaX),
+//            (int)(120 * escalaY)
+//    );
+//    BTinst.setBounds(
+//            (int)(600 * escalaX),
+//            (int)(610 * escalaY),
+//            (int)(420 * escalaX),
+//            (int)(110 * escalaY)
+//    );
+//    BTsalir.setBounds(
+//            (int)(590 * escalaX),
+//            (int)(740 * escalaY),
+//            (int)(440 * escalaY),
+//            (int)(110 * escalaY)
+//    );
+//
+//    panel.setComponentZOrder(fondo, panel.getComponentCount() - 1);
+//
+//    panel.revalidate();
+//    panel.repaint();
+//}
     private void prepararJuego() {
 
         juego.setLayout(null);
@@ -2676,6 +2603,8 @@ timerConsecuenciaC.start();
 
     pantallaEscenas.reiniciar();
     pantallaEscenas.setHud(estadoJuego);
+    pantallaEscenas.setNombreJugador(nombreJugador);
+
 
     motorEscenas = new MotorGuion(
             pantallaEscenas,
@@ -2695,8 +2624,33 @@ timerConsecuenciaC.start();
         }
     });
 }
+    
+    
+    
+    
+    
+    
+    
+    private void actualizarSpritePersonaje(boolean caminando) {
+    if (personajeJuego == null) {
+        return;
+    }
+    if (teclaA && !teclaD) {
+        mirandoIzquierda = true;
+    } else if (teclaD && !teclaA) {
+        mirandoIzquierda = false;
+    }
+    personajeJuego.setIcon(animacion.icono(
+            caminando,
+            personajeJuego.getWidth(),
+            personajeJuego.getHeight(),
+            ESPEJAR_IZQUIERDA && mirandoIzquierda));
+}
+    
+    
     private void iniciarMovimiento() {
         if (timerMovimiento != null && timerMovimiento.isRunning()) {
+          
             return;
         }
         timerMovimiento = new javax.swing.Timer(16, e -> {
@@ -2706,6 +2660,7 @@ timerConsecuenciaC.start();
             }
             
             if (dialogoActivo || mapaAbierto) {
+                    actualizarSpritePersonaje(false);
                 return;
             }
 
@@ -2814,11 +2769,25 @@ double escalaY = (double) mapaColisionesPanaderia.getHeight() / juego.getHeight(
         return;
     }
 }
-            if (!puedeMoverse(x, y)) {
-                return;
-            }
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+          if (!puedeMoverse(x, y)) {
+    actualizarSpritePersonaje(false);
+    return;
+}
 
-            personajeJuego.setLocation(x, y);
+boolean seMovio = (x != personajeJuego.getX() || y != personajeJuego.getY());
+personajeJuego.setLocation(x, y);
+actualizarSpritePersonaje(seMovio);
             
             if (!guionPanaderiaIniciado
         && estaCercaDeDonaRosa()) {
@@ -4460,7 +4429,40 @@ guionJuntaPiso2Iniciado = false;
     juego.repaint();
 }
 
+    
+    
+    /** Funde la pantalla de nombre, muestra el prólogo de Ringo y luego arranca tus escenas de siempre. */
+private void iniciarIntroLlegada() {
 
+    BufferedImage foto = new BufferedImage(
+            Panel_cambiante.getWidth(),
+            Panel_cambiante.getHeight(),
+            BufferedImage.TYPE_INT_RGB);
+    java.awt.Graphics2D gf = foto.createGraphics();
+    Panel_cambiante.paint(gf);          // "foto" de la pantalla de nombre
+    gf.dispose();
+
+    card.show(Panel_cambiante, "intro");
+    introLlegada.iniciar(nombreJugador, foto, this::iniciarEscenasNoJugables);
+}
+    
+    
+    
+    
+        /** Devuelve el nombre que el jugador escribió en la pantalla de nombre. */
+    public String getNombreJugador() {
+        return nombreJugador;
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+
+    
 // Sirve tanto para el fin del día como para salir a mitad de partida
 private void volverAlInicio() {
 
@@ -4587,6 +4589,8 @@ private void volverAlInicio() {
         pack();
     }// </editor-fold>//GEN-END:initComponents
 
+    
+    
     private void BTvolver3ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BTvolver3ActionPerformed
         card = (CardLayout) this.Panel_cambiante.getLayout();
         card.show(Panel_cambiante, "inicio");
