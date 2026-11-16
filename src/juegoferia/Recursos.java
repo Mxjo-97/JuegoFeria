@@ -22,7 +22,7 @@ import javax.imageio.ImageIO;
 public class Recursos {
 
     /** Tamanio "de diseno": todas las coordenadas del juego se escriben en esta resolucion. */
-    public static final int BASE_W = 1591;
+    public static final int BASE_W = 1591;   // tus imagenes de Canva (1591 x 989) y sus zonas de clic
     public static final int BASE_H = 989;
 
     private static final Map<String, BufferedImage> cache = new HashMap<>();

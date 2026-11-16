@@ -102,50 +102,82 @@ public class GrafoLocaciones {
         }
     }
 
-    /** Locaciones que todavia no se resolvieron en el dia actual. */
-    public List<String> pendientes(ControladorDePartidas partida) {
-        List<String> lista = new ArrayList<>();
-        for (String isla : adyacencia.keySet()) {
-            if (!partida.laIslaResuelta(isla)) {
-                lista.add(isla);
+    /**
+     * Camino de MENOS MINUTOS entre dos locaciones (Dijkstra con los pesos).
+     * Es el que usa el Reloj para saber cuanto tarda el grupo en llegar.
+     */
+    public List<String> caminoMasRapido(String origen, String destino) {
+        List<String> camino = new ArrayList<>();
+        if (!existe(origen) || !existe(destino)) {
+            return camino;
+        }
+        Map<String, Integer> dist = new HashMap<>();
+        Map<String, String> padre = new HashMap<>();
+        PriorityQueue<String> cola = new PriorityQueue<>(Comparator.comparingInt(dist::get));
+        for (String n : adyacencia.keySet()) {
+            dist.put(n, Integer.MAX_VALUE);
+        }
+        dist.put(origen, 0);
+        cola.add(origen);
+        Set<String> listos = new HashSet<>();
+        while (!cola.isEmpty()) {
+            String u = cola.poll();
+            if (!listos.add(u)) {
+                continue;
+            }
+            for (Map.Entry<String, Integer> e : adyacencia.get(u).entrySet()) {
+                int nd = dist.get(u) + e.getValue();
+                if (nd < dist.get(e.getKey())) {
+                    dist.put(e.getKey(), nd);
+                    padre.put(e.getKey(), u);
+                    cola.add(e.getKey());
+                }
             }
         }
-        return lista;
+        if (dist.get(destino) == Integer.MAX_VALUE) {
+            return camino;
+        }
+        for (String n = destino; n != null; n = padre.get(n)) {
+            camino.add(0, n);
+        }
+        return camino;
     }
 
-    /** Ciudad del juego. AJUSTAR las conexiones y distancias a como quede el mapa real. */
-    public static GrafoLocaciones crearCiudadPorDefecto() {
-        GrafoLocaciones g = new GrafoLocaciones();
-        g.conectar("Panaderia", "Plaza", 2);
-        g.conectar("Plaza", "Colegio", 3);
-        g.conectar("Plaza", "Parque", 2);
-        g.conectar("Plaza", "Junta_Comunal", 4);
-        g.conectar("Parque", "Colegio", 3);
-        return g;
+    /** Minutos de camino entre dos locaciones (0 si es la misma, -1 si no hay camino). */
+    public int minutos(String origen, String destino) {
+        if (origen.equals(destino)) {
+            return 0;
+        }
+        List<String> c = caminoMasRapido(origen, destino);
+        return c.isEmpty() ? -1 : distanciaTotal(c);
     }
 
     // ===================== MAPA DE LA ISLA =====================
-    // Nombres de las locaciones (se usan en partvisual para el mapa)
-    public static final String CASAS = "Casas";
+    // Ids de las locaciones. Los usan Lugar, GuionDia1/2 y el Reloj.
+    public static final String CASA = "Casa";              // casa de huespedes de Dona Rosa (sobre la panaderia)
     public static final String PANADERIA = "Panaderia";
     public static final String MALECON = "Malecon";
     public static final String JUNTA = "Junta_Comunal";
+    public static final String PLAZA = "Plaza";            // OJO: decision pendiente (el apagon pasa aqui)
     public static final String ALCALDIA = "Alcaldia";
 
     /**
-     * La isla tal como se recorre en el juego (cada arista es un paso de color en los mapas):
-     *   Casas    --rojo--   Panaderia
-     *   Panaderia --verde-- Alcaldia
-     *   Panaderia --azul--  Malecon
-     *   Malecon  --amarillo-- Junta_Comunal
-     * El peso es la distancia aproximada en el dibujo del mapa.
+     * La isla. El peso de cada arista son MINUTOS de camino (los usa el Reloj).
+     *   Casa - Panaderia (la casa queda encima: 1 min)
+     *   Panaderia - Malecon (el "camino al malecon")
+     *   Malecon - Junta
+     *   Panaderia - Plaza - Junta
+     *   Plaza - Alcaldia
+     * AJUSTAR a como quede el mapa dibujado.
      */
     public static GrafoLocaciones crearMapaIsla() {
         GrafoLocaciones g = new GrafoLocaciones();
-        g.conectar(CASAS, PANADERIA, 3);
-        g.conectar(PANADERIA, ALCALDIA, 2);
-        g.conectar(PANADERIA, MALECON, 2);
-        g.conectar(MALECON, JUNTA, 2);
+        g.conectar(CASA, PANADERIA, 1);
+        g.conectar(PANADERIA, MALECON, 20);
+        g.conectar(MALECON, JUNTA, 25);
+        g.conectar(PANADERIA, PLAZA, 10);
+        g.conectar(PLAZA, JUNTA, 15);
+        g.conectar(PLAZA, ALCALDIA, 10);
         return g;
     }
 

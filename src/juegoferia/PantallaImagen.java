@@ -12,7 +12,6 @@ import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import static java.lang.Boolean.TRUE;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JPanel;
@@ -26,7 +25,7 @@ import javax.swing.JTextField;
 public class PantallaImagen extends JPanel {
 
     /** Dev: poner en true para ver las zonas de clic (rojo) y poder acomodarlas. */
-    public static boolean MOSTRAR_ZONAS = TRUE;
+    public static boolean MOSTRAR_ZONAS = false;
 
     private static class Zona {
         final Rectangle r;
@@ -39,6 +38,8 @@ public class PantallaImagen extends JPanel {
     }
 
     private final String rutaFondo;
+    /** Tamaño en que se escriben las zonas (por defecto el de tus imagenes: 1591 x 989). */
+    private int dw = Recursos.BASE_W, dh = Recursos.BASE_H;
     private final List<Zona> zonas = new ArrayList<>();
     private JTextField campo;
     private Rectangle campoBase;
@@ -74,6 +75,13 @@ public class PantallaImagen extends JPanel {
         });
     }
 
+    /** Si la imagen es de otro tamaño (ej: 1920 x 1080), las zonas se escriben en ese tamaño. */
+    public PantallaImagen disenoDe(int w, int h) {
+        this.dw = w;
+        this.dh = h;
+        return this;
+    }
+
     /** Agrega una zona de clic (coordenadas de diseno). */
     public void zona(int x, int y, int w, int h, Runnable accion) {
         zonas.add(new Zona(new Rectangle(x, y, w, h), accion));
@@ -98,8 +106,8 @@ public class PantallaImagen extends JPanel {
         if (campo == null || getWidth() <= 0 || getHeight() <= 0) {
             return;
         }
-        double sx = getWidth() / (double) Recursos.BASE_W;
-        double sy = getHeight() / (double) Recursos.BASE_H;
+        double sx = getWidth() / (double) dw;
+        double sy = getHeight() / (double) dh;
         campo.setBounds((int) (campoBase.x * sx), (int) (campoBase.y * sy),
                 (int) (campoBase.width * sx), (int) (campoBase.height * sy));
         campo.setFont(new Font("SansSerif", Font.PLAIN, Math.max(14, (int) (30 * sy))));
@@ -109,8 +117,8 @@ public class PantallaImagen extends JPanel {
         if (getWidth() <= 0 || getHeight() <= 0) {
             return null;
         }
-        Point b = new Point((int) (p.x * (double) Recursos.BASE_W / getWidth()),
-                (int) (p.y * (double) Recursos.BASE_H / getHeight()));
+        Point b = new Point((int) (p.x * (double) dw / getWidth()),
+                (int) (p.y * (double) dh / getHeight()));
         for (Zona z : zonas) {
             if (z.r.contains(b)) {
                 return z;
@@ -124,10 +132,10 @@ public class PantallaImagen extends JPanel {
         super.paintComponent(g0);
         Graphics2D g = (Graphics2D) g0.create();
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g.drawImage(Recursos.fondo(rutaFondo), 0, 0, getWidth(), getHeight(), null);
+        g.drawImage(Recursos.imagen(rutaFondo, dw, dh), 0, 0, getWidth(), getHeight(), null);
         if (MOSTRAR_ZONAS) {
-            double sx = getWidth() / (double) Recursos.BASE_W;
-            double sy = getHeight() / (double) Recursos.BASE_H;
+            double sx = getWidth() / (double) dw;
+            double sy = getHeight() / (double) dh;
             g.setColor(Color.RED);
             for (Zona z : zonas) {
                 g.drawRect((int) (z.r.x * sx), (int) (z.r.y * sy), (int) (z.r.width * sx), (int) (z.r.height * sy));

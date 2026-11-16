@@ -633,9 +633,9 @@ public class PantallaInicio extends JPanel {
         racimo(g, 975, 295, 1.0, 3.5, true);
         racimo(g, 725, 100, 1.1, 4.8, true);
 
-        dibujarLetras(g, "ALCALDE", 590, 235, 170, 720,
+        dibujarLetras(g, "TODOS HABLAN", 590, 235, 150, 720,
                 new Color(0xFFF8E1), new Color(0xFFD9A0), 0.5);
-        dibujarLetras(g, "DIGITAL", 590, 372, 160, 680,
+        dibujarLetras(g, "EN MACONDO", 590, 372, 140, 680,
                 new Color(0xFFC2D6), new Color(0xFF6FA0), 0.9);
 
         dibujarCinta(g);
@@ -812,7 +812,7 @@ public class PantallaInicio extends JPanel {
         }
 
         Font f = new Font(FUENTE, ESTILO, 40);
-        Shape s = f.createGlyphVector(g.getFontRenderContext(), "ISLA MACONDO").getOutline();
+        Shape s = f.createGlyphVector(g.getFontRenderContext(), "USO SALUDABLE DE LAS REDES").getOutline();
         Rectangle2D b = s.getBounds2D();
         double esc = Math.min(1.0, 360 / b.getWidth());
         AffineTransform at = new AffineTransform();

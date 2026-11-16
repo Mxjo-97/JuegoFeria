@@ -171,21 +171,64 @@ public class GrafoRelaciones {
         return camino;
     }
   
-    public static GrafoRelaciones crearBarrioPorDefecto() {
+    /** El vecino con mas conexiones: si el rumor llega ahi, llega a todos (habilidad del Ciudadano). */
+    public String masConectado() {
+        String mejor = null;
+        for (String c : conexiones.keySet()) {
+            if (mejor == null || grado(c) > grado(mejor)) {
+                mejor = c;
+            }
+        }
+        return mejor;
+    }
+
+    /** Cuantos vecinos alcanza un mensaje que sale de 'inicio' en a lo sumo 'pasos' reenvios (BFS). */
+    public int alcanceEn(String inicio, int pasos) {
+        int n = 0;
+        for (int d : distanciasDesde(inicio).values()) {
+            if (d > 0 && d <= pasos) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    /**
+     * El barrio de Macondo. Los nombres son los IDS de los Actor (asi la habilidad
+     * "ver vinculos" puede dibujar lineas entre los personajes que estan en pantalla).
+     * AJUSTAR cuando el guion agregue vecinos.
+     */
+    public static GrafoRelaciones crearBarrioMacondo() {
         GrafoRelaciones g = new GrafoRelaciones();
-        g.conectar("Dona Rosa", "Mateo");
-        g.conectar("Dona Rosa", "Clienta");
-        g.conectar("Dona Rosa", "Cliente");
-        g.conectar("Dona Rosa", "Vecina");
-        g.conectar("Mateo", "Presentador");
-        g.conectar("Mateo", "Estudiante");
-        g.conectar("Clienta", "Vecina");
-        g.conectar("Cliente", "Tendero");
-        g.conectar("Vecina", "Profesor");
-        g.conectar("Estudiante", "Profesor");
-        g.conectar("Tendero", "Periodista");
-        g.conectar("Presentador", "Periodista");
-        g.conectar("Profesor", "Periodista");
+        // panaderia
+        g.conectar("rosa", "samuel");
+        g.conectar("rosa", "ursula");
+        g.conectar("rosa", "nubia");
+        g.conectar("nubia", "yolanda");
+        g.conectar("nubia", "eliecer");
+        g.conectar("rosa", "mateo");
+        g.conectar("mateo", "camila");
+        g.conectar("ximena", "lorena");
+        g.conectar("ximena", "salome");
+        g.conectar("lorena", "salome");
+        g.conectar("samuel", "salome");
+        g.conectar("vlado", "visitacion");
+        g.conectar("rosa", "vlado");
+        // malecon
+        g.conectar("chela", "emiro");
+        g.conectar("chela", "daniela");
+        g.conectar("emiro", "daniela");
+        g.conectar("julian", "beatriz");
+        g.conectar("rosa", "chela");
+        // junta
+        g.conectar("alirio", "gustavo");
+        g.conectar("petra", "wilson");
+        g.conectar("petra", "amaranta");
+        g.conectar("petra", "alirio");
+        g.conectar("sofia", "petra");
+        g.conectar("wilson", "julian");
+        g.conectar("mauricio", "petra");
+        g.conectar("nubia", "wilson");
         return g;
     }
 

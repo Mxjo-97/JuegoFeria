@@ -1,0 +1,79 @@
+TODOS HABLAN EN MACONDO - version fusionada (un PC + en red)
+=============================================================
+
+QUE ES
+  La base "Todos hablan en Macondo" (tu guion, Dia 1 completo, 5 minijuegos) con:
+    - TUS rutas de imagenes de siempre (panaderiasin.png, malecon.png, personajes/<id>.png ...).
+    - Ventana que se puede agrandar/achicar (se escala sola sin deformarse). F11 = pantalla completa.
+    - TAB arreglado (Swing se lo "comia" para mover el foco; ahora llega al juego).
+    - Modo EN RED para 4 jugadores, cada uno en su computador y con su personaje.
+    - Modo EN UN SOLO PC (como antes: TAB cambia quien camina).
+
+COMO SE JUEGA EN RED
+  1. JUGAR -> EN RED.
+  2. UNA persona pulsa "Crear sala". Su computador hace de servidor (no hay que instalar nada) y
+     en pantalla sale su IP, por ejemplo 192.168.1.23.
+  3. Las otras tres escriben su nombre, esa IP y pulsan "Unirme".
+  4. Cada quien escoge un rol distinto. Escoger NO inicia nada: cuando los CUATRO roles estan
+     escogidos por cuatro personas, sale una cuenta regresiva de 3 segundos y empieza la partida.
+     (Si alguien suelta su rol durante la cuenta, se cancela.)
+  Requisitos: mismo Wi-Fi o cable. Puerto 5555 (TCP). Si Windows pregunta por el firewall al crear
+  la sala, "Permitir acceso" a Java. Si no conectan, probar desde el celular compartiendo datos
+  (hotspot) si la red del colegio/universidad bloquea la comunicacion entre equipos.
+
+  En la partida:
+    WASD / flechas ... caminar (cada quien con SU personaje)     E / Enter / Espacio ... hablar / avanzar
+    H habilidad - P prestar - F frases - Q celular                F1 ... ver cajas de colision (solo tu pantalla)
+    Decisiones: clic o teclas 1-5. Las "de turno" las responde solo quien le toca (los demas ven la
+    pantalla y aconsejan). En la de "quien responde primero", cada opcion solo la puede escoger ese jugador.
+    Minijuegos fijos: solo juega el rol que toca; los otros miran y aconsejan.
+    Dialogos y cinematicas: cualquiera puede avanzar.
+  Si alguien se desconecta la partida termina para todos (y se avisa).
+
+COMO FUNCIONA POR DENTRO (por si lo defienden)
+  No se mandan posiciones ni estados. Las 4 computadoras corren el MISMO juego con la misma semilla y
+  solo se envian las teclas y clics de cada jugador; el anfitrion les pone un numero de cuadro (60 por
+  segundo) y las 4 los aplican en el mismo cuadro ("lockstep"). Clases nuevas:
+    Sincronia      - aplica los eventos en orden, da el tiempo fijo (1/60 s) y detecta desincronizacion.
+    SalaMacondo    - el servidor: sala, roles, cuenta regresiva, arranque, reloj de cuadros.
+    RedMacondo     - sockets (cliente/servidor) - es la RedCoop de la version coop.
+    PanelRed       - pantalla de conectar y sala. PantallaModo - "en red / un solo PC".
+    Rutas          - TODAS las rutas de imagenes (lista de alternativas por fondo).
+  Reglas al programar (importante): la logica NO debe usar Math.random(), Collections.shuffle sin Random,
+  System.nanoTime() ni medidas de fuente (FontMetrics) para decidir cosas. Para azar: Sincronia.nuevoRandom().
+  Si ves en consola "[Sincronia] OJO: ... se desincronizaron", es que algo asi se colo (o las versiones
+  del juego/imagenes difieren entre computadores).
+
+TUS RUTAS (Rutas.java)
+  casa / cena ........ /imagenes/casapuertasin.png
+  panaderia .......... /imagenes/panaderiasin.png
+  malecon ............ /imagenes/malecon.png
+  junta .............. /imagenes/junta_piso1.png
+  alcaldia ........... /imagenes/interioralcaldia.png
+  camino y plaza ..... /imagenes/exteriorsin.png (hasta que hagas fondos propios: fondos/camino_malecon.png, fondos/plaza_apagon.png)
+  como jugar ......... /imagenes/instrucciones.png (1591x989, boton Volver en 40,860) o fondos/como_jugar.png (1920x1080)
+  vecinos ............ /imagenes/personajes/<id>.png
+  los 4 roles ........ personajes/<rol>/quieto.png (con animacion) o personajes/<rol>.png o, el Ciudadano, personajecivil.png
+  Cada fondo es una LISTA: usa la primera imagen que exista; si ninguna, fondo provisional.
+  Cambia cualquiera editando su linea en Rutas.java.
+  (La base tenia nombres nuevos /imagenes/fondos/... que no existian en tu proyecto: por eso todo
+  salia con cuadros provisionales. Eso era lo que "se veia horrible".)
+
+QUE SE VERIFICO
+  - Compila (Java 11+).
+  - 4 jugadores-robot en red (60.000 cuadros: cinematica, Casa, Panaderia, minijuegos Rastrea el audio
+    y Telefono roto): las 4 copias quedaron identicas en cada chequeo.
+  - Ventana real (display virtual) como anfitrion + 3 robots: teclado fisico mueve mi personaje y las
+    4 copias siguen identicas.
+  - TAB cambia de personaje en modo un solo PC.
+  NO se pudo probar: en computadores distintos de verdad (Wi-Fi), ni con TUS imagenes (no venian en los zip).
+  Pruebas automaticas en _pruebas/ (ver abajo).
+
+PRUEBAS (opcional)
+  Compilar todo y, en 4 terminales:
+    java -cp out juegoferia.PruebaRed host CIUDADANO 20000 a.txt 1500000
+    java -cp out juegoferia.PruebaRed unirme PERIODISTA 20000 b.txt   (y INFLUENCER, CANDIDATO)
+  Luego comparar la 1a y 2a columna de a.txt, b.txt...: tienen que ser iguales.
+
+PENDIENTE (igual que en la base): guion del Dia 2, cinematica final, conectar tarjetas en "La fecha del agua".
+La carpeta _retirado/ guarda las clases viejas (partvisual, la version coop con servidor propio, etc.); no se compila.

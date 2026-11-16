@@ -1,57 +1,66 @@
 package juegoferia;
 
-import java.util.Collections;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
 /**
- * Variables de la partida. Cada hoja del árbol de decisión trae un Efecto;
- * aplicarEfecto() lo suma a los indicadores, respetando los límites
+ * Medidores PERSONALES de un jugador (cada Jugador tiene el suyo).
+ * Los medidores COMPARTIDOS (animo de la casa, confianza entre roles, desinformacion
+ * de cada lugar) viven en Partida.
  *
- * Los nombres de los indicadores son los mismos que se usan en ArbolPublicacion.
+ * ESCALA: el guion suma de a 1, 2 o 3, asi que los medidores van de 0 a 20.
+ * Si el equipo prefiere otra escala, se cambia MAXIMO y los valores iniciales aqui y listo.
  */
 public class EstadoJuego {
 
-    public static final String CONFIANZA = "confianza";
     public static final String INFO_VERIFICADA = "info_verificada";
-    public static final String DESINFORMACION = "desinformacion";
-    public static final String CONFLICTOS = "conflictos";
+    public static final String PARTICIPACION = "participacion";
+    public static final String CONFIANZA = "confianza";
+    public static final String BIENESTAR = "bienestar";
+    public static final String ALCANCE = "alcance";
     public static final String CONVIVENCIA = "convivencia";
-    public static final String REPUTACION = "reputacion_jugador";
 
-    
-    private static final int MINIMO = 0;
-    private static final int MAXIMO = 100;
-    private static final int INICIAL_CON_BASE = 50;   // confianza, convivencia y reputación
-    private static final int INICIAL_EN_CERO = 0;     // info verificada, desinformación, conflictos
-    // =================================================================
+    /** Orden en que se muestran. */
+    public static final String[] TODOS = {INFO_VERIFICADA, PARTICIPACION, CONFIANZA, BIENESTAR, ALCANCE, CONVIVENCIA};
+
+    public static final int MINIMO = 0;
+    public static final int MAXIMO = 20;
 
     private final Map<String, Integer> indicadores = new LinkedHashMap<>();
     private final List<String> historial = new ArrayList<>();
     private final Random azar;
 
     public EstadoJuego() {
-        this(new Random());
+        this(Sincronia.nuevoRandom());
     }
-
 
     public EstadoJuego(Random azar) {
         this.azar = azar;
         reiniciar();
     }
 
-    public void reiniciar() {
+    public final void reiniciar() {
         indicadores.clear();
-        indicadores.put(CONFIANZA, INICIAL_CON_BASE);
-        indicadores.put(INFO_VERIFICADA, INICIAL_EN_CERO);
-        indicadores.put(DESINFORMACION, INICIAL_EN_CERO);
-        indicadores.put(CONFLICTOS, INICIAL_EN_CERO);
-        indicadores.put(CONVIVENCIA, INICIAL_CON_BASE);
-        indicadores.put(REPUTACION, INICIAL_CON_BASE);
+        indicadores.put(INFO_VERIFICADA, 0);
+        indicadores.put(PARTICIPACION, 0);
+        indicadores.put(CONFIANZA, 5);
+        indicadores.put(BIENESTAR, 10);
+        indicadores.put(ALCANCE, 5);
+        indicadores.put(CONVIVENCIA, 5);
         historial.clear();
+    }
+
+    public static boolean esPersonal(String indicador) {
+        for (String s : TODOS) {
+            if (s.equals(indicador)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public int get(String indicador) {
@@ -67,46 +76,34 @@ public class EstadoJuego {
         return Collections.unmodifiableList(historial);
     }
 
-    // es la que ya llama partvisual: estadoJuego.aplicarEfecto(nodoActual.efecto)
     public void aplicarEfecto(Efecto efecto) {
         aplicarEfecto(efecto, "sin etiqueta");
     }
 
-    // deja anotado en el historial a qué decisión corresponde
+    /** Suma los cambios PERSONALES del efecto. Los compartidos los ignora (los aplica Partida). */
     public void aplicarEfecto(Efecto efecto, String etiqueta) {
         if (efecto == null) {
             return;
         }
-
         Map<String, Integer> cambios = new LinkedHashMap<>();
         resolver(efecto, cambios);
 
         StringBuilder resumen = new StringBuilder();
-        for (Map.Entry<String, Integer> cambio : cambios.entrySet()) {
-            String indicador = cambio.getKey();
-            int valor = cambio.getValue();
-
-            if (!indicadores.containsKey(indicador)) {
-                if (!indicador.equals("neutro")) {
-                    System.out.println("[EstadoJuego] Indicador desconocido, se ignora: " + indicador);
-                }
+        for (Map.Entry<String, Integer> c : cambios.entrySet()) {
+            if (!indicadores.containsKey(c.getKey())) {
                 continue;
             }
-
-            int nuevo = indicadores.get(indicador) + valor;
-            nuevo = Math.max(MINIMO, Math.min(MAXIMO, nuevo));
-            indicadores.put(indicador, nuevo);
-
+            int nuevo = Math.max(MINIMO, Math.min(MAXIMO, indicadores.get(c.getKey()) + c.getValue()));
+            indicadores.put(c.getKey(), nuevo);
             if (resumen.length() > 0) {
                 resumen.append(", ");
             }
-            resumen.append(indicador).append(valor >= 0 ? " +" : " ").append(valor);
+            resumen.append(c.getKey()).append(c.getValue() >= 0 ? " +" : " ").append(c.getValue());
         }
-
         historial.add(etiqueta + ": " + (resumen.length() == 0 ? "sin cambios" : resumen));
     }
 
-    // Junta los cambios fijos y, si el efecto tiene alternativas, elige UNA al azar.
+    /** Junta los cambios fijos y, si el efecto tiene alternativas, elige UNA al azar. */
     private void resolver(Efecto efecto, Map<String, Integer> cambios) {
         for (Map.Entry<String, Integer> e : efecto.getCambios().entrySet()) {
             cambios.merge(e.getKey(), e.getValue(), Integer::sum);
@@ -117,26 +114,25 @@ public class EstadoJuego {
         }
     }
 
-    public void imprimirEstadoPartida() {
-        System.out.println("========== ESTADO DE LA PARTIDA ==========");
-        for (Map.Entry<String, Integer> e : indicadores.entrySet()) {
-            System.out.println(String.format("%-24s %3d", nombreBonito(e.getKey()) + ":", e.getValue()));
+    public static String nombreBonito(String indicador) {
+        switch (indicador) {
+            case INFO_VERIFICADA: return "Info verificada";
+            case PARTICIPACION: return "Participación";
+            case CONFIANZA: return "Confianza";
+            case BIENESTAR: return "Bienestar";
+            case ALCANCE: return "Alcance";
+            case CONVIVENCIA: return "Convivencia";
+            case Partida.ANIMO: return "Ánimo de la casa";
+            case Partida.CONFIANZA_ROLES: return "Confianza entre roles";
+            case Partida.DESINFO_LUGAR: return "Desinformación del lugar";
+            default: return indicador;
         }
-        if (!historial.isEmpty()) {
-            System.out.println("Última decisión -> " + historial.get(historial.size() - 1));
-        }
-        System.out.println("==========================================");
     }
 
-    private String nombreBonito(String indicador) {
-        switch (indicador) {
-            case CONFIANZA: return "Confianza";
-            case INFO_VERIFICADA: return "Información verificada";
-            case DESINFORMACION: return "Desinformación";
-            case CONFLICTOS: return "Conflictos";
-            case CONVIVENCIA: return "Convivencia";
-            case REPUTACION: return "Reputación del jugador";
-            default: return indicador;
+    public void imprimir(String quien) {
+        System.out.println("---- " + quien + " ----");
+        for (Map.Entry<String, Integer> e : indicadores.entrySet()) {
+            System.out.println(String.format("  %-18s %3d", nombreBonito(e.getKey()) + ":", e.getValue()));
         }
     }
 }
