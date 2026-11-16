@@ -1,18 +1,13 @@
 
 package juegoferia;
 
-import java.awt.Color;
-
 /**
  * Lo que NO se juega al principio:
- * antesDelMenu(): los 8 cuadros iniciales (con camara, olas, viento, niebla, mariposa, etc.).
+ * antesDelMenu(): los 8 cuadros iniciales.
  * llegada(): el prologo despues de elegir personajes.
  *
  * El sonido del mar acompaña las escenas de playa
  * y se detiene al cambiar de escenario o saltar.
- *
- * AJUSTE DE EFECTOS: las coordenadas de los efectos (mariposa, rumor, olas, focos) estan en el
- * lienzo 1920x1080 y son una primera estimacion; mueve los numeros hasta que calcen con tus PNG.
  */
 public final class GuionPrologo {
 
@@ -21,102 +16,116 @@ public final class GuionPrologo {
 
     private static final String C = "/imagenes/cinematicas/";
     private static final String MAR = "/sonidos/mar.wav";
+    private static final String SND = "/sonidos/";
+
+    // ---- AJUSTES DE LA ESCENA DE LA PLAYA (mueve estos numeros si algo no calza con tu fondo) ----
+    /** Y de la orilla: el mar queda arriba de esta linea y la arena abajo. */
+    private static final int ORILLA_Y = 470;
+    /** Donde sale la mariposa (el letrero del anciano) y a donde vuela. */
+    private static final int MARIPOSA_X0 = 820, MARIPOSA_Y0 = 470, MARIPOSA_X1 = 1500, MARIPOSA_Y1 = 190;
+    /** Centros de los celulares de los cuatro dormidos (x, y). */
+    private static final int[] CELULARES = {512, 700, 832, 700, 1152, 700, 1472, 700};
 
     public static Cinematica antesDelMenu() {
 
         return new Cinematica(null)
+                .cine()   // look de pelicula: fundidos, vineta, grano, camara y efectos
 
-                // 01: negro, solo el mar a lo lejos. Bruma y motas azules en la oscuridad.
+                // 1. Negro: estrellas que aparecen de a poco y el mar de fondo
                 .cuadro(C + "01_negro.png",
                         "Pantalla negra. Se oye el mar y, muy lejos, un pito de latón.",
                         "RINGO: Hay una isla que no figura en ningún mapa.")
-                .camara(1.02, 1.08, 0, 0)
-                .efecto1(Efectos.niebla(0.35))
-                .efecto1(Efectos.particulas(new Color(150, 190, 255), 40, 0.3))
+                .estrellas()
+                .camara(1.00, 1.10, 0, 0)
+                .ambiente(MAR)
+                .efectoSonido(SND + "pito_laton.wav", 3.2, 0.5, 0)       // pito lejano de latón
 
-                // 02: la isla desde arriba. Camara que avanza sobre el plano, nubes y viento.
+                // 2. Toma aerea: nubes cruzando y la camara baja hacia la isla
                 .cuadro(C + "02_isla.png",
                         "La isla desde arriba. Un plano de la ciudad en general.",
                         "RINGO: Se llama Macondo, y en ella todo tiene nombre.",
                         "RINGO: Casi todo.")
-                .camara(1.04, 1.16, 30, -14)
-                .efecto1(Efectos.niebla(0.5))
-                .efecto1(Efectos.viento(10))
+                .camara(1.03, 1.24, 0, -70)
+                .nubes()
+                .viento(0.5)
+                .musica(SND + "musica_isla.wav", 0.65, 2.5)               // entra la música al ver la isla
 
-                // 03: Melquiades llega con su carreta. Polvo calido y brisa.
+                // 3. El gitano: paneo lateral, polvo del camino y luz dorada
                 .cuadro(C + "03_gitano.png",
                         "Melquíades baja de una carreta con imanes, lupas y aparatos de latón. Los niños se acercan.",
                         "RINGO: Cada tanto Melquíades, el gitano aventurero, llega con cosas del mundo de afuera.",
                         "RINGO: Un imán, un foco, una lupa. Una idea nueva.")
-                .efecto1(Efectos.particulas(new Color(255, 214, 130), 60, 0.25))
-                .efecto1(Efectos.viento(8))
+                .camara(1.16, 1.16, -130, 0)
+                .rayos(0xFFE0A0)
+                .polvo(0xFFD78A, 55)
+                .viento(0.8)
+                .efectoSonido(SND + "carreta.wav", 0.3, 0.8, 6)           // carreta y aparatos, máx. 6 s
 
-                // 04: la niebla del olvido baja por el rio. Niebla muy cerrada.
+                // 4. La niebla: se va espesando mientras la camara avanza
                 .cuadro(C + "04_niebla.png",
                         "Una bruma tibia baja por el río y entra entre las casas. Una mujer mira su taza y no sabe cómo se llama. Un niño señala una vaca.",
                         "RINGO: Pero hay días en que la isla olvida.",
                         "RINGO: No olvida a la gente. Olvida cómo se llaman las cosas y para qué servían.")
-                .camara(1.04, 1.13, -36, 10)
-                .efecto1(Efectos.niebla(1.0))
-                .efecto1(Efectos.viento(12))
+                .camara(1.00, 1.16, 0, 0)
+                .niebla()
+                .viento(0.4)
+                .efectoSonido(SND + "viento_niebla.wav", 0.5, 0.5, 0)
 
-                // 05: los letreros. De un letrero nace la mariposa amarilla y se va volando.
-                // mariposa(xNace, yNace, xDestino, yDestino, segundosHastaQueNace, segundosDeVuelo, tamano)
+                // 5. La mariposa amarilla sale del letrero y vuela
                 .cuadro(C + "05_mariposas.png",
                         "Un anciano con un pincel pone letreros sobre las cosas: ESTA ES UNA PUERTA. ESTA ES UNA VACA. De un letrero sale volando una mariposa amarilla.",
                         "RINGO: Contra la niebla se hacen letreros.",
                         "RINGO: Y donde alguien trata bien a otro, aparece una mariposa amarilla.")
-                .efecto1(Efectos.particulas(new Color(255, 226, 110), 35, 0.5))
-                .efecto1(Efectos.mariposa(760, 470, 1450, 170, 3.2, 9.5, 1.0))
-                .efecto1(Efectos.mariposa(800, 520, 1180, 110, 5.2, 8.0, 0.6))
+                .camara(1.04, 1.14, 60, 0)
+                .polvo(0xFFE08A, 40)
+                .mariposa(MARIPOSA_X0, MARIPOSA_Y0, MARIPOSA_X1, MARIPOSA_Y1)
+                .efectoSonido(SND + "mariposa.wav", 0.9, 0.8, 0)          // sale justo cuando despega
 
-                // 06: el rumor. La linea de luz salta de casa en casa y se rompe en pedazos.
-                // rumor(segundosHastaQueSale, segundosDeRecorrido, x1, y1, x2, y2, ...casas...)
+                // 6. El rumor: la linea de luz salta de casa en casa y se rompe
                 .cuadro(C + "06_rumor.png",
                         "Una mujer manda un audio desde un celular de latas y cables. El audio sale como una línea de luz, salta de casa en casa y se rompe en pedazos.",
                         "RINGO: Pero hay algo que viaja más rápido que la niebla.",
                         "RINGO: Un rumor.")
-                .camara(1.04, 1.12, 36, -12)
-                .efecto1(Efectos.viento(6))
-                .efecto1(Efectos.rumor(2.0, 4.2, 360, 640, 700, 470, 1060, 560, 1420, 420))
+                .camara(1.00, 1.10, -50, 0)
+                .viento(0.6)
+                .rumor(520, 520, 860, 430, 1210, 540, 1560, 410)
+                .efectoSonido(SND + "rumor_saltos.wav", 1.0, 0.8, 0)      // los tres saltos de la linea de luz
+                .efectoSonido(SND + "rumor_rompe.wav", 4.15, 0.9, 0)      // cuando se rompe en pedazos
 
-                // ESCENA DE LA PLAYA: COMIENZA EL SONIDO DEL MAR
-                // olas(yMar, yOrilla): el frente de espuma viaja de yMar a yOrilla (ajustalo a tu imagen).
+                // ESCENA DE LA PLAYA: olas, viento, estrellas, celulares brillando y gente respirando
                 .cuadro(C + "07_los_cuatro.png",
                         "La playa de noche. Cuatro personas dormidas sobre la arena, cada una con un celular encendido y sin señal.",
                         "RINGO: Una noche, cerca de las elecciones del alcalde local, llegaron cuatro personas que nadie esperaba.",
                         "RINGO: No se conocen entre sí. Y traen en la mano una invención que la isla nunca ha visto.")
-                // Se reutiliza el mismo PNG de cada personaje girado para simular que duerme.
-                // Asi no necesitamos generar cuatro sprites adicionales de poses acostadas.
-                .sprite("/imagenes/personajes/ciudadano.png", 330, 535, 205, 250, 90)
-                .sprite("/imagenes/personajes/influencer.png", 650, 535, 205, 250, 90)
-                .sprite("/imagenes/personajes/periodista.png", 970, 535, 205, 250, 90)
-                .sprite("/imagenes/personajes/candidato.png", 1290, 535, 205, 250, 90)
+                // Sprites ya acostados (sin rotar). Caja horizontal 260x180: si se ven estirados, cambia ancho/alto.
+                .sprite("/imagenes/personajes/ciudadano/acostado.png", 300, 570, 260, 180).respirar()
+                .sprite("/imagenes/personajes/influencer/acostado.png", 620, 570, 260, 180).respirar()
+                .sprite("/imagenes/personajes/periodista/acostado.png", 940, 570, 260, 180).respirar()
+                .sprite("/imagenes/personajes/candidato/acostado.png", 1260, 570, 260, 180).respirar()
+                .estrellas()
+                .olas(ORILLA_Y)
+                .resplandor(CELULARES[0], CELULARES[1], 110, 0x8FE3FF, 0.0)
+                .resplandor(CELULARES[2], CELULARES[3], 110, 0x8FE3FF, 1.3)
+                .resplandor(CELULARES[4], CELULARES[5], 110, 0x8FE3FF, 2.6)
+                .resplandor(CELULARES[6], CELULARES[7], 110, 0x8FE3FF, 3.9)
+                .viento(0.7)
+                .camara(1.00, 1.12, -70, 0)
                 .ambiente(MAR)
-                .camara(1.05, 1.13, 36, 8)
-                .efecto1(Efectos.olas(300, 500))
-                .efecto1(Efectos.viento(7))
-                .efecto1(Efectos.foco(432, 640, new Color(120, 190, 255), 150, 3.2, 0.8))
-                .efecto1(Efectos.foco(752, 640, new Color(120, 190, 255), 150, 3.2, 1.2))
-                .efecto1(Efectos.foco(1072, 640, new Color(120, 190, 255), 150, 3.2, 1.6))
-                .efecto1(Efectos.foco(1392, 640, new Color(120, 190, 255), 150, 3.2, 2.0))
+                .silencio(2.0)                                            // la música se apaga y queda solo el mar
 
                 // AL CAMBIAR A ESTA ESCENA, EL MAR SE DETIENE
-                // 08: los cuatro celulares se encienden a la vez: destello y corte a negro.
+                // Los cuatro celulares se encienden a la vez, la luz se junta en UNA raya de senal y corte a negro.
                 .cuadro(C + "08_senal.png",
                         "Los cuatro celulares se encienden a la vez. Aparece una sola raya de señal. Corte a negro.")
-                .camara(1.05, 1.18, 0, -10)
-                .efecto1(Efectos.foco(432, 640, new Color(150, 215, 255), 230, 1.6, 0.2))
-                .efecto1(Efectos.foco(752, 640, new Color(150, 215, 255), 230, 1.6, 0.2))
-                .efecto1(Efectos.foco(1072, 640, new Color(150, 215, 255), 230, 1.6, 0.2))
-                .efecto1(Efectos.foco(1392, 640, new Color(150, 215, 255), 230, 1.6, 0.2))
-                .efecto1(Efectos.destello(1.6))
-                .duracion(4.5)
+                .senal(960, 380, CELULARES)
+                .efectoSonido(SND + "celulares_on.wav", 0.4, 0.8, 0)      // los cuatro se encienden
+                .efectoSonido(SND + "senal.wav", 2.7, 0.9, 0)             // aparece la raya de señal
+                .camara(1.00, 1.08, 0, 0)
+                .duracion(6.2)
 
                 .titulo("TODOS HABLAN EN MACONDO",
                         "uso saludable de las redes sociales")
-                .efecto1(Efectos.particulas(new Color(255, 211, 92), 80, 0.4))
-                .duracion(8);
+                .musica(SND + "musica_titulo.wav", 0.8, 0.8);
     }
 
     /**

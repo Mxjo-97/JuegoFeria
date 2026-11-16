@@ -1,55 +1,33 @@
 package juegoferia;
 
-import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics2D;
-import java.awt.RadialGradientPaint;
 import java.awt.RenderingHints;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.RoundRectangle2D;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.geom.Ellipse2D;
-import java.awt.geom.Line2D;
-import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 
 /**
- * Cinematicas con fondos, sprites y efectos animados independientes.
- *
- * Por cuadro se puede declarar:
- *   .sprite(ruta, x, y, ancho, alto)    PNG transparente sobre el fondo
- *   .efecto(Efectos.xxx(...))           olas, viento, niebla, mariposa, etc. (ver Efectos.java)
- *   .camara(zIni, zFin, panX, panY)     movimiento de camara (por defecto: acercamiento lento)
- *   .duracion(segundos)                 avance automatico (cuadros sin dialogo y titulos)
- *
- * Look de cine automatico: fundidos, barras negras, vineta, grano de pelicula,
- * camara con respiracion y texto que aparece con retraso.
+ * Cinematicas con fondos y sprites independientes.
+ * Los sprites se declaran por cuadro con .sprite(ruta, x, y, ancho, alto).
  * Si un PNG aun no existe, se dibuja un marcador provisional con el nombre del recurso.
  */
 public class Cinematica extends PanelDiseno {
-
-    // ---- interruptores del look (ponlos en false si el PC se pone lento) ----
-    private static final boolean CINE_BARRAS = true;
-    private static final boolean GRANO_ACTIVO = true;
-    private static final boolean VINETA_ACTIVA = true;
-
-    private static final int BARRA = 60;               // alto de cada barra negra (px de diseno)
-    private static final double DUR_ENTRADA = 1.0;     // fundido desde negro al empezar un cuadro
-    private static final double DUR_SALIDA = 0.5;      // fundido a negro al salir de un cuadro
-    private static final double DUR_CAMARA = 16.0;     // lo que tarda la camara en completar su recorrido
-    private static final double LETRAS_POR_SEG = 38;
 
     private static final class SpriteEscena {
         final String ruta;
         final int x, y, ancho, alto;
         final double rotacion;
+        boolean respira;   // opcional: leve movimiento de respiracion (modo cine)
 
         SpriteEscena(String ruta, int x, int y, int ancho, int alto, double rotacion) {
             this.ruta = ruta;
@@ -66,52 +44,42 @@ public class Cinematica extends PanelDiseno {
         String tituloGrande, tituloPequeno;
         final List<String[]> lineas = new ArrayList<>();
         final List<SpriteEscena> sprites = new ArrayList<>();
-        final List<Efecto1> efectos = new ArrayList<>();
-        double zIni = 1.04, zFin = 1.11, panX = 36, panY = 14;
-        double duracionAuto;
+        // ---- extras de modo cine (todos opcionales) ----
+        final List<EfectosCine.Efecto> efectos = new ArrayList<>();
+        double[] camara;          // {zoomIni, zoomFin, dx, dy, duracion}
+        double duracion;          // segundos; avanza solo (solo cuadros sin dialogo)
+        // ---- audio controlable (AudioCine) ----
+        String musica;
+        double musicaVol = 0.7, musicaFade = 1.5;
+        boolean silencio;
+        double silencioFade = 1.5;
+        final List<SonidoEscena> sonidos = new ArrayList<>();
     }
 
-    // ---- recursos del look (se crean una sola vez) ----
-    /** Vineta ya dibujada una sola vez (mucho mas barata que recalcular el degradado en cada cuadro). */
-    private static final BufferedImage VINETA = crearVineta();
+    private static final class SonidoEscena {
+        final String ruta;
+        final double retraso, volumen, maxSeg;
+        boolean disparado;
 
-    private static BufferedImage crearVineta() {
-        BufferedImage img = new BufferedImage(PanelDiseno.W, PanelDiseno.H, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D v = img.createGraphics();
-        v.translate(PanelDiseno.W / 2.0, PanelDiseno.H / 2.0);
-        v.scale(1, PanelDiseno.H / (double) PanelDiseno.W);
-        v.setPaint(new RadialGradientPaint(0f, 0f, PanelDiseno.W * 0.62f,
-                new float[]{0.5f, 1f},
-                new Color[]{new Color(0, 0, 0, 0), new Color(0, 0, 0, 200)}));
-        v.fillRect(-PanelDiseno.W / 2 - 4, -PanelDiseno.W / 2 - 4, PanelDiseno.W + 8, PanelDiseno.W + 8);
-        v.dispose();
-        return img;
-    }
-
-    private static final BufferedImage[] GRANO = new BufferedImage[4];
-    private static final BufferedImage HALO = Efectos.brillo(new Color(255, 200, 80), 256);
-
-    static {
-        Random r = new Random(99);
-        for (int k = 0; k < GRANO.length; k++) {
-            BufferedImage img = new BufferedImage(480, 270, BufferedImage.TYPE_INT_ARGB);
-            for (int y = 0; y < 270; y++) {
-                for (int x = 0; x < 480; x++) {
-                    int v = r.nextInt(256);
-                    img.setRGB(x, y, (14 << 24) | (v << 16) | (v << 8) | v);
-                }
-            }
-            GRANO[k] = img;
+        SonidoEscena(String ruta, double retraso, double volumen, double maxSeg) {
+            this.ruta = ruta;
+            this.retraso = retraso;
+            this.volumen = volumen;
+            this.maxSeg = maxSeg;
         }
     }
 
+    private static final double LETRAS_POR_SEG = 38;
+    private static final double FUNDIDO_SALIDA = 0.45;   // segundos del fundido a negro entre cuadros
+    private static final double FUNDIDO_ENTRADA = 1.0;   // segundos del fundido desde negro
+    private boolean mantenerMusica;    // true: la musica sigue sonando al terminar la cinematica
+    private boolean cine;              // modo cine: camara, efectos, vineta, grano, fundidos
+    private double tEscena;            // tiempo desde que empezo el cuadro (no se reinicia por linea)
+    private double salida = -1;        // >= 0 mientras hace el fundido a negro de salida
     private final Partida partida;
     private final List<Cuadro> cuadros = new ArrayList<>();
     private int iCuadro = -1, iLinea = -1;
     private double letras, tCuadro;
-    private double tEscena;            // segundos desde que empezo el cuadro (no se reinicia por linea)
-    private double tTotal;             // segundos desde que empezo la cinematica
-    private double saliendo = -1;      // >= 0 mientras el cuadro se esta desvaneciendo
     private boolean saltable = true;
     private Runnable alTerminar;
     private boolean terminada;
@@ -149,7 +117,6 @@ public class Cinematica extends PanelDiseno {
         Cuadro c = new Cuadro();
         c.fondo = fondo;
         c.acotacion = acotacion;
-        c.panX = (cuadros.size() % 2 == 0 ? 1 : -1) * 36;
         for (String l : lineas) {
             String t = partida != null ? partida.reemplazar(l) : l;
             int i = t.indexOf(": ");
@@ -163,10 +130,6 @@ public class Cinematica extends PanelDiseno {
                 }
             }
             c.lineas.add(new String[]{quien == null ? null : bonito(quien), texto});
-        }
-        // un cuadro sin dialogo avanza solo (si no, se quedaria esperando un clic sobre nada)
-        if (c.lineas.isEmpty()) {
-            c.duracionAuto = 4.5;
         }
         cuadros.add(c);
         return this;
@@ -201,38 +164,10 @@ public class Cinematica extends PanelDiseno {
         return this;
     }
 
-    /** Agrega un efecto animado (ver Efectos) al último cuadro. Se pueden poner varios. */
-    public Cinematica efecto1(Efecto1 e) {
-        if (!cuadros.isEmpty() && e != null) cuadros.get(cuadros.size() - 1).efectos.add(e);
-        return this;
-    }
-
-    /**
-     * Movimiento de camara del último cuadro. zIni/zFin son el zoom (1.0 = sin zoom; usa al menos 1.03
-     * para que no se vean bordes). panX/panY son cuantos pixeles se desliza la camara (maximo ~40 en x, ~20 en y).
-     */
-    public Cinematica camara(double zIni, double zFin, double panX, double panY) {
-        if (!cuadros.isEmpty()) {
-            Cuadro c = cuadros.get(cuadros.size() - 1);
-            c.zIni = zIni;
-            c.zFin = zFin;
-            c.panX = panX;
-            c.panY = panY;
-        }
-        return this;
-    }
-
-    /** Segundos tras los cuales el último cuadro avanza solo (0 = espera clic). */
-    public Cinematica duracion(double segundos) {
-        if (!cuadros.isEmpty()) cuadros.get(cuadros.size() - 1).duracionAuto = segundos;
-        return this;
-    }
-
     public Cinematica titulo(String grande, String pequeno) {
         Cuadro c = new Cuadro();
         c.tituloGrande = grande;
         c.tituloPequeno = pequeno;
-        c.duracionAuto = 7.5;
         cuadros.add(c);
         return this;
     }
@@ -240,6 +175,156 @@ public class Cinematica extends PanelDiseno {
     public Cinematica saltable(boolean s) {
         this.saltable = s;
         return this;
+    }
+
+    // ---------- MODO CINE (todo opcional: si no lo usas, la cinematica se ve igual que antes) ----------
+
+    /** Activa el look de pelicula: fundidos a negro, vineta, grano, camara y efectos. */
+    public Cinematica cine() {
+        this.cine = true;
+        return this;
+    }
+
+    private Cuadro ultimo() {
+        return cuadros.isEmpty() ? null : cuadros.get(cuadros.size() - 1);
+    }
+
+    private Cinematica efecto(EfectosCine.Efecto e) {
+        Cuadro c = ultimo();
+        if (c != null) c.efectos.add(e);
+        return this;
+    }
+
+    /**
+     * Movimiento de camara (zoom + paneo) sobre fondo y sprites. El zoom se ajusta solo para que
+     * nunca se vean bordes negros. dx/dy = cuantos pixeles recorre el paneo en total.
+     */
+    public Cinematica camara(double zoomIni, double zoomFin, int dx, int dy) {
+        Cuadro c = ultimo();
+        if (c != null) c.camara = new double[]{zoomIni, zoomFin, dx, dy, 22};
+        return this;
+    }
+
+    /** El cuadro avanza solo despues de N segundos (solo cuadros sin dialogo). */
+    public Cinematica duracion(double segundos) {
+        Cuadro c = ultimo();
+        if (c != null) c.duracion = segundos;
+        return this;
+    }
+
+    /** Hace que el ultimo sprite agregado "respire" (ideal para personajes dormidos). */
+    public Cinematica respirar() {
+        Cuadro c = ultimo();
+        if (c != null && !c.sprites.isEmpty()) c.sprites.get(c.sprites.size() - 1).respira = true;
+        return this;
+    }
+
+    // ---------- AUDIO CONTROLABLE ----------
+
+    /** Musica de fondo en bucle desde este cuadro (volumen 0.7, entra con fundido de 1.5 s). */
+    public Cinematica musica(String ruta) {
+        return musica(ruta, 0.7, 1.5);
+    }
+
+    /**
+     * Musica de fondo en bucle desde este cuadro. Sigue sonando en los cuadros siguientes
+     * hasta que uno use .silencio(...) u otra .musica(...).
+     * volumen 0..1; fadeSeg = segundos de entrada gradual (0 = de golpe).
+     */
+    public Cinematica musica(String ruta, double volumen, double fadeSeg) {
+        Cuadro c = ultimo();
+        if (c != null) {
+            c.musica = ruta;
+            c.musicaVol = volumen;
+            c.musicaFade = fadeSeg;
+        }
+        return this;
+    }
+
+    /** Apaga la musica al empezar este cuadro, con un fundido de N segundos (0 = corte seco). */
+    public Cinematica silencio(double fadeSeg) {
+        Cuadro c = ultimo();
+        if (c != null) {
+            c.silencio = true;
+            c.silencioFade = fadeSeg;
+        }
+        return this;
+    }
+
+    /**
+     * Efecto de sonido de este cuadro.
+     *
+     * @param retraso  segundos despues de que empieza el cuadro (0 = al entrar)
+     * @param volumen  0..1
+     * @param maxSeg   lo corta a esos segundos aunque dure mas (0 = hasta que termine solo)
+     */
+    public Cinematica efectoSonido(String ruta, double retraso, double volumen, double maxSeg) {
+        Cuadro c = ultimo();
+        if (c != null && ruta != null) c.sonidos.add(new SonidoEscena(ruta, retraso, volumen, maxSeg));
+        return this;
+    }
+
+    public Cinematica efectoSonido(String ruta, double retraso) {
+        return efectoSonido(ruta, retraso, 1.0, 0);
+    }
+
+    /** Por defecto la musica se apaga con fundido al terminar/saltar. Con true sigue sonando (ej. hacia el menu). */
+    public Cinematica mantenerMusicaAlTerminar(boolean mantener) {
+        this.mantenerMusica = mantener;
+        return this;
+    }
+
+    public Cinematica estrellas() {
+        return efecto(EfectosCine.estrellas());
+    }
+
+    /** Olas con espuma. yOrilla: linea donde llega el agua (mar arriba, arena abajo). */
+    public Cinematica olas(int yOrilla) {
+        return efecto(EfectosCine.olas(yOrilla));
+    }
+
+    /** fuerza: 1 = normal, 0.5 = brisa suave, 1.6 = ventarron. */
+    public Cinematica viento(double fuerza) {
+        return efecto(EfectosCine.viento(fuerza));
+    }
+
+    /** Niebla que se va espesando. */
+    public Cinematica niebla() {
+        return efecto(EfectosCine.bruma(0xDCE3E6, 0.55, 26, 120, 980, true, 16));
+    }
+
+    /** Nubes que cruzan suavemente (para tomas aereas). */
+    public Cinematica nubes() {
+        return efecto(EfectosCine.bruma(0xFFFFFF, 0.30, 34, 0, 1000, false, 9));
+    }
+
+    /** Motas de polvo/luz flotando. rgb = color, ej. 0xFFD78A. */
+    public Cinematica polvo(int rgb, int cantidad) {
+        return efecto(EfectosCine.polvo(rgb, cantidad));
+    }
+
+    public Cinematica rayos(int rgb) {
+        return efecto(EfectosCine.rayos(rgb));
+    }
+
+    /** Luz pulsante (pantalla de celular, farol...). */
+    public Cinematica resplandor(int x, int y, int radio, int rgb, double fase) {
+        return efecto(EfectosCine.resplandor(x, y, radio, rgb, fase));
+    }
+
+    /** Mariposa amarilla animada: sale de (x0,y0), serpentea hasta (x1,y1) y revolotea. */
+    public Cinematica mariposa(int x0, int y0, int x1, int y1) {
+        return efecto(EfectosCine.mariposa(x0, y0, x1, y1));
+    }
+
+    /** El rumor: linea de luz que salta por los puntos (x,y,x,y,...) y se rompe en pedazos. */
+    public Cinematica rumor(int... puntos) {
+        return efecto(EfectosCine.rumor(puntos));
+    }
+
+    /** Celulares que se encienden y dejan una sola raya de senal (con corte a negro al final). */
+    public Cinematica senal(int cx, int cy, int... telefonos) {
+        return efecto(EfectosCine.senal(cx, cy, telefonos));
     }
 
     private static String bonito(String quien) {
@@ -251,29 +336,31 @@ public class Cinematica extends PanelDiseno {
         return sb.toString().trim();
     }
 
-    private static double curva(double x) {
-        x = Math.max(0, Math.min(1, x));
-        return x * x * (3 - 2 * x);
-    }
-
     // ===================== CICLO =====================
 
     public void iniciar(Runnable alTerminar) {
         this.alTerminar = alTerminar;
         terminada = false;
         iCuadro = -1;
-        tTotal = 0;
-        saliendo = -1;
+        salida = -1;
         siguienteCuadro();
     }
 
     private void siguienteCuadro() {
+        if (cine && iCuadro >= 0 && iCuadro < cuadros.size() && !terminada) {
+            // en modo cine primero se funde a negro; actualizar() hace el cambio real
+            if (salida < 0) salida = 0;
+            return;
+        }
+        irACuadro();
+    }
+
+    private void irACuadro() {
         detenerAmbienteActual();
         iCuadro++;
         iLinea = -1;
         tCuadro = 0;
         tEscena = 0;
-        saliendo = -1;
         letras = 0;
         if (iCuadro >= cuadros.size()) {
             terminar();
@@ -282,21 +369,19 @@ public class Cinematica extends PanelDiseno {
         Cuadro c = cuadros.get(iCuadro);
         if (c.sonido != null) Funciones.reproducirSonido(c.sonido);
         if (c.ambiente != null) Musica.tocar(c.ambiente);
+        if (c.silencio) AudioCine.detenerMusica(c.silencioFade);
+        if (c.musica != null) AudioCine.musica(c.musica, c.musicaVol, c.musicaFade);
+        for (SonidoEscena so : c.sonidos) so.disparado = false;
         siguienteLinea();
-        // el texto espera un momento a que la imagen se asiente antes de escribirse
-        letras = -LETRAS_POR_SEG * 0.7;
-        tCuadro = 0;
     }
 
     private void siguienteLinea() {
         if (terminada || iCuadro < 0 || iCuadro >= cuadros.size()) return;
+        Cuadro c = cuadros.get(iCuadro);
         iLinea++;
         letras = 0;
         tCuadro = 0;
-    }
-
-    private void iniciarSalida() {
-        if (saliendo < 0) saliendo = 0;
+        // Un cuadro sin dialogo (solo imagen) ahora espera un clic (o su .duracion) en vez de saltarse solo.
     }
 
     private void detenerAmbienteActual() {
@@ -310,10 +395,16 @@ public class Cinematica extends PanelDiseno {
     protected void alOcultar() {
         // Evita que un ambiente siga sonando si otra pantalla reemplaza esta cinematica.
         detenerAmbienteActual();
+        cortarAudioCine();
+    }
+
+    private void cortarAudioCine() {
+        AudioCine.detenerEfectos();
+        if (!mantenerMusica) AudioCine.detenerMusica(1.2);
     }
 
     private void avanzar() {
-        if (terminada || iCuadro < 0 || iCuadro >= cuadros.size() || saliendo >= 0) return;
+        if (terminada || salida >= 0 || iCuadro < 0 || iCuadro >= cuadros.size()) return;
         Cuadro c = cuadros.get(iCuadro);
         if (iLinea >= 0 && iLinea < c.lineas.size()) {
             String t = c.lineas.get(iLinea)[1];
@@ -324,14 +415,15 @@ public class Cinematica extends PanelDiseno {
         }
         if (iLinea + 1 < c.lineas.size()) {
             siguienteLinea();
-        } else if (tCuadro > 0.4 && tEscena > (c.lineas.isEmpty() ? 1.5 : 0.6)) {
-            iniciarSalida();
+        } else if (tCuadro > 0.4) {
+            siguienteCuadro();
         }
     }
 
     private void terminar() {
         if (terminada) return;
         detenerAmbienteActual();
+        cortarAudioCine();
         terminada = true;
         if (alTerminar != null) {
             Runnable r = alTerminar;
@@ -342,21 +434,29 @@ public class Cinematica extends PanelDiseno {
 
     @Override
     protected void actualizar(double dt) {
-        if (terminada || iCuadro < 0 || iCuadro >= cuadros.size()) return;
         tCuadro += dt;
         tEscena += dt;
-        tTotal += dt;
         letras += dt * LETRAS_POR_SEG;
-        if (saliendo >= 0) {
-            saliendo += dt;
-            if (saliendo >= DUR_SALIDA) {
-                siguienteCuadro();
+        if (terminada) return;
+        if (salida >= 0) {
+            salida += dt;
+            if (salida >= FUNDIDO_SALIDA) {
+                salida = -1;
+                irACuadro();
             }
-        } else {
+            return;
+        }
+        if (iCuadro >= 0 && iCuadro < cuadros.size()) {
+            for (SonidoEscena so : cuadros.get(iCuadro).sonidos) {
+                if (!so.disparado && tEscena >= so.retraso) {
+                    so.disparado = true;
+                    AudioCine.efecto(so.ruta, so.volumen, so.maxSeg);
+                }
+            }
+        }
+        if (cine && iCuadro >= 0 && iCuadro < cuadros.size()) {
             Cuadro c = cuadros.get(iCuadro);
-            if (c.duracionAuto > 0 && tEscena >= c.duracionAuto) {
-                iniciarSalida();
-            }
+            if (c.duracion > 0 && c.lineas.isEmpty() && tEscena >= c.duracion) siguienteCuadro();
         }
     }
 
@@ -368,26 +468,92 @@ public class Cinematica extends PanelDiseno {
         g.fillRect(0, 0, W, H);
         if (iCuadro < 0 || iCuadro >= cuadros.size()) return;
         Cuadro c = cuadros.get(iCuadro);
-        double fadeSalida = saliendo >= 0 ? curva(saliendo / DUR_SALIDA) : 0;
-        double visible = curva(tEscena / DUR_ENTRADA) * (1 - fadeSalida);
-        boolean esTitulo = c.tituloGrande != null;
+        float entrada = (float) Math.min(1, tCuadro / 0.6);
 
-        if (esTitulo) {
-            dibujarTitulo(g, c);
-        } else {
-            dibujarEscena(g, c);
-        }
-        postproceso(g, visible);
-
-        if (esTitulo) {
+        if (c.tituloGrande != null && cine) {
+            EfectosCine.titulo(g, c.tituloGrande, c.tituloPequeno, tEscena,
+                    Estilo.fuente(Font.BOLD, 96f), Estilo.fuente(Font.PLAIN, 34f));
             pista(g);
-        } else if (iLinea >= 0 && iLinea < c.lineas.size()) {
-            Graphics2D d = (Graphics2D) g.create();
-            double a = curva((tEscena - 0.35) / 0.45) * (1 - fadeSalida);
-            d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) Math.max(0, Math.min(1, a))));
-            dibujarLinea(d, c.lineas.get(iLinea));
-            d.dispose();
+            capasDePelicula(g);
+            return;
         }
+
+        if (c.tituloGrande != null) {
+            g.setColor(new Color(255, 211, 92, (int) (255 * entrada)));
+            g.setFont(Estilo.fuente(Font.BOLD, 96f));
+            centrado(g, c.tituloGrande, W / 2, H / 2);
+            if (c.tituloPequeno != null) {
+                g.setFont(Estilo.fuente(Font.PLAIN, 36f));
+                g.setColor(new Color(255, 255, 255, (int) (220 * entrada)));
+                centrado(g, c.tituloPequeno, W / 2, H / 2 + 80);
+            }
+            pista(g);
+            return;
+        }
+
+        // "mundo" = fondo + sprites + efectos anclados al fondo; en modo cine se mueve con la camara.
+        Graphics2D mundo = (Graphics2D) g.create();
+        if (cine) aplicarCamara(mundo, c);
+
+        if (c.fondo != null && Recursos.existe(c.fondo)) {
+            // Las cinematicas usan lienzo 1920x1080; no reutilizar el escalado 1591x989 del mundo.
+            BufferedImage fondo = Recursos.imagen(c.fondo, W, H);
+            mundo.drawImage(fondo, 0, 0, W, H, null);
+        } else if (c.acotacion != null) {
+            mundo.setFont(Estilo.fuente(Font.PLAIN, 34f));
+            mundo.setColor(new Color(200, 190, 170));
+            FontMetrics fm = mundo.getFontMetrics();
+            int y = 300;
+            for (String l : envolver("(" + c.acotacion + ")", fm, 1400)) {
+                centrado(mundo, l, W / 2, y);
+                y += fm.getHeight() + 6;
+            }
+            if (c.fondo != null) {
+                mundo.setFont(Estilo.fuente(Font.PLAIN, 18f));
+                mundo.setColor(new Color(120, 120, 120));
+                centrado(mundo, "falta la imagen: " + c.fondo, W / 2, 1050);
+            }
+        }
+
+        // Los sprites se dibujan encima del fondo y debajo de la caja de diálogo.
+        for (SpriteEscena sprite : c.sprites) dibujarSprite(mundo, sprite);
+
+        if (cine) {
+            for (EfectosCine.Efecto e : c.efectos) {
+                if (e.mundo) {
+                    Graphics2D q = (Graphics2D) mundo.create();
+                    e.capa.pintar(q, tEscena);
+                    q.dispose();
+                }
+            }
+        }
+        mundo.dispose();
+
+        if (cine) {
+            for (EfectosCine.Efecto e : c.efectos) {
+                if (!e.mundo) {
+                    Graphics2D q = (Graphics2D) g.create();
+                    e.capa.pintar(q, tEscena);
+                    q.dispose();
+                }
+            }
+            EfectosCine.vineta(g);
+        }
+
+        if (iLinea >= 0 && iLinea < c.lineas.size()) {
+            if (cine) {
+                Graphics2D q = (Graphics2D) g.create();
+                double a = Math.min(1, Math.max(0, (tEscena - 0.6) / 0.5));
+                q.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, (float) a));
+                q.translate(0, (1 - a) * 24);
+                dibujarLinea(q, c.lineas.get(iLinea));
+                q.dispose();
+                indicadorContinuar(g, c.lineas.get(iLinea));
+            } else {
+                dibujarLinea(g, c.lineas.get(iLinea));
+            }
+        }
+        if (cine) capasDePelicula(g);
         if (saltable) {
             g.setColor(new Color(0, 0, 0, 140));
             g.fillRoundRect(BOTON_SALTAR.x, BOTON_SALTAR.y, BOTON_SALTAR.width, BOTON_SALTAR.height, 32, 32);
@@ -397,75 +563,46 @@ public class Cinematica extends PanelDiseno {
         }
     }
 
-    /** Fondo + sprites + efectos, todo bajo la camara. */
-    private void dibujarEscena(Graphics2D g, Cuadro c) {
-        double p = curva(Math.min(1, tEscena / DUR_CAMARA));
-        double z = c.zIni + (c.zFin - c.zIni) * p;
-        double mx = W * (z - 1) / 2 - 2;
-        double my = H * (z - 1) / 2 - 2;
-        // "respiracion" de camara: temblor muy suave para que nada se sienta congelado
-        double ox = c.panX * (p - 0.5) + 3.0 * Math.sin(tTotal * 0.7);
-        double oy = c.panY * (p - 0.5) + 2.0 * Math.sin(tTotal * 0.9 + 1);
-        ox = Math.max(-mx, Math.min(mx, ox));
-        oy = Math.max(-my, Math.min(my, oy));
+    // ---------- ayudas del modo cine ----------
 
-        Graphics2D cam = (Graphics2D) g.create();
-        cam.translate(W / 2.0 + ox, H / 2.0 + oy);
-        cam.scale(z, z);
-        cam.translate(-W / 2.0, -H / 2.0);
-
-        if (c.fondo != null && Recursos.existe(c.fondo)) {
-            // Las cinematicas usan lienzo 1920x1080; no reutilizar el escalado 1591x989 del mundo.
-            BufferedImage fondo = Recursos.imagen(c.fondo, W, H);
-            cam.drawImage(fondo, 0, 0, W, H, null);
-        } else if (c.acotacion != null) {
-            cam.setFont(Estilo.fuente(Font.PLAIN, 34f));
-            cam.setColor(new Color(200, 190, 170));
-            FontMetrics fm = cam.getFontMetrics();
-            int y = 300;
-            for (String l : envolver("(" + c.acotacion + ")", fm, 1400)) {
-                centrado(cam, l, W / 2, y);
-                y += fm.getHeight() + 6;
-            }
-            if (c.fondo != null) {
-                cam.setFont(Estilo.fuente(Font.PLAIN, 18f));
-                cam.setColor(new Color(120, 120, 120));
-                centrado(cam, "falta la imagen: " + c.fondo, W / 2, 1050);
-            }
-        }
-
-        // Los sprites se dibujan encima del fondo y debajo de la caja de diálogo.
-        for (SpriteEscena sprite : c.sprites) dibujarSprite(cam, sprite);
-
-        for (Efecto1 e : c.efectos) {
-            Graphics2D eg = (Graphics2D) cam.create();
-            e.dibujar(eg, tEscena);
-            eg.dispose();
-        }
-        cam.dispose();
+    /** Zoom + paneo lentos, con el zoom ajustado para que nunca asomen bordes negros. */
+    private void aplicarCamara(Graphics2D g, Cuadro c) {
+        if (c.camara == null) return;
+        double p = Math.min(1, tEscena / c.camara[4]);
+        p = p * p * (3 - 2 * p) * 0.35 + p * 0.65;           // casi lineal, con arranque suave
+        double z = c.camara[0] + (c.camara[1] - c.camara[0]) * p;
+        double maxX = (z - 1) * W / 2, maxY = (z - 1) * H / 2;
+        double ox = Math.max(-maxX, Math.min(maxX, (p - 0.5) * c.camara[2]));
+        double oy = Math.max(-maxY, Math.min(maxY, (p - 0.5) * c.camara[3]));
+        g.translate(W / 2.0 + ox, H / 2.0 + oy);
+        g.scale(z, z);
+        g.translate(-W / 2.0, -H / 2.0);
     }
 
-    /** Vineta, grano de pelicula, fundido a negro y barras de cine. */
-    private void postproceso(Graphics2D g, double visible) {
-        if (VINETA_ACTIVA) {
-            g.drawImage(VINETA, 0, 0, null);
+    /** Grano, parpadeo de proyector y los fundidos a negro (entrada y salida). */
+    private void capasDePelicula(Graphics2D g) {
+        EfectosCine.grano(g, tiempo);
+        double negro = 0;
+        if (salida >= 0) {
+            negro = Math.min(1, salida / FUNDIDO_SALIDA);
+        } else if (tEscena < FUNDIDO_ENTRADA) {
+            double k = 1 - tEscena / FUNDIDO_ENTRADA;
+            negro = k * k;
         }
-        if (GRANO_ACTIVO) {
-            Graphics2D q = (Graphics2D) g.create();
-            q.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
-            q.drawImage(GRANO[(int) (tTotal * 14) % GRANO.length], 0, 0, W, H, null);
-            q.dispose();
-        }
-        if (visible < 1) {
-            g.setColor(new Color(0, 0, 0, (int) Math.max(0, Math.min(255, 255 * (1 - visible)))));
+        if (negro > 0) {
+            g.setColor(new Color(0, 0, 0, (int) (255 * negro)));
             g.fillRect(0, 0, W, H);
         }
-        if (CINE_BARRAS) {
-            int b = (int) (BARRA * curva(tTotal / 1.4));
-            g.setColor(Color.BLACK);
-            g.fillRect(0, 0, W, b);
-            g.fillRect(0, H - b, W, b);
-        }
+    }
+
+    /** Triangulito que late cuando el texto ya termino de escribirse. */
+    private void indicadorContinuar(Graphics2D g, String[] l) {
+        if (letras < l[1].length() || tEscena < 0.8) return;
+        double pulso = 0.5 + 0.5 * Math.sin(tEscena * 5);
+        int x = 260 + 1400 - 90, y = 790 + 230 - 62 + (int) (pulso * 6);
+        g.setColor(new Color(Estilo.MADERA_OSCURA.getRed(), Estilo.MADERA_OSCURA.getGreen(),
+                Estilo.MADERA_OSCURA.getBlue(), (int) (120 + 120 * pulso)));
+        g.fillPolygon(new int[]{x, x + 28, x + 14}, new int[]{y, y, y + 16}, 3);
     }
 
     private void dibujarSprite(Graphics2D g, SpriteEscena s) {
@@ -473,12 +610,11 @@ public class Cinematica extends PanelDiseno {
         p.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         p.translate(s.x + s.ancho / 2.0, s.y + s.alto / 2.0);
         p.rotate(Math.toRadians(s.rotacion));
+        if (s.respira && cine) {
+            double r = Math.sin(tEscena * 1.9 + s.x * 0.013);
+            p.scale(1 + 0.006 * r, 1 + 0.018 * r);
+        }
         p.translate(-s.ancho / 2.0, -s.alto / 2.0);
-        // respiracion: el personaje se infla y desinfla apenas, anclado en los pies
-        double resp = Math.sin(tEscena * 1.5 + s.x * 0.01);
-        p.translate(s.ancho / 2.0, s.alto);
-        p.scale(1 + 0.006 * resp, 1 + 0.012 * resp);
-        p.translate(-s.ancho / 2.0, -s.alto);
 
         if (Recursos.existe(s.ruta)) {
             BufferedImage img = Recursos.imagen(s.ruta, s.ancho, s.alto);
@@ -531,7 +667,7 @@ public class Cinematica extends PanelDiseno {
         }
         g.setFont(Estilo.fuente(Font.PLAIN, 40f));
         FontMetrics fm = g.getFontMetrics();
-        int visibles = (int) Math.max(0, Math.min(l[1].length(), letras));
+        int visibles = (int) Math.min(l[1].length(), letras);
         int usados = 0, y = by + 82;
         g.setColor(Estilo.TEXTO);
         for (String s : envolver(l[1], fm, bw - 150)) {
@@ -541,89 +677,13 @@ public class Cinematica extends PanelDiseno {
             usados += s.length() + 1;
             y += fm.getHeight() + 6;
         }
-        // flechita que late cuando la linea ya termino de escribirse
-        if (letras >= l[1].length()) {
-            double rebote = 6 * Math.sin(tEscena * 4);
-            int fx = bx + bw - 80, fy = (int) (by + bh - 52 + rebote);
-            g.setColor(Estilo.MADERA_OSCURA);
-            g.fillPolygon(new int[]{fx, fx + 28, fx + 14}, new int[]{fy, fy, fy + 20}, 3);
-        }
-    }
-
-    // ===================== TITULO =====================
-
-    private static double anchoEspaciado(FontMetrics fm, String s, double espacio) {
-        double w = 0;
-        for (int i = 0; i < s.length(); i++) w += fm.charWidth(s.charAt(i)) + espacio;
-        return w - espacio;
-    }
-
-    /** Texto centrado en (dx, dy) con separacion extra entre letras. */
-    private static void textoEspaciado(Graphics2D g, String s, double dx, double dy, double espacio) {
-        FontMetrics fm = g.getFontMetrics();
-        double x = dx - anchoEspaciado(fm, s, espacio) / 2;
-        for (int i = 0; i < s.length(); i++) {
-            char ch = s.charAt(i);
-            g.drawString(String.valueOf(ch), (float) x, (float) dy);
-            x += fm.charWidth(ch) + espacio;
-        }
-    }
-
-    private void dibujarTitulo(Graphics2D g, Cuadro c) {
-        double t = tEscena;
-        Graphics2D base = (Graphics2D) g.create();
-        base.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        base.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-
-        // resplandor dorado detras del texto
-        Efectos.mancha(base, HALO, W / 2.0, H / 2.0, 1500, 800,
-                0.38 * curva(t / 2.5) * (0.9 + 0.1 * Math.sin(t * 1.3)));
-        for (Efecto1 e : c.efectos) {
-            Graphics2D eg = (Graphics2D) base.create();
-            e.dibujar(eg, t);
-            eg.dispose();
-        }
-
-        double aparece = curva((t - 0.4) / 1.8);
-        double asent = curva(t / 4.5);
-        double esc = 1.08 - 0.08 * asent;
-        double espacio = 22 - 14 * asent;
-
-        Graphics2D tg = (Graphics2D) base.create();
-        tg.translate(W / 2.0, H / 2.0);
-        tg.scale(esc, esc);
-        tg.setFont(Estilo.fuente(Font.BOLD, 96f));
-        FontMetrics fm = tg.getFontMetrics();
-        double fit = Math.min(1, (W - 240) / anchoEspaciado(fm, c.tituloGrande, espacio));
-        tg.scale(fit, fit);
-
-        for (int i = 0; i < 8; i++) {
-            double ang = i * Math.PI / 4;
-            tg.setColor(new Color(255, 200, 70, (int) (34 * aparece)));
-            textoEspaciado(tg, c.tituloGrande, Math.cos(ang) * 5, Math.sin(ang) * 5, espacio);
-        }
-        tg.setColor(new Color(255, 211, 92, (int) (255 * aparece)));
-        textoEspaciado(tg, c.tituloGrande, 0, 0, espacio);
-
-        double lw = 560 * curva((t - 1.2) / 1.3);
-        tg.setStroke(new BasicStroke(3f));
-        tg.setColor(new Color(255, 211, 92, (int) (200 * aparece)));
-        tg.draw(new Line2D.Double(-lw / 2, 34, lw / 2, 34));
-
-        if (c.tituloPequeno != null) {
-            tg.setFont(Estilo.fuente(Font.PLAIN, 36f));
-            tg.setColor(new Color(255, 255, 255, (int) (220 * curva((t - 1.9) / 1.3))));
-            textoEspaciado(tg, c.tituloPequeno, 0, 96, 3);
-        }
-        tg.dispose();
-        base.dispose();
     }
 
     private void pista(Graphics2D g) {
-        if (tEscena > 2.5 && saliendo < 0) {
+        if (tCuadro > 1.2) {
             g.setFont(Estilo.fuente(Font.PLAIN, 22f));
-            g.setColor(new Color(255, 255, 255, (int) (150 * curva((tEscena - 2.5) / 1.0))));
-            centrado(g, "clic para continuar", W / 2, H - 22);
+            g.setColor(new Color(255, 255, 255, 150));
+            centrado(g, "clic para continuar", W / 2, H - 60);
         }
     }
 }
