@@ -193,9 +193,9 @@ public final class GuionDia1 {
                 "CIUDADANO: ¿Raro cómo?",
                 "SAMUEL: No sé. Mi abuela dice que no lea cosas de los grandes.",
                 "INFLUENCER: Tu abuela tiene razón. Y no tiene razón.");
-        l.salida(1760, 600, 160, 420, PANADERIA, "Bajar a la panadería");
-
-        l.alPrimeraEntrada(() -> l.dialogo(null,
+            l.salida(400, 850, 350, 230, PANADERIA, "Bajar a la panadería");
+       
+            l.alPrimeraEntrada(() -> l.dialogo(null,
                 "Narrador: Los cuatro despiertan a la vez. Abajo se oye a Doña Rosa abriendo la panadería.",
                 "INFLUENCER: ¿Alguien más durmió? Yo soñé que mi afiche me hablaba.",
                 "PERIODISTA: Yo no. Llevo dos horas escribiendo lo que se comenta de la elección. Luego lo mando a la imprenta y lo reparto por ahí.",
@@ -248,8 +248,7 @@ public final class GuionDia1 {
                 "DON ELIÉCER: Pues si lo cierran, por algo será.");
         c.vecino("vlado", "Vlado (tele)", "la tele", 1760, 640, new Color(0x333344),
                 "VLADO: Buenos días, Macondo.");
-
-        l.salida(0, 600, 110, 420, CAMINO, "Salir hacia el malecón");
+        l.salida(1490, 960, 330, 120, CAMINO, "Salir hacia el malecón");
 
         // ---- al entrar: el audio, la tele y la decision de respeto ----
         l.alPrimeraEntrada(() -> new Secuencia()

@@ -1115,59 +1115,66 @@ public class Lugar extends EscenaMundo {
 
     private void dibujarHud(Graphics2D g) {
         // ---- reloj y dia ----
-        g.setColor(new Color(0, 0, 0, 140));
-        g.fill(new RoundRectangle2D.Double(24, 20, 330, 70, 30, 30));
-        g.setFont(Estilo.fuente(Font.BOLD, 40f));
-        g.setColor(Estilo.DORADO_CLARO);
-        g.drawString(partida.reloj.texto(), 44, 70);
-        g.setFont(Estilo.fuente(Font.BOLD, 22f));
-        g.setColor(Color.WHITE);
-        g.drawString("Día " + partida.dia + " de " + Partida.DIAS, 200, 64);
+      // ---- NUEVO RELOJ ESTETICO ----
+dibujarRelojHud(g);
 
         // ---- titulo del lugar y objetivos ----
-        int oy = 104;
-        int h = 54 + objetivos.size() * 40;
-        g.setColor(new Color(0, 0, 0, 120));
-        g.fill(new RoundRectangle2D.Double(24, oy, 640, h, 24, 24));
-        g.setFont(Estilo.fuente(Font.BOLD, 22f));
-        g.setColor(Estilo.DORADO_CLARO);
-        g.drawString(titulo.toUpperCase(), 46, oy + 36);
-        g.setFont(Estilo.fuente(Font.PLAIN, 24f));
-        int ly = oy + 76;
-        for (Objetivo o : objetivos) {
-            g.setColor(o.hecho ? new Color(0x8BE07A) : Color.WHITE);
-            g.drawRoundRect(46, ly - 20, 22, 22, 6, 6);
-            if (o.hecho) {
-                g.setStroke(new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-                g.drawLine(51, ly - 9, 56, ly - 3);
-                g.drawLine(56, ly - 3, 66, ly - 19);
-            }
-            g.drawString(o.texto, 82, ly);
-            ly += 40;
-        }
+       
+        // ---- PANEL DEL LUGAR Y OBJETIVOS ----
+dibujarPanelLugar(g);
+        
+       
+// ---- MEDIDORES ESTETICOS ----
 
-        // ---- medidores compartidos ----
-        int bx = 1000, by = 24;
-        g.setColor(new Color(0, 0, 0, 130));
-        g.fill(new RoundRectangle2D.Double(bx, by, 740, 132, 26, 26));
-        g.setFont(Estilo.fuente(Font.BOLD, 20f));
-        g.setColor(Color.WHITE);
-        g.drawString("Ánimo de la casa " + partida.animo + "/10", bx + 20, by + 32);
-        barra(g, bx + 20, by + 40, 330, 14, partida.animo / 10.0, new Color(0xF0A020));
-        g.setColor(Color.WHITE);
-        g.drawString("Confianza entre roles " + partida.confianza.promedio() + "/10", bx + 380, by + 32);
-        barra(g, bx + 380, by + 40, 330, 14, partida.confianza.promedio() / 10.0, new Color(0x4C8BD9));
-        double ds = partida.desinfo(id);
-        g.setColor(Color.WHITE);
-        if (rumor != null) {
-        g.drawString("Desinformación aquí " + (int) ds + "/100" + (rumorResuelto ? "  (controlada)" : ""),
-                bx + 20, by + 88);
-        barra(g, bx + 20, by + 96, 690, 16, ds / 100.0,
-                ds > Partida.UMBRAL_NIEBLA ? new Color(0xDD3B2E) : ds > 50 ? new Color(0xF0A020) : new Color(0x5BA843));
-        int ux = bx + 20 + (int) (690 * Partida.UMBRAL_NIEBLA / 100.0);
-        g.setColor(Color.WHITE);
-        g.fillRect(ux - 1, by + 92, 3, 24);
-        }
+int animo = partida.animo;
+int confianza = partida.confianza.promedio();
+
+dibujarMedidorHud(g,
+        1000, 24,
+        "ÁNIMO DE LA CASA",
+        animo + "/10",
+        animo / 10.0,
+        new Color(0xE7A83E),
+        0,
+        -1
+);
+
+dibujarMedidorHud(g,
+        1245, 24,
+        "CONFIANZA",
+        confianza + "/10",
+        confianza / 10.0,
+        new Color(0x6C9CCB),
+        1,
+        -1
+);
+
+if (rumor != null) {
+
+    double ds = partida.desinfo(id);
+
+    Color colorDesinfo =
+            ds > Partida.UMBRAL_NIEBLA
+            ? new Color(0xD96C55)
+            : ds > 50
+            ? new Color(0xE5AA48)
+            : new Color(0x83A96B);
+
+    dibujarMedidorHud(g,
+            1490, 24,
+            "DESINFORMACIÓN",
+            (int) ds + "/100",
+            ds / 100.0,
+            colorDesinfo,
+            2,
+            Partida.UMBRAL_NIEBLA / 100.0
+    );
+}
+
+
+
+
+
 
         // ---- celular ----
         boolean pendiente = !digitalHecho && digOpciones != null;
@@ -1198,20 +1205,674 @@ public class Lugar extends EscenaMundo {
         centrado(g, "Q", RECT_CELULAR.x + 55, RECT_CELULAR.y + 158);
 
         // ---- quien camina y teclas ----
-        boolean red = Sincronia.activa();
-        Jugador lider = red ? partida.jugador(Sincronia.miRol()) : partida.lider();
-        if (lider != null) {
-            g.setColor(new Color(0, 0, 0, 140));
-            g.fill(new RoundRectangle2D.Double(24, 1000, red ? 1100 : 1180, 60, 30, 30));
-            g.setColor(lider.rol.color);
-            g.fillOval(40, 1012, 36, 36);
-            g.setFont(Estilo.fuente(Font.BOLD, 22f));
-            g.setColor(Color.WHITE);
-            g.drawString((red ? "Eres: " : "Camina: ") + lider.titulo() + "   Mariposas: " + lider.mariposas
-                    + (red ? "      E hablar · H habilidad · P prestar · F frases · Q celular"
-                            : "      TAB cambiar · H habilidad · P prestar · F frases · Q celular"), 90, 1038);
+       // ---- NUEVA BARRA INFERIOR ----
+dibujarBarraInferior(g);
+    }
+    
+    
+    
+    
+    
+private void dibujarMedidorHud(
+        Graphics2D g,
+        int x, int y,
+        String titulo,
+        String valor,
+        double progreso,
+        Color color,
+        int icono,
+        double umbral) {
+
+    Graphics2D gg = (Graphics2D) g.create();
+
+    int w = 230;
+    int h = 112;
+
+    Color marron = new Color(0x6A3F1C);
+    Color crema = new Color(0xFFF8E8);
+    Color borde = new Color(0xD9B77C);
+
+    progreso = Math.max(0, Math.min(1, progreso));
+
+    // Sombra
+    gg.setColor(new Color(45, 25, 10, 55));
+    gg.fill(new RoundRectangle2D.Double(
+            x + 3, y + 5, w, h, 23, 23));
+
+    // Fondo crema
+    gg.setPaint(new GradientPaint(
+            x, y, Color.WHITE,
+            x, y + h, crema));
+
+    gg.fill(new RoundRectangle2D.Double(
+            x, y, w, h, 23, 23));
+
+    // Contorno
+    gg.setColor(marron);
+    gg.setStroke(new BasicStroke(3f));
+    gg.draw(new RoundRectangle2D.Double(
+            x, y, w, h, 23, 23));
+
+    // Borde interior
+    gg.setColor(borde);
+    gg.setStroke(new BasicStroke(1.5f));
+    gg.draw(new RoundRectangle2D.Double(
+            x + 5, y + 5, w - 10, h - 10, 19, 19));
+
+    // Medallón
+    gg.setPaint(new GradientPaint(
+            x, y + 24, new Color(0xFFF1CF),
+            x + 48, y + 85, new Color(0xE9D3A5)));
+
+    gg.fillOval(x + 13, y + 28, 49, 49);
+
+    gg.setColor(borde);
+    gg.setStroke(new BasicStroke(2f));
+    gg.drawOval(x + 13, y + 28, 49, 49);
+
+    // Dibujar iconos sin PNG
+    gg.setColor(color);
+
+    if (icono == 0) {
+
+        // Corazón
+        gg.fillOval(x + 24, y + 41, 17, 17);
+        gg.fillOval(x + 35, y + 41, 17, 17);
+
+        gg.fillPolygon(
+                new int[]{x + 24, x + 52, x + 38},
+                new int[]{y + 51, y + 51, y + 67},
+                3
+        );
+
+    } else if (icono == 1) {
+
+        // Comunidad: tres personas
+        gg.fillOval(x + 28, y + 38, 11, 11);
+        gg.fillOval(x + 42, y + 38, 11, 11);
+        gg.fillOval(x + 35, y + 32, 13, 13);
+
+        gg.fillRoundRect(x + 25, y + 51, 17, 15, 8, 8);
+        gg.fillRoundRect(x + 40, y + 51, 17, 15, 8, 8);
+
+    } else {
+
+        // Megáfono
+        gg.fillPolygon(
+                new int[]{
+                    x + 25, x + 43,
+                    x + 53, x + 53,
+                    x + 25
+                },
+                new int[]{
+                    y + 45, y + 39,
+                    y + 32, y + 60,
+                    y + 54
+                },
+                5
+        );
+
+        gg.setStroke(new BasicStroke(
+                4f, BasicStroke.CAP_ROUND,
+                BasicStroke.JOIN_ROUND));
+
+        gg.drawLine(
+                x + 30, y + 54,
+                x + 35, y + 67
+        );
+
+        gg.drawLine(
+                x + 57, y + 38,
+                x + 63, y + 33
+        );
+    }
+
+    // Título
+    gg.setFont(Estilo.fuente(Font.BOLD, 15f));
+    gg.setColor(new Color(0x97734D));
+    gg.drawString(titulo, x + 69, y + 33);
+
+    // Valor numérico
+    gg.setFont(Estilo.fuente(Font.BOLD, 23f));
+    gg.setColor(marron);
+    gg.drawString(valor, x + 69, y + 60);
+
+    // Barra de fondo
+    int barraX = x + 69;
+    int barraY = y + 75;
+    int barraW = 145;
+    int barraH = 9;
+
+    gg.setColor(new Color(0xE9DEC9));
+    gg.fillRoundRect(
+            barraX, barraY,
+            barraW, barraH,
+            12, 12
+    );
+
+    // Progreso
+    gg.setColor(color);
+    gg.fillRoundRect(
+            barraX, barraY,
+            (int) (barraW * progreso),
+            barraH,
+            12, 12
+    );
+
+    // Marcador de peligro de desinformación
+    if (umbral >= 0) {
+
+        int marcaX = barraX + (int) (barraW * umbral);
+
+        gg.setColor(marron);
+        gg.setStroke(new BasicStroke(2f));
+
+        gg.drawLine(
+                marcaX, barraY - 4,
+                marcaX, barraY + barraH + 4
+        );
+    }
+
+    gg.dispose();
+}
+
+    
+    
+private void dibujarPanelLugar(Graphics2D g) {
+
+    Graphics2D gg = (Graphics2D) g.create();
+
+    int x = 24;
+    int y = 104;
+    int w = 640;
+    int h = 58 + objetivos.size() * 40;
+
+    Color marron = new Color(0x6A3F1C);
+    Color crema = new Color(0xFBF0D2);
+    Color dorado = new Color(0xD9B77C);
+
+    // Sombra suave
+    gg.setColor(new Color(50, 29, 14, 55));
+    gg.fill(new RoundRectangle2D.Double(
+            x + 3, y + 5, w, h, 22, 22));
+
+    // Fondo de pergamino
+    gg.setPaint(new GradientPaint(
+            x, y, new Color(0xFFF9E9),
+            x, y + h, crema
+    ));
+
+    gg.fill(new RoundRectangle2D.Double(
+            x, y, w, h, 22, 22));
+
+    // Contorno exterior
+    gg.setColor(marron);
+    gg.setStroke(new BasicStroke(3f));
+
+    gg.draw(new RoundRectangle2D.Double(
+            x, y, w, h, 22, 22));
+
+    // Contorno interior dorado
+    gg.setColor(dorado);
+    gg.setStroke(new BasicStroke(1.5f));
+
+    gg.draw(new RoundRectangle2D.Double(
+            x + 5, y + 5, w - 10, h - 10, 18, 18));
+
+    // ---- PEQUEÑA FLOR DECORATIVA ----
+
+    int fx = x + 28;
+    int fy = y + 28;
+
+    gg.setColor(Color.WHITE);
+
+    gg.fillOval(fx - 7, fy - 12, 13, 13);
+    gg.fillOval(fx - 12, fy - 5, 13, 13);
+    gg.fillOval(fx + 2, fy - 5, 13, 13);
+    gg.fillOval(fx - 7, fy + 2, 13, 13);
+
+    gg.setColor(new Color(0xEFBF46));
+    gg.fillOval(fx - 4, fy - 4, 9, 9);
+
+    // ---- NOMBRE DEL LUGAR ----
+
+    gg.setFont(Estilo.fuente(Font.BOLD, 22f));
+    gg.setColor(marron);
+
+    gg.drawString(titulo.toUpperCase(), x + 54, y + 36);
+
+    // ---- OBJETIVOS ----
+
+    if (!objetivos.isEmpty()) {
+
+        // Separador decorativo
+        gg.setColor(new Color(0xD9B77C));
+        gg.setStroke(new BasicStroke(1.5f));
+
+        gg.drawLine(
+                x + 25, y + 53,
+                x + w - 25, y + 53
+        );
+
+        int ly = y + 86;
+
+        for (Objetivo o : objetivos) {
+
+            // Casilla
+            gg.setColor(o.hecho
+                    ? new Color(0x86A96A)
+                    : new Color(0xFFFDF4));
+
+            gg.fillRoundRect(
+                    x + 28, ly - 19,
+                    23, 23, 7, 7
+            );
+
+            // Borde
+            gg.setColor(o.hecho
+                    ? new Color(0x547B42)
+                    : marron);
+
+            gg.setStroke(new BasicStroke(1.8f));
+
+            gg.drawRoundRect(
+                    x + 28, ly - 19,
+                    23, 23, 7, 7
+            );
+
+            // Marca de completado
+            if (o.hecho) {
+
+                gg.setColor(Color.WHITE);
+
+                gg.setStroke(new BasicStroke(
+                        3f,
+                        BasicStroke.CAP_ROUND,
+                        BasicStroke.JOIN_ROUND
+                ));
+
+                gg.drawLine(
+                        x + 33, ly - 8,
+                        x + 38, ly - 3
+                );
+
+                gg.drawLine(
+                        x + 38, ly - 3,
+                        x + 47, ly - 15
+                );
+            }
+
+            // Texto
+            gg.setFont(Estilo.fuente(Font.BOLD, 19f));
+
+            gg.setColor(o.hecho
+                    ? new Color(0x82916D)
+                    : marron);
+
+            gg.drawString(o.texto, x + 67, ly);
+
+            ly += 40;
         }
     }
+
+    gg.dispose();
+}
+
+    
+  
+private void dibujarBarraInferior(Graphics2D g) {
+
+    boolean red = Sincronia.activa();
+
+    Jugador lider = red
+            ? partida.jugador(Sincronia.miRol())
+            : partida.lider();
+
+    if (lider == null) {
+        return;
+    }
+
+    Graphics2D gg = (Graphics2D) g.create();
+
+    int x = 24;
+    int y = 994;
+    int w = 1180;
+    int h = 66;
+
+    Color marron = new Color(0x6A3F1C);
+    Color crema = new Color(0xFBF0D2);
+    Color dorado = new Color(0xD9B77C);
+
+    // Sombra
+    gg.setColor(new Color(40, 24, 12, 65));
+    gg.fill(new RoundRectangle2D.Double(
+            x + 3, y + 4, w, h, 26, 26));
+
+    // Fondo
+    gg.setPaint(new GradientPaint(
+            x, y, new Color(0xFFF9E9),
+            x, y + h, crema));
+
+    gg.fill(new RoundRectangle2D.Double(
+            x, y, w, h, 26, 26));
+
+    // Contorno
+    gg.setColor(marron);
+    gg.setStroke(new BasicStroke(3f));
+
+    gg.draw(new RoundRectangle2D.Double(
+            x, y, w, h, 26, 26));
+
+    // Borde interior
+    gg.setColor(dorado);
+    gg.setStroke(new BasicStroke(1.3f));
+
+    gg.draw(new RoundRectangle2D.Double(
+            x + 5, y + 5, w - 10, h - 10, 21, 21));
+
+    // ---- PERSONAJE ACTIVO ----
+
+    gg.setColor(lider.rol.color);
+    gg.fillOval(x + 15, y + 15, 36, 36);
+
+    gg.setColor(marron);
+    gg.setStroke(new BasicStroke(2f));
+    gg.drawOval(x + 15, y + 15, 36, 36);
+
+    gg.setFont(Estilo.fuente(Font.BOLD, 12f));
+    gg.setColor(new Color(0x97734D));
+
+    gg.drawString(
+            red ? "TU PERSONAJE" : "PERSONAJE ACTIVO",
+            x + 61, y + 24
+    );
+
+    gg.setFont(Estilo.fuente(Font.BOLD, 19f));
+    gg.setColor(marron);
+
+    gg.drawString(lider.titulo(), x + 61, y + 46);
+
+    // ---- MARIPOSAS ----
+
+    int bx = x + 230;
+    int by = y + 33;
+
+    gg.setColor(new Color(0xE7B83F));
+
+    gg.fillOval(bx - 9, by - 9, 12, 17);
+    gg.fillOval(bx + 1, by - 9, 12, 17);
+
+    gg.setColor(marron);
+    gg.fillOval(bx - 1, by - 7, 4, 15);
+
+    gg.setFont(Estilo.fuente(Font.BOLD, 18f));
+    gg.drawString(String.valueOf(lider.mariposas), bx + 20, y + 40);
+
+    // Separador
+    gg.setColor(dorado);
+    gg.setStroke(new BasicStroke(1.5f));
+
+    gg.drawLine(
+            x + 295, y + 13,
+            x + 295, y + 53
+    );
+
+    // ---- ACCIONES DISPONIBLES ----
+
+    List<String[]> acciones = new ArrayList<>();
+
+    if (red) {
+        acciones.add(new String[]{"E", "Hablar"});
+    } else {
+        acciones.add(new String[]{"TAB", "Cambiar"});
+    }
+
+    acciones.add(new String[]{"H", "Habilidad"});
+    acciones.add(new String[]{"P", "Prestar"});
+    acciones.add(new String[]{"F", "Frases"});
+
+    boolean pendiente = !digitalHecho && digOpciones != null;
+
+    if (pendiente) {
+        acciones.add(new String[]{"Q", "Celular"});
+    }
+
+    int ax = x + 315;
+
+    gg.setFont(Estilo.fuente(Font.BOLD, 14f));
+
+    for (String[] accion : acciones) {
+
+        String tecla = accion[0];
+        String nombre = accion[1];
+
+        Font fuenteTecla = Estilo.fuente(Font.BOLD, 15f);
+        gg.setFont(fuenteTecla);
+
+        FontMetrics fmTecla = gg.getFontMetrics();
+
+        int kw = Math.max(29, fmTecla.stringWidth(tecla) + 14);
+        int kh = 29;
+
+        // Tecla
+        gg.setColor(new Color(0xFFFDF5));
+
+        gg.fillRoundRect(
+                ax, y + 18,
+                kw, kh, 9, 9
+        );
+
+        gg.setColor(new Color(0xA77A43));
+        gg.setStroke(new BasicStroke(1.5f));
+
+        gg.drawRoundRect(
+                ax, y + 18,
+                kw, kh, 9, 9
+        );
+
+        // Letra
+        gg.setColor(marron);
+
+        centrado(
+                gg,
+                tecla,
+                ax + kw / 2,
+                y + 38
+        );
+
+        // Nombre de la acción
+        gg.setFont(Estilo.fuente(Font.BOLD, 14f));
+        gg.setColor(new Color(0x806345));
+
+        gg.drawString(
+                nombre,
+                ax + kw + 7,
+                y + 37
+        );
+
+        FontMetrics fm = gg.getFontMetrics();
+
+        ax += kw + 7 + fm.stringWidth(nombre) + 17;
+    }
+
+    gg.dispose();
+}  
+    
+    
+    
+    
+    
+    
+    
+private void dibujarRelojHud(Graphics2D g) {
+
+    Graphics2D gg = (Graphics2D) g.create();
+
+    // Posiciones principales
+    int cx = 68;
+    int cy = 60;
+    int radio = 38;
+
+    // Colores
+    Color marron = new Color(0x6A3F1C);
+    Color dorado = new Color(0xF2B01E);
+    Color doradoClaro = new Color(0xFFD35C);
+    Color crema = new Color(0xFFF8E3);
+    Color pergamino = new Color(0xFBF0D2);
+
+    // ---- SOMBRA DEL PERGAMINO ----
+    gg.setColor(new Color(45, 25, 10, 65));
+    gg.fill(new RoundRectangle2D.Double(
+            31, 29, 390, 73, 28, 28));
+
+    // ---- PLACA PRINCIPAL ----
+    gg.setPaint(new GradientPaint(
+            0, 24, new Color(0xFFF9E8),
+            0, 96, pergamino));
+
+    gg.fill(new RoundRectangle2D.Double(
+            27, 20, 390, 76, 28, 28));
+
+    // Borde exterior
+    gg.setStroke(new BasicStroke(4f));
+    gg.setColor(marron);
+    gg.draw(new RoundRectangle2D.Double(
+            27, 20, 390, 76, 28, 28));
+
+    // Borde interior dorado
+    gg.setStroke(new BasicStroke(2f));
+    gg.setColor(new Color(0xE6C47D));
+    gg.draw(new RoundRectangle2D.Double(
+            33, 26, 378, 64, 23, 23));
+
+    // ---- RELOJ CIRCULAR ----
+
+    // Sombra
+    gg.setColor(new Color(55, 30, 10, 75));
+    gg.fillOval(cx - 44, cy - 41, 90, 90);
+
+    // Aro exterior
+    gg.setPaint(new GradientPaint(
+            cx - 40, cy - 40, doradoClaro,
+            cx + 40, cy + 40, new Color(0xC98212)));
+
+    gg.fillOval(cx - 42, cy - 42, 84, 84);
+
+    // Contorno
+    gg.setStroke(new BasicStroke(4f));
+    gg.setColor(marron);
+    gg.drawOval(cx - 42, cy - 42, 84, 84);
+
+    // Aro interior
+    gg.setColor(new Color(0xFFE18A));
+    gg.fillOval(cx - 35, cy - 35, 70, 70);
+
+    // Esfera
+    gg.setPaint(new GradientPaint(
+            cx, cy - 30, Color.WHITE,
+            cx, cy + 30, crema));
+
+    gg.fillOval(cx - 30, cy - 30, 60, 60);
+
+    gg.setColor(new Color(0xC99B50));
+    gg.setStroke(new BasicStroke(1.5f));
+    gg.drawOval(cx - 30, cy - 30, 60, 60);
+
+    // ---- MARCAS HORARIAS ----
+
+    gg.setStroke(new BasicStroke(
+            3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+    gg.setColor(marron);
+
+    for (int i = 0; i < 12; i++) {
+
+        double angulo = Math.PI * 2 * i / 12 - Math.PI / 2;
+
+        int x1 = (int) (cx + Math.cos(angulo) * 23);
+        int y1 = (int) (cy + Math.sin(angulo) * 23);
+
+        int x2 = (int) (cx + Math.cos(angulo) * 27);
+        int y2 = (int) (cy + Math.sin(angulo) * 27);
+
+        gg.drawLine(x1, y1, x2, y2);
+    }
+
+    // ---- AGUJAS SEGUN LA HORA REAL ----
+
+    int minutos = partida.reloj.minutos();
+
+    double anguloMinutos =
+            (minutos % 60) * Math.PI / 30 - Math.PI / 2;
+
+    double anguloHoras =
+            (minutos % 720) * Math.PI / 360 - Math.PI / 2;
+
+    // Aguja de horas
+    gg.setStroke(new BasicStroke(
+            4.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+    gg.setColor(marron);
+
+    gg.drawLine(
+            cx, cy,
+            (int) (cx + Math.cos(anguloHoras) * 15),
+            (int) (cy + Math.sin(anguloHoras) * 15)
+    );
+
+    // Aguja de minutos
+    gg.setStroke(new BasicStroke(
+            3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+    gg.setColor(new Color(0x955523));
+
+    gg.drawLine(
+            cx, cy,
+            (int) (cx + Math.cos(anguloMinutos) * 23),
+            (int) (cy + Math.sin(anguloMinutos) * 23)
+    );
+
+    // Centro de las agujas
+    gg.setColor(dorado);
+    gg.fillOval(cx - 5, cy - 5, 10, 10);
+
+    gg.setColor(marron);
+    gg.setStroke(new BasicStroke(1.5f));
+    gg.drawOval(cx - 5, cy - 5, 10, 10);
+
+    // ---- PEQUEÑO BRILLO ----
+
+    gg.setColor(new Color(255, 255, 255, 155));
+    gg.fillOval(cx - 21, cy - 23, 13, 7);
+
+    // ---- INFORMACION DEL DIA ----
+
+    gg.setFont(Estilo.fuente(Font.BOLD, 19f));
+    gg.setColor(new Color(0xA77A43));
+
+    gg.drawString(
+            "DÍA " + partida.dia + " DE " + Partida.DIAS,
+            125, 52
+    );
+
+    // Línea decorativa
+    gg.setStroke(new BasicStroke(1.5f));
+    gg.setColor(new Color(0xD9B77C));
+    gg.drawLine(125, 59, 395, 59);
+
+    // Hora digital
+    gg.setFont(Estilo.fuente(Font.BOLD, 29f));
+    gg.setColor(marron);
+
+    gg.drawString(partida.reloj.texto(), 125, 85);
+
+    // Pequeño detalle decorativo
+    gg.setColor(dorado);
+    gg.fillOval(385, 73, 7, 7);
+
+    gg.dispose();
+}
+
 
     /** Ultimos mensajes del chat de la casa. */
     private void dibujarChat(Graphics2D g) {

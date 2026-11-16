@@ -19,12 +19,12 @@ public final class Rutas {
     // ---- fondos de los lugares ----
     public static final String[] CASA = {I + "casapuertasin.png", F + "casa_pasillo.png"};
     public static final String[] CASA_CENA = {I + "casapuertasin.png", F + "casa_cena.png"};
-    public static final String[] PANADERIA = {I + "panaderiasin.png", F + "panaderia.png"};
-    public static final String[] CAMINO_MALECON = {F + "camino_malecon.png", I + "exteriorsin.png"};
+    public static final String[] PANADERIA = {I + "panaderia.png"};
+    public static final String[] CAMINO_MALECON = {I + "camino_malecon.png"};
     public static final String[] MALECON = {I + "malecon.png", F + "malecon.png"};
-    public static final String[] JUNTA = {I + "junta_piso1.png", F + "junta.png"};
-    public static final String[] PLAZA_APAGON = {F + "plaza_apagon.png", I + "exteriorsin.png", I + "malecon.png"};
-    public static final String[] ALCALDIA = {I + "interioralcaldia.png", F + "alcaldia.png"};
+    public static final String[] JUNTA = {I + "junta_piso1.png", I + "junta.png"};
+    public static final String[] PLAZA_APAGON = {I + "alcaldia.png", I + "exteriorsin.png", I + "malecon.png"};
+    public static final String[] ALCALDIA = {I + "interioralcaldia.png"};
 
     // ---- pantallas ----
     public static final String[] COMO_JUGAR = {I + "instrucciones.png", F + "como_jugar.png"};
