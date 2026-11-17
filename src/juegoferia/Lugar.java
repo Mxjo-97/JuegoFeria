@@ -29,7 +29,7 @@ import java.util.function.Supplier;
  * Un lugar jugable (panaderia, malecon, junta, plaza, casa). Es un EscenaMundo (se camina y se
  * habla con los vecinos) mas las reglas del guion, ahora para CUATRO jugadores juntos:
  *
- *   - EQUIPO: uno camina (el lider) y los otros tres lo siguen. TAB cambia quien camina.
+ *   - EQUIPO: uno camina (el lider) y los otros tres lo siguen. 1-4 cambian quien camina.
  *   - DECISION DIGITAL (Q): las cinco opciones A-E son siempre las mismas; eligen los cuatro,
  *     uno por uno, y el chat "Los de Dona Rosa" anuncia lo que hizo cada uno.
  *   - DECISION DE RESPETO: responde quien quiera primero; si elige A, los otros pueden "Yo tambien".
@@ -88,6 +88,8 @@ public class Lugar extends EscenaMundo {
         final List<Opcion> opciones = new ArrayList<>();
         double limite, restante, t;
         Runnable alAgotar;
+        /** Texto sobre la barra de tiempo (null = el de siempre). */
+        String avisoLimite;
         int hover = -1, pulsada = -1;
     }
 
@@ -168,6 +170,10 @@ public class Lugar extends EscenaMundo {
 
     // habilidades en pantalla
     private double vinculosHasta = -1;
+    /** Habilidades: el rumor deja de crecer hasta este momento. */
+    private double rumorPausaHasta = -1;
+    /** Vecinos con los que ya se hablo en este lugar (Ver vinculos marca a los que faltan). */
+    private final java.util.Set<String> hablados = new java.util.HashSet<>();
 
     private Decision decision;
     private boolean primeraEntrada = true, completadoTodo;
@@ -244,11 +250,19 @@ public class Lugar extends EscenaMundo {
     }
 
     /** NPC con sprite /imagenes/personajes/<id>.png (o figurita provisional si no existe). */
+    /** NPC que son solo una voz (no se dibujan): la tele. */
+    private static final java.util.Set<String> VOCES_SIN_SPRITE = java.util.Set.of("vlado");
+
     public Actor npc(String id, String nombre, String nombreNiebla, double x, double y, Color ropa) {
         Actor a = new Actor(id, x, y, 150, 250)
                 .colores(new Color(0xE8B88A), ropa, new Color(0x4A2E1A))
-                .imagen("/imagenes/personajes/" + id + ".png")
+                .imagen(Rutas.spriteVecino(id))
                 .nombre(nombre, nombreNiebla);
+        if (VOCES_SIN_SPRITE.contains(id)) {
+            // la tele ya esta dibujada en el fondo: Vlado no tiene muñeco, solo se le habla
+            a.invisible = true;
+            a.solido(false);
+        }
         agregar(a);
         return a;
     }
@@ -372,6 +386,8 @@ public class Lugar extends EscenaMundo {
 
     /** El anfitrion lo llama cada vez que el grupo llega a este lugar. */
     public void entrar() {
+        mostrarMisionesUnRato(6);
+        Musica.ambienteJuego(partida.hayNiebla(id));
         if (hora >= 0) {
             partida.reloj.llegar(hora);
         }
@@ -380,6 +396,14 @@ public class Lugar extends EscenaMundo {
         }
         if (primeraEntrada) {
             primeraEntrada = false;
+            // votacion: quien dijo "Voy a mi ritmo" no puede pedir ayuda en la escena que sigue
+            for (Jugador j : partida.jugadores()) {
+                j.quitar("a_su_ritmo");
+                if (j.tiene("a_su_ritmo_pendiente")) {
+                    j.quitar("a_su_ritmo_pendiente");
+                    j.poner("a_su_ritmo");
+                }
+            }
             if (alPrimeraEntrada != null) {
                 alPrimeraEntrada.run();
             }
@@ -407,13 +431,17 @@ public class Lugar extends EscenaMundo {
     public void completar(String objetivoId) {
         boolean todos = true;
         for (Objetivo o : objetivos) {
-            if (o.id.equals(objetivoId)) {
+            if (o.id.equals(objetivoId) && !o.hecho) {
                 o.hecho = true;
+                mostrarMisionesUnRato(4);
+                lluvia(60, 120, 16, 0);
+                Ajustes.sfx("/sonidos/todos_listos.wav", "/sonidos/noticia.wav");
             }
             todos &= o.hecho;
         }
         if (todos && !completadoTodo) {
             completadoTodo = true;
+            lluvia(W / 2.0, 120, 40, 0);
             toast("¡Todo listo en " + titulo + "!", new Color(0x8BE07A));
             if (alCompletar != null) {
                 alCompletar.run();
@@ -503,6 +531,11 @@ public class Lugar extends EscenaMundo {
         if (Sincronia.activa()) {
             mj.soloRol = quien;
         }
+        mj.juega = quien;      // para los globos de consejo de los otros tres
+        mj.nombres = new java.util.EnumMap<>(Rol.class);
+        for (Jugador jj : partida.jugadores()) {
+            mj.nombres.put(jj.rol, jj.nombre);
+        }
         lanzar(mj, res -> {
             if (res.puntos == Minijuego.BIEN && letrero != null) {
                 letrero.minijuegoBien = true;
@@ -560,6 +593,11 @@ public class Lugar extends EscenaMundo {
     }
 
     private void terminarDigital(Map<Rol, Integer> elecciones) {
+        // primero se ve hasta donde llego el audio, y despues sigue el guion
+        mostrarPropagacion(elecciones, () -> seguirDigital(elecciones));
+    }
+
+    private void seguirDigital(Map<Rol, Integer> elecciones) {
         boolean alguienVerifico = elecciones.containsValue(A) || elecciones.containsValue(B);
         if (alguienVerifico) {
             rumorResuelto = true;
@@ -631,6 +669,16 @@ public class Lugar extends EscenaMundo {
         }
     }
 
+    /** Pone tiempo limite a la decision que esta abierta (votaciones de la casa: 30 segundos). */
+    void limiteDecision(double segundos, Runnable alAgotar, String aviso) {
+        if (decision != null) {
+            decision.limite = segundos;
+            decision.restante = segundos;
+            decision.alAgotar = alAgotar;
+            decision.avisoLimite = aviso;
+        }
+    }
+
     /** En red: solo este rol puede responder la decision abierta. */
     void soloPara(Rol r) {
         if (decision != null) {
@@ -692,6 +740,19 @@ public class Lugar extends EscenaMundo {
     }
 
     @Override
+    protected boolean conPlaca(Actor a) {
+        return !cine && !a.invisible && !equipo.containsValue(a);   // los cuatro ya estan abajo en el HUD
+    }
+
+    @Override
+    protected void alInteractuarCon(Actor a) {
+        if (a != null && a.id != null) {
+            hablados.add(a.id);
+        }
+        Ajustes.sfx("/sonidos/hover.wav", "/sonidos/tecla.wav");
+    }
+
+    @Override
     protected boolean hayNiebla() {
         return partida.hayNiebla(id);
     }
@@ -714,33 +775,82 @@ public class Lugar extends EscenaMundo {
         decidirTurno(j, "¿Qué habilidad usas?", ops);
     }
 
+    /**
+     * Las habilidades ahora SIRVEN: la primera vez en cada lugar tienen un efecto fuerte
+     * (bajan el rumor y lo frenan un rato); despues solo hacen lo visual.
+     *   Ver vinculos  -> lineas entre vecinos + aro dorado sobre los que aun no te han hablado; rumor -2 y quieto 12 s.
+     *   Lupa          -> pista en el minijuego + muestra el rumor tal cual; rumor -3 y quieto 15 s.
+     *   Megafono      -> aviso a todo el lugar; rumor -6 y quieto 20 s.
+     *   Convocatoria  -> los vecinos hacen circulo a tu lado (hablas rapidito con todos); animo +1 y rumor quieto 10 s.
+     */
     public void usarHabilidad(Jugador j, Habilidad h) {
         Actor yo = equipo.get(j.rol);
         burbuja(yo, h.linea, 4);
+        String clave = "hab_" + id + "_" + j.rol.name();
+        boolean primera = !partida.bandera(clave);
+        partida.poner(clave);
+        Color oro = new Color(0xFFD35C);
         switch (h) {
             case VER_VINCULOS:
-                vinculosHasta = tiempo + 6;
-                String clave = partida.barrio.masConectado();
-                Actor a = actor(clave);
+                vinculosHasta = tiempo + 10;
+                Actor a = actor(partida.barrio.masConectado());
                 if (a != null) {
                     burbuja(a, "(todos me escriben a mí)", 4);
+                }
+                int faltan = 0;
+                for (Actor x : getActores()) {
+                    if (!equipo.containsValue(x) && x.nombre != null && !x.invisible && !hablados.contains(x.id)) {
+                        faltan++;
+                    }
+                }
+                toast(faltan == 0 ? "Ya hablaste con todos los de aquí" : "Aro dorado: " + faltan + " vecinos que aún no te han contado nada", oro);
+                if (primera && rumor != null) {
+                    efectoCompartido(Efecto.de(Partida.DESINFO_LUGAR, -2), "Ver vínculos");
+                    rumorPausaHasta = Math.max(rumorPausaHasta, tiempo + 12);
                 }
                 break;
             case LUPA:
                 partida.poner("lupa_" + id);   // los minijuegos la pueden revisar para dar pistas
-                toast("Lupa activa: el minijuego de aquí marcará las palabras que cambiaron", new Color(0xFFD35C));
+                if (rumor != null) {
+                    toast("La lupa lo dejó claro: «" + recortar(rumor, 60) + "»", oro);
+                } else {
+                    toast("Lupa lista: el minijuego de aquí marcará lo que cambió", oro);
+                }
+                if (primera && rumor != null) {
+                    efectoCompartido(Efecto.de(Partida.DESINFO_LUGAR, -3), "Lupa");
+                    rumorPausaHasta = Math.max(rumorPausaHasta, tiempo + 15);
+                }
                 break;
             case MEGAFONO:
-                if (!partida.bandera("megafono_" + id)) {
-                    partida.poner("megafono_" + id);
-                    efectoCompartido(Efecto.de(Partida.DESINFO_LUGAR, -3), "Megáfono");
+                if (primera && rumor != null) {
+                    efectoCompartido(Efecto.de(Partida.DESINFO_LUGAR, -6), "Megáfono");
+                    rumorPausaHasta = Math.max(rumorPausaHasta, tiempo + 20);
+                    int k = 0;
+                    for (Actor x : getActores()) {
+                        if (!equipo.containsValue(x) && x.nombre != null && !x.invisible && k < 3) {
+                            burbuja(x, k == 0 ? "¡Ah, era eso!" : k == 1 ? "Ya lo oí." : "Menos mal.", 3);
+                            k++;
+                        }
+                    }
+                } else if (!primera) {
+                    toast("El megáfono ya sonó aquí: en el próximo lugar vuelve a servir", new Color(0xF2A7B8));
                 }
                 break;
             case CONVOCATORIA:
                 convocar(yo);
+                if (primera) {
+                    efectoCompartido(Efecto.de(Partida.ANIMO, 1), "Convocatoria");
+                    if (rumor != null) {
+                        rumorPausaHasta = Math.max(rumorPausaHasta, tiempo + 10);
+                    }
+                    toast("Los vecinos se acercaron: ahora hablas con todos sin caminar", oro);
+                }
                 break;
             default:
                 break;
+        }
+        if (primera && rumor != null && h != Habilidad.CONVOCATORIA && tiempo < rumorPausaHasta) {
+            toast("El rumor se quedó quieto " + (int) Math.round(rumorPausaHasta - tiempo) + " segundos", new Color(0x9CC08A));
         }
         if (j.prestada == h) {
             dialogo(null, j.rol.name() + ": Gracias. La uso y te la devuelvo.");
@@ -748,18 +858,22 @@ public class Lugar extends EscenaMundo {
         }
     }
 
+    private static String recortar(String t, int n) {
+        return t.length() <= n ? t : t.substring(0, n - 1) + "…";
+    }
+
     /** Los vecinos del lugar se acercan y forman un circulo alrededor de quien convoca. */
     private void convocar(Actor centro) {
         List<Actor> vecinos = new ArrayList<>();
         for (Actor a : getActores()) {
-            if (!equipo.containsValue(a) && a.nombre != null) {
+            if (!equipo.containsValue(a) && a.nombre != null && !a.invisible) {
                 vecinos.add(a);
             }
         }
         for (int i = 0; i < vecinos.size(); i++) {
             double ang = Math.PI * 2 * i / vecinos.size();
-            vecinos.get(i).x = centro.x + StrictMath.cos(ang) * 260;
-            vecinos.get(i).y = centro.y + StrictMath.sin(ang) * 90;
+            vecinos.get(i).x = Math.max(90, Math.min(W - 90, centro.x + StrictMath.cos(ang) * 260));
+            vecinos.get(i).y = Math.max(300, Math.min(H - 40, centro.y + StrictMath.sin(ang) * 90));
         }
     }
 
@@ -787,6 +901,12 @@ public class Lugar extends EscenaMundo {
 
     @Override
     protected boolean teclaExtra(int k, boolean pres) {
+        if (redActiva()) {
+            if (pres && (k == KeyEvent.VK_E || k == KeyEvent.VK_ENTER) && redT > 0.8) {
+                terminarPropagacion();
+            }
+            return true;
+        }
         Decision d = decision;
         if (d != null) {
             if (pres) {
@@ -804,6 +924,9 @@ public class Lugar extends EscenaMundo {
             }
             return true;
         }
+        if (cine && k != KeyEvent.VK_E && k != KeyEvent.VK_ENTER && k != KeyEvent.VK_F1) {
+            return true;   // en la cena nadie camina ni usa habilidades
+        }
         if (!pres || dialogoActivo() || estaBloqueado()) {
             return false;
         }
@@ -812,9 +935,24 @@ public class Lugar extends EscenaMundo {
                 abrirCelular();
                 return true;
             case KeyEvent.VK_TAB:
-                if (!Sincronia.activa()) {
-                    cambiarLider();
-                }
+            case KeyEvent.VK_M:
+                alternarMisiones();
+                return true;
+            case KeyEvent.VK_1:
+            case KeyEvent.VK_NUMPAD1:
+                elegirLider(Rol.CIUDADANO);
+                return true;
+            case KeyEvent.VK_2:
+            case KeyEvent.VK_NUMPAD2:
+                elegirLider(Rol.INFLUENCER);
+                return true;
+            case KeyEvent.VK_3:
+            case KeyEvent.VK_NUMPAD3:
+                elegirLider(Rol.PERIODISTA);
+                return true;
+            case KeyEvent.VK_4:
+            case KeyEvent.VK_NUMPAD4:
+                elegirLider(Rol.CANDIDATO);
                 return true;
             case KeyEvent.VK_H:
                 elegirHabilidad();
@@ -830,10 +968,14 @@ public class Lugar extends EscenaMundo {
         }
     }
 
-    /** TAB: camina otro. El nuevo lider toma el lugar del anterior. */
-    private void cambiarLider() {
+    /** 1 Ciudadano, 2 Influencer, 3 Periodista, 4 Candidato: ese pasa a caminar (en red no se cambia). */
+    private void elegirLider(Rol r) {
+        if (Sincronia.activa() || partida.jugador(r) == null || partida.lider().rol == r) {
+            return;
+        }
         Actor viejo = getJugador();
-        Jugador nuevo = partida.siguienteLider();
+        partida.setLider(r);
+        Jugador nuevo = partida.lider();
         Actor a = equipo.get(nuevo.rol);
         if (viejo != null && a != null && viejo != a) {
             double x = a.x, y = a.y;
@@ -843,6 +985,8 @@ public class Lugar extends EscenaMundo {
             viejo.y = y;
             jugador(a);
             rastro.clear();
+            lluvia(a.x, a.y - a.alto * 0.6, 14, 2);
+            Ajustes.sfx("/sonidos/elegir_rol.wav", "/sonidos/tecla.wav");
             toast("Ahora camina " + nuevo.titulo(), nuevo.rol.color);
         }
     }
@@ -891,7 +1035,14 @@ public class Lugar extends EscenaMundo {
 
     @Override
     protected void actualizar(double dt) {
+        boolean misAbiertas = (misionesFijas || tiempo < misionesHasta) && !dialogoActivo() && decision == null;
+        misionesAnim += ((misAbiertas ? 1 : 0) - misionesAnim) * Math.min(1, dt * 10);
         super.actualizar(dt);
+        actualizarJugo(dt);
+        actualizarPropagacion(dt);
+        if (cine) {
+            cineT += dt;
+        }
 
         for (Iterator<Toast> it = toasts.iterator(); it.hasNext();) {
             Toast t = it.next();
@@ -910,7 +1061,7 @@ public class Lugar extends EscenaMundo {
 
         moverSeguidores();
 
-        boolean ocupado = dialogoActivo() || decision != null;
+        boolean ocupado = dialogoActivo() || decision != null || redActiva();
         if (ocupado) {
             partida.reloj.pausar();
         } else {
@@ -938,7 +1089,7 @@ public class Lugar extends EscenaMundo {
             return;
         }
 
-        if (rumor != null && !rumorResuelto && !dialogoActivo() && ritmo > 0) {
+        if (rumor != null && !rumorResuelto && !dialogoActivo() && ritmo > 0 && tiempo >= rumorPausaHasta && !redActiva()) {
             partida.sumarDesinfo(id, ritmo * dt);
             revisarNiebla();
         }
@@ -978,9 +1129,622 @@ public class Lugar extends EscenaMundo {
         }
     }
 
+    // =====================================================================================
+    // JUGO: particulas, numeritos que saltan de los anillos, sonidos chiquitos
+    // =====================================================================================
+
+    private static final class Particula {
+        double x, y, vx, vy, t, vida, giro, tam;
+        int tipo;          // 0 petalo, 1 mariposa, 2 destello, 3 mariposa viajera (va de (x,y) a (vx,vy))
+        Color c;
+    }
+
+    private static final class Numerito {
+        String s;
+        Color c;
+        double x, y, t;
+    }
+
+    private final List<Particula> particulas = new ArrayList<>();
+    private final List<Numerito> numeritos = new ArrayList<>();
+    private final double[] anilloX = new double[3];
+    private final double[] anilloPop = new double[3];
+    private double anilloY = 60;
+    private int ultAnimo = Integer.MIN_VALUE, ultConf = Integer.MIN_VALUE, ultMariposas = -1;
+    private double ultDesinfo = Double.NaN;
+
+    private static final Color[] PETALOS = {new Color(0xF6C445), new Color(0xF2A7B8), new Color(0xFFFFFF),
+        new Color(0x9CC08A), new Color(0xFBE08F)};
+
+    /** Lluvia de petalos / mariposas / destellos desde (x, y). */
+    void lluvia(double x, double y, int n, int tipo) {
+        for (int i = 0; i < n; i++) {
+            Particula p = new Particula();
+            double a = Math.random() * Math.PI * 2;
+            double v = 120 + Math.random() * 260;
+            p.x = x;
+            p.y = y;
+            p.vx = Math.cos(a) * v;
+            p.vy = Math.sin(a) * v - 160;
+            p.vida = 1.1 + Math.random() * 0.9;
+            p.giro = Math.random() * 6;
+            p.tam = 0.7 + Math.random() * 0.7;
+            p.tipo = tipo == 0 && i % 4 == 0 ? 1 : tipo;
+            p.c = PETALOS[i % PETALOS.length];
+            particulas.add(p);
+        }
+    }
+
+    /** Una mariposa que vuela de (x0,y0) a (x1,y1). */
+    private void mariposaViajera(double x0, double y0, double x1, double y1) {
+        Particula p = new Particula();
+        p.tipo = 3;
+        p.x = x0;
+        p.y = y0;
+        p.vx = x1;
+        p.vy = y1;
+        p.vida = 1.3;
+        p.tam = 1.6;
+        particulas.add(p);
+    }
+
+    private void numerito(int anillo, String s, boolean bueno) {
+        if (anilloX[anillo] <= 0) {
+            return;   // los anillos todavia no se han dibujado
+        }
+        Numerito n = new Numerito();
+        n.s = s;
+        n.c = bueno ? new Color(0x5E9E4F) : new Color(0xD9604A);
+        n.x = anilloX[anillo];
+        n.y = anilloY + 50;
+        numeritos.add(n);
+        anilloPop[anillo] = 1;
+        Ajustes.sfx(bueno ? "/sonidos/mariposa.wav" : "/sonidos/cancelar.wav", "/sonidos/tecla.wav");
+    }
+
+    private void actualizarJugo(double dt) {
+        // cambios en los anillos -> numerito y saltico
+        int an = partida.animo;
+        if (ultAnimo != Integer.MIN_VALUE && an != ultAnimo) {
+            numerito(0, (an > ultAnimo ? "+" : "") + (an - ultAnimo), an > ultAnimo);
+        }
+        ultAnimo = an;
+        int co = partida.confianza.promedio();
+        if (ultConf != Integer.MIN_VALUE && co != ultConf) {
+            numerito(1, (co > ultConf ? "+" : "") + (co - ultConf), co > ultConf);
+        }
+        ultConf = co;
+        if (rumor != null) {
+            double ds = partida.desinfo(id);
+            if (!Double.isNaN(ultDesinfo) && Math.abs(ds - ultDesinfo) >= 1.5) {   // saltos, no el goteo normal
+                int d = (int) Math.round(ds - ultDesinfo);
+                numerito(2, (d > 0 ? "+" : "") + d, d < 0);
+                if (d < 0) {
+                    lluvia(anilloX[2], anilloY, 10, 2);
+                }
+            }
+            ultDesinfo = ds;
+        }
+        Jugador lider = Sincronia.activa() ? partida.jugador(Sincronia.miRol()) : partida.lider();
+        if (lider != null) {
+            if (ultMariposas >= 0 && lider.mariposas > ultMariposas) {
+                Actor yo = getJugador();
+                if (yo != null) {
+                    mariposaViajera(yo.x, yo.y - yo.alto, W / 2.0 - 60, H - 52);
+                    lluvia(yo.x, yo.y - yo.alto * 0.8, 10, 0);
+                }
+                Ajustes.sfx("/sonidos/mariposa.wav", "/sonidos/noticia.wav");
+            }
+            ultMariposas = lider.mariposas;
+        }
+        for (int i = 0; i < 3; i++) {
+            anilloPop[i] = Math.max(0, anilloPop[i] - dt * 2.5);
+        }
+        for (Iterator<Particula> it = particulas.iterator(); it.hasNext();) {
+            Particula p = it.next();
+            p.t += dt;
+            if (p.t > p.vida) {
+                it.remove();
+                continue;
+            }
+            if (p.tipo != 3) {
+                p.x += p.vx * dt;
+                p.y += p.vy * dt;
+                p.vy += 420 * dt;
+                p.vx *= 1 - dt * 1.5;
+                p.giro += dt * 6;
+            }
+        }
+        for (Iterator<Numerito> it = numeritos.iterator(); it.hasNext();) {
+            Numerito n = it.next();
+            n.t += dt;
+            if (n.t > 1.6) {
+                it.remove();
+            }
+        }
+    }
+
+    private void dibujarJugo(Graphics2D g) {
+        for (Particula p : particulas) {
+            double k = p.t / p.vida;
+            float a = (float) Math.max(0, Math.min(1, (1 - k) * 1.6));
+            Graphics2D gg = (Graphics2D) g.create();
+            gg.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, a));
+            if (p.tipo == 3) {
+                double e = k * k * (3 - 2 * k);
+                double x = p.x + (p.vx - p.x) * e;
+                double y = p.y + (p.vy - p.y) * e - Math.sin(e * Math.PI) * 160;
+                gg.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) Math.min(1, (1 - k) * 4)));
+                mariposita(gg, x, y, p.tam);
+            } else if (p.tipo == 1) {
+                mariposita(gg, p.x, p.y, p.tam);
+            } else if (p.tipo == 2) {
+                dibujarDestello(gg, p.x, p.y, 9 * p.tam, new Color(0xFFD35C));
+            } else {
+                gg.translate(p.x, p.y);
+                gg.rotate(p.giro);
+                gg.setColor(p.c);
+                gg.fill(new Ellipse2D.Double(-7 * p.tam, -4 * p.tam, 14 * p.tam, 8 * p.tam));
+            }
+            gg.dispose();
+        }
+        for (Numerito n : numeritos) {
+            double k = n.t / 1.6;
+            float a = (float) Math.max(0, Math.min(1, k < 0.15 ? k / 0.15 : (1 - k) / 0.5));
+            double esc = k < 0.15 ? 0.6 + k / 0.15 * 0.6 : 1.2 - Math.min(0.2, (k - 0.15));
+            Graphics2D gg = (Graphics2D) g.create();
+            gg.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, a));
+            gg.setFont(Estilo.fuente(Font.BOLD, (float) (30 * esc)));
+            FontMetrics fm = gg.getFontMetrics();
+            int x = (int) (n.x - fm.stringWidth(n.s) / 2.0), y = (int) (n.y + 30 + k * 40);
+            gg.setColor(Color.WHITE);
+            for (int dx = -2; dx <= 2; dx += 2) {
+                for (int dy = -2; dy <= 2; dy += 2) {
+                    gg.drawString(n.s, x + dx, y + dy);
+                }
+            }
+            gg.setColor(n.c);
+            gg.drawString(n.s, x, y);
+            gg.dispose();
+        }
+    }
+
+    // =====================================================================================
+    // "!" SOBRE LOS VECINOS CON PRUEBA PENDIENTE  +  FLECHA HACIA LA SALIDA
+    // =====================================================================================
+
+    private final Map<String, java.util.EnumSet<Rol>> pruebasNpc = new java.util.HashMap<>();
+    private boolean marcasActivas;
+
+    /** El guion avisa: este vecino tiene la prueba de este rol. */
+    public void marcarPrueba(String npc, Rol r) {
+        pruebasNpc.computeIfAbsent(npc, k -> java.util.EnumSet.noneOf(Rol.class)).add(r);
+    }
+
+    /** Ese rol ya hizo su prueba. */
+    public void pruebaHecha(Rol r) {
+        for (java.util.EnumSet<Rol> s : pruebasNpc.values()) {
+            s.remove(r);
+        }
+    }
+
+    public void mostrarMarcas(boolean b) {
+        marcasActivas = b;
+    }
+
+    private static int numeroDe(Rol r) {
+        return r == Rol.CIUDADANO ? 1 : r == Rol.INFLUENCER ? 2 : r == Rol.PERIODISTA ? 3 : 4;
+    }
+
+    private void dibujarMarcas(Graphics2D g) {
+        if (!marcasActivas || dialogoActivo() || decision != null) {
+            return;
+        }
+        Jugador yo = Sincronia.activa() ? partida.jugador(Sincronia.miRol()) : partida.lider();
+        if (yo == null) {
+            return;
+        }
+        for (Map.Entry<String, java.util.EnumSet<Rol>> e : pruebasNpc.entrySet()) {
+            Actor a = actor(e.getKey());
+            if (a == null || e.getValue().isEmpty() || a == cercano()) {
+                continue;   // si ya estas al lado, manda el letrerito "E Hablar con..."
+            }
+            boolean mia = e.getValue().contains(yo.rol);
+            double bob = Math.sin(tiempo * 4 + a.x * 0.02) * 6;
+            double cx = a.x, cy = a.y - a.alto - 46 + bob;
+            if (mia) {
+                double p = 0.5 + 0.5 * Math.sin(tiempo * 5);
+                g.setColor(new Color(255, 211, 92, (int) (70 + 60 * p)));
+                g.fill(new Ellipse2D.Double(cx - 30, cy - 30, 60, 60));
+                g.setPaint(new GradientPaint((float) cx, (float) (cy - 22), Estilo.DORADO_CLARO, (float) cx, (float) (cy + 22), Estilo.DORADO));
+                g.fill(new Ellipse2D.Double(cx - 22, cy - 22, 44, 44));
+                g.setColor(Color.WHITE);
+                g.setStroke(new BasicStroke(3f));
+                g.draw(new Ellipse2D.Double(cx - 22, cy - 22, 44, 44));
+                g.setColor(HUD_TEXTO);
+                g.setFont(Estilo.fuente(Font.BOLD, 30f));
+                centrado(g, "!", (int) cx, (int) cy + 11);
+            } else {
+                // de otro: circulito crema con el numero de quien lo tiene que hacer
+                StringBuilder sb = new StringBuilder();
+                for (Rol r : e.getValue()) {
+                    sb.append(sb.length() > 0 ? " " : "").append(numeroDe(r));
+                }
+                String t = sb.toString();
+                g.setFont(Estilo.fuente(Font.BOLD, 16f));
+                int w = Math.max(30, g.getFontMetrics().stringWidth(t) + 18);
+                g.setColor(new Color(255, 250, 240, 200));
+                g.fill(new RoundRectangle2D.Double(cx - w / 2.0, cy - 15, w, 30, 30, 30));
+                g.setColor(HUD_BORDE);
+                g.setStroke(new BasicStroke(1.5f));
+                g.draw(new RoundRectangle2D.Double(cx - w / 2.0, cy - 15, w, 30, 30, 30));
+                g.setColor(HUD_SUAVE);
+                centrado(g, t, (int) cx, (int) cy + 6);
+            }
+        }
+    }
+
+    private void dibujarSalidas(Graphics2D g) {
+        if (!completadoTodo || cine) {
+            return;
+        }
+        for (Rectangle r : salidas) {
+            double cx = r.getCenterX(), cy = r.getCenterY();
+            // hacia donde apunta: hacia el borde por donde se sale
+            double dx = 0, dy = -1;
+            if (r.x < 200) {
+                dx = -1;
+                dy = 0;
+            } else if (r.x + r.width > W - 200) {
+                dx = 1;
+                dy = 0;
+            } else if (r.y + r.height > H - 120) {
+                dy = 1;
+            }
+            double p = 0.5 + 0.5 * Math.sin(tiempo * 4);
+            // brillo en el piso
+            g.setPaint(new RadialGradientPaint((float) cx, (float) (r.y + r.height * 0.7), 160f, new float[]{0f, 1f},
+                    new Color[]{new Color(255, 211, 92, (int) (90 + 60 * p)), new Color(255, 211, 92, 0)}));
+            g.fill(new Ellipse2D.Double(cx - 160, r.y + r.height * 0.7 - 70, 320, 140));
+            // tres flechitas que avanzan
+            for (int i = 0; i < 3; i++) {
+                double k = ((tiempo * 1.2 + i / 3.0) % 1.0);
+                double ax = cx - dx * 70 + dx * k * 140, ay = cy - dy * 70 + dy * k * 140;
+                float al = (float) Math.sin(k * Math.PI);
+                chevron(g, ax, ay, dx, dy, new Color(255, 255, 255, (int) (230 * al)), new Color(201, 138, 18, (int) (230 * al)));
+            }
+        }
+        // pastillita "Sigue por aqui"
+        if (!salidas.isEmpty() && !dialogoActivo() && decision == null) {
+            Rectangle r = salidas.get(0);
+            String t = "¡Sigue por aquí!";
+            g.setFont(Estilo.fuente(Font.BOLD, 18f));
+            int w = g.getFontMetrics().stringWidth(t) + 30;
+            double x = Math.max(20, Math.min(W - w - 20, r.getCenterX() - w / 2.0));
+            double y = Math.max(140, Math.min(H - 160, r.y - 50 + Math.sin(tiempo * 3) * 5));
+            pastilla(g, x, y, w, 34, 34);
+            g.setColor(HUD_TEXTO);
+            g.drawString(t, (float) (x + 15), (float) (y + 23));
+        }
+    }
+
+    private void chevron(Graphics2D g, double x, double y, double dx, double dy, Color relleno, Color borde) {
+        AffineTransform at = g.getTransform();
+        g.translate(x, y);
+        g.rotate(Math.atan2(dy, dx));
+        java.awt.geom.Path2D p = new java.awt.geom.Path2D.Double();
+        p.moveTo(-16, -22);
+        p.lineTo(8, 0);
+        p.lineTo(-16, 22);
+        p.lineTo(-6, 0);
+        p.closePath();
+        g.setColor(borde);
+        g.setStroke(new BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.draw(p);
+        g.setColor(relleno);
+        g.fill(p);
+        g.setTransform(at);
+    }
+
+    // =====================================================================================
+    // ¿HASTA DONDE LLEGO? (despues del celular): la red de vecinos se ilumina paso a paso
+    // =====================================================================================
+
+    private double redT = -1;
+    private Runnable redFin;
+    private final List<String> redNodos = new ArrayList<>();
+    private final Map<String, double[]> redPos = new java.util.HashMap<>();
+    private Map<String, Integer> redDist;
+    private int redRojo, redVerde;
+    private String redTitulo, redFrase, redOrigen;
+    private static final double RED_PASO = 0.6, RED_DURA = 6.5;
+
+    private boolean redActiva() {
+        return redT >= 0;
+    }
+
+    /** Arma la animacion segun lo que eligio cada quien en el celular y al final corre 'fin'. */
+    private void mostrarPropagacion(Map<Rol, Integer> el, Runnable fin) {
+        GrafoRelaciones b = partida.barrio;
+        // origen: el vecino mas conectado de este lugar (o el del barrio)
+        String origen = null;
+        int mejor = -1;
+        for (Actor a : getActores()) {
+            if (a.id != null && b.existe(a.id) && b.grado(a.id) > mejor) {
+                mejor = b.grado(a.id);
+                origen = a.id;
+            }
+        }
+        if (origen == null) {
+            origen = b.masConectado();
+        }
+        if (origen == null) {
+            fin.run();
+            return;
+        }
+        int nE = 0, nV = 0;
+        for (int op : el.values()) {
+            if (op == E) {
+                nE++;
+            } else if (op == A || op == B) {
+                nV++;
+            }
+        }
+        redOrigen = origen;
+        redDist = b.distanciasDesde(origen);
+        if (nE > 0 && nV > 0) {          // carrera: la verdad cubre lo cercano y el rumor se escapa mas lejos
+            redVerde = 2 * nV;
+            redRojo = redVerde + 2 * nE;
+        } else if (nE > 0) {
+            redVerde = -1;
+            redRojo = 1 + 2 * nE;
+        } else if (nV > 0) {
+            redVerde = 1 + 2 * nV;
+            redRojo = 0;
+        } else {
+            redVerde = -1;
+            redRojo = 2;
+        }
+        if (nE > 0 && nV == 0) {
+            redTitulo = "¡Se regó!";
+            redFrase = "Cada reenvío lo lleva un paso más lejos.";
+        } else if (nV > 0 && nE == 0) {
+            redTitulo = "¡La verdad corrió primero!";
+            redFrase = "Verificar a tiempo frena el rumor.";
+        } else if (nV > 0) {
+            redTitulo = "Carrera: verdad contra rumor";
+            redFrase = "Unos verificaron y otros reenviaron.";
+        } else {
+            redTitulo = "Nadie hizo nada…";
+            redFrase = "…y el rumor siguió caminando solito.";
+        }
+        // posiciones: anillos por distancia alrededor del centro
+        redNodos.clear();
+        redPos.clear();
+        Map<Integer, List<String>> porNivel = new java.util.TreeMap<>();
+        for (Map.Entry<String, Integer> e : redDist.entrySet()) {
+            porNivel.computeIfAbsent(e.getValue(), k -> new ArrayList<>()).add(e.getKey());
+        }
+        double cx = W / 2.0, cy = 560;
+        for (Map.Entry<Integer, List<String>> e : porNivel.entrySet()) {
+            List<String> ns = e.getValue();
+            java.util.Collections.sort(ns);
+            int nivel = e.getKey();
+            double rx = nivel * 170, ry = nivel * 78;
+            for (int i = 0; i < ns.size(); i++) {
+                double ang = -Math.PI / 2 + (Math.PI * 2 * i) / ns.size() + nivel * 0.45;
+                double px = Math.max(90, Math.min(W - 90, cx + Math.cos(ang) * rx));
+                double py = Math.max(200, Math.min(910, cy + Math.sin(ang) * ry));
+                redPos.put(ns.get(i), new double[]{px, py});
+                redNodos.add(ns.get(i));
+            }
+        }
+        redFin = fin;
+        redT = 0;
+        bloquear(true);
+        Ajustes.sfx("/sonidos/noticia.wav");
+    }
+
+    private void actualizarPropagacion(double dt) {
+        if (redT < 0) {
+            return;
+        }
+        double antes = redT;
+        redT += dt;
+        // un "tic" por cada paso de la onda
+        if ((int) (antes / RED_PASO) != (int) (redT / RED_PASO) && redT / RED_PASO <= Math.max(redRojo, redVerde) + 1) {
+            Ajustes.sfx("/sonidos/hover.wav", "/sonidos/tecla.wav");
+        }
+        if (redT > RED_DURA) {
+            terminarPropagacion();
+        }
+    }
+
+    private void terminarPropagacion() {
+        if (redT < 0) {
+            return;
+        }
+        redT = -1;
+        if (decision == null) {
+            bloquear(false);
+        }
+        Runnable f = redFin;
+        redFin = null;
+        if (f != null) {
+            f.run();
+        }
+    }
+
+    /** 0 = nada, 1 = rumor, 2 = verdad (en el momento t). */
+    private int estadoNodo(String n, double nivelOnda) {
+        Integer d = redDist.get(n);
+        if (d == null || d > nivelOnda) {
+            return 0;
+        }
+        if (redVerde >= 0 && d <= redVerde) {
+            return 2;
+        }
+        return d <= redRojo ? 1 : 0;
+    }
+
+    private void dibujarPropagacion(Graphics2D g) {
+        if (redT < 0) {
+            return;
+        }
+        float entrada = (float) Math.min(1, redT / 0.35);
+        float salida = (float) Math.min(1, (RED_DURA - redT) / 0.4);
+        float a = Math.max(0, Math.min(entrada, salida));
+        Graphics2D gg = (Graphics2D) g.create();
+        gg.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        gg.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, a));
+        gg.setColor(new Color(36, 24, 16, 232));
+        gg.fillRect(0, 0, W, H);
+        double onda = redT / RED_PASO;
+        Color rojo = new Color(0xE0735E), verde = new Color(0x7CC47A), apagado = new Color(255, 250, 240, 70);
+
+        // aristas
+        GrafoRelaciones b = partida.barrio;
+        for (String n : redNodos) {
+            double[] p = redPos.get(n);
+            for (String v : b.vecinos(n)) {
+                double[] q = redPos.get(v);
+                if (q == null || n.compareTo(v) > 0) {
+                    continue;
+                }
+                int en = estadoNodo(n, onda), ev = estadoNodo(v, onda);
+                gg.setStroke(new BasicStroke(en != 0 && ev != 0 ? 3.5f : 1.5f));
+                gg.setColor(en != 0 && ev != 0 ? (en == 2 || ev == 2 ? verde : rojo) : new Color(255, 250, 240, 50));
+                gg.draw(new Line2D.Double(p[0], p[1], q[0], q[1]));
+                // puntico que viaja por la arista mientras la onda pasa
+                int dn = redDist.getOrDefault(n, 99), dv = redDist.getOrDefault(v, 99);
+                int lejos = Math.max(dn, dv);
+                double k = onda - (lejos - 1);
+                int est = estadoNodo(dn > dv ? n : v, lejos);
+                if (Math.abs(dn - dv) == 1 && k > 0 && k < 1 && est != 0) {
+                    double[] o = dn < dv ? p : q, d = dn < dv ? q : p;
+                    double x = o[0] + (d[0] - o[0]) * k, y = o[1] + (d[1] - o[1]) * k;
+                    gg.setColor(est == 2 ? verde : rojo);
+                    gg.fill(new Ellipse2D.Double(x - 7, y - 7, 14, 14));
+                }
+            }
+        }
+        // nodos
+        int nRojo = 0, nVerde = 0;
+        for (String n : redNodos) {
+            double[] p = redPos.get(n);
+            int est = estadoNodo(n, onda);
+            if (est == 1) {
+                nRojo++;
+            } else if (est == 2) {
+                nVerde++;
+            }
+            Integer d = redDist.get(n);
+            double pop = d != null ? Math.max(0, 1 - Math.abs(onda - d) * 3) : 0;
+            double r = 20 + (est != 0 ? pop * 8 : 0);
+            gg.setColor(est == 0 ? apagado : est == 1 ? rojo : verde);
+            gg.fill(new Ellipse2D.Double(p[0] - r, p[1] - r, r * 2, r * 2));
+            gg.setColor(est == 0 ? new Color(255, 250, 240, 90) : Color.WHITE);
+            gg.setStroke(new BasicStroke(n.equals(redOrigen) ? 4f : 2f));
+            gg.draw(new Ellipse2D.Double(p[0] - r, p[1] - r, r * 2, r * 2));
+            Actor ac = actor(n);
+            String nom = ac != null && ac.nombre != null ? ac.nombre : Character.toUpperCase(n.charAt(0)) + n.substring(1).replace('_', ' ');
+            gg.setFont(Estilo.fuente(Font.BOLD, 18f));
+            gg.setColor(Color.WHITE);
+            centrado(gg, nom.substring(0, 1).toUpperCase(), (int) p[0], (int) p[1] + 7);
+            gg.setFont(Estilo.fuente(Font.BOLD, 14f));
+            gg.setColor(est == 0 ? new Color(255, 250, 240, 110) : new Color(0xFFF3D6));
+            centrado(gg, nom, (int) p[0], (int) (p[1] + r + 18));
+        }
+        // titulo y contadores
+        gg.setFont(Estilo.fuente(Font.BOLD, 46f));
+        gg.setColor(new Color(0xFFF3D6));
+        centrado(gg, redTitulo, W / 2, 92);
+        gg.setFont(Estilo.fuente(Font.BOLD, 22f));
+        gg.setColor(new Color(0xE6D09B));
+        centrado(gg, "¿Hasta dónde llegó el audio? " + redFrase, W / 2, 132);
+        int px = W / 2 - 230;
+        contador(gg, px, 985, rojo, "Rumor: " + nRojo + " vecinos");
+        contador(gg, px + 250, 985, verde, "Verdad: " + nVerde + " vecinos");
+        gg.setFont(Estilo.fuente(Font.BOLD, 15f));
+        gg.setColor(new Color(255, 250, 240, 140));
+        centrado(gg, "E para seguir", W / 2, 1050);
+        gg.dispose();
+    }
+
+    private void contador(Graphics2D g, int x, int y, Color c, String t) {
+        g.setColor(new Color(255, 250, 240, 235));
+        g.fill(new RoundRectangle2D.Double(x, y - 26, 220, 40, 40, 40));
+        g.setColor(c);
+        g.fill(new Ellipse2D.Double(x + 14, y - 14, 16, 16));
+        g.setFont(Estilo.fuente(Font.BOLD, 18f));
+        g.setColor(HUD_TEXTO);
+        g.drawString(t, x + 40, y);
+    }
+
+    // =====================================================================================
+    // MODO CINEMATICA (la cena): nadie camina, barras negras, luz calida, sin HUD
+    // =====================================================================================
+
+    private boolean cine;
+    private double cineT;
+
+    /**
+     * La escena se ve como cinematica: los cuatro quedan quietos en sus puestos (asientos en orden
+     * Ciudadano, Influencer, Periodista, Candidato: {x, y} de los pies), barras negras arriba y abajo
+     * y sin HUD. Los dialogos, decisiones y minijuegos funcionan igual que siempre.
+     */
+    public Lugar modoCinematica(int[][] asientos) {
+        cine = true;
+        quieto(true);
+        Rol[] orden = {Rol.CIUDADANO, Rol.INFLUENCER, Rol.PERIODISTA, Rol.CANDIDATO};
+        for (int i = 0; i < orden.length && i < asientos.length; i++) {
+            Actor a = equipo.get(orden[i]);
+            if (a != null) {
+                a.x = asientos[i][0];
+                a.y = asientos[i][1];
+                a.mirandoIzquierda = a.x > W / 2.0;
+            }
+        }
+        return this;
+    }
+
+    private void dibujarCine(Graphics2D g) {
+        double k = Math.min(1, cineT / 1.2);
+        k = k * k * (3 - 2 * k);
+        // luz calida que respira sobre la mesa
+        double p = 0.5 + 0.5 * Math.sin(tiempo * 1.6) + 0.15 * Math.sin(tiempo * 7.3);
+        g.setPaint(new RadialGradientPaint(W / 2f, 520f, 760f, new float[]{0f, 0.55f, 1f},
+                new Color[]{new Color(255, 214, 140, (int) (40 + 18 * p)), new Color(255, 190, 110, 0), new Color(30, 15, 5, 150)}));
+        g.fillRect(0, 0, W, H);
+        // motitas de polvo
+        for (int i = 0; i < 26; i++) {
+            double sx = (i * 0.37 % 1.0) * W + Math.sin(tiempo * 0.3 + i) * 40;
+            double sy = ((i * 0.61 % 1.0) * H - tiempo * (8 + i % 5 * 3)) % H;
+            if (sy < 0) {
+                sy += H;
+            }
+            g.setColor(new Color(255, 236, 190, 40 + (i % 4) * 20));
+            g.fill(new Ellipse2D.Double(sx, sy, 3 + i % 3, 3 + i % 3));
+        }
+        // barras negras
+        int barra = (int) (78 * k);
+        g.setColor(Color.BLACK);
+        g.fillRect(0, 0, W, barra);
+        g.fillRect(0, H - barra, W, barra);
+        if (cineT < 4) {
+            float a = (float) Math.max(0, Math.min(1, Math.min(cineT - 0.6, 4 - cineT)));
+            Graphics2D gg = (Graphics2D) g.create();
+            gg.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, a));
+            gg.setFont(Estilo.fuente(Font.BOLD, 22f));
+            gg.setColor(new Color(0xFFF3D6));
+            centrado(gg, titulo.toUpperCase() + "  ·  " + partida.reloj.texto(), W / 2, 50);
+            gg.dispose();
+        }
+    }
+
     // ===================== DIBUJO =====================
 
-    private static final Rectangle RECT_CELULAR = new Rectangle(1770, 20, 110, 140);
+    private static final Rectangle RECT_CELULAR = new Rectangle(1792, 22, 92, 100);
 
     @Override
     protected void dibujarCapas(Graphics2D g) {
@@ -990,17 +1754,26 @@ public class Lugar extends EscenaMundo {
         if (tiempo < vinculosHasta) {
             dibujarVinculos(g);
         }
-        dibujarMariposas(g);
-        dibujarSalidas(g);
-        dibujarBurbujas(g);
-        dibujarHud(g);
-        if (!dialogoActivo() && decision == null) {
-            dibujarChat(g);
+        if (cine) {
+            dibujarCine(g);
         }
+        dibujarMariposas(g);
+        dibujarMariposasDeVecinos(g);
+        dibujarSalidas(g);
+        dibujarMarcas(g);
+        dibujarBurbujas(g);
+        if (!cine) {
+            dibujarHud(g);
+            if (!dialogoActivo() && decision == null) {
+                dibujarChat(g);
+            }
+        }
+        dibujarJugo(g);
         dibujarToasts(g);
         if (decision != null) {
             dibujarDecision(g, decision);
         }
+        dibujarPropagacion(g);
     }
 
     private void dibujarNiebla(Graphics2D g) {
@@ -1022,23 +1795,20 @@ public class Lugar extends EscenaMundo {
         centrado(g, "esta noche hace falta un Letrero", 1000, 292);
     }
 
-    private void dibujarSalidas(Graphics2D g) {
-        if (!completadoTodo) {
-            return;
-        }
-        double p = 0.5 + 0.5 * Math.sin(tiempo * 4);
-        g.setStroke(new BasicStroke(6f));
-        g.setColor(new Color(255, 211, 92, (int) (110 + 140 * p)));
-        for (Rectangle r : salidas) {
-            g.draw(new RoundRectangle2D.Double(r.x, r.y, r.width, r.height, 40, 40));
-            g.setFont(Estilo.fuente(Font.BOLD, 60f));
-            centrado(g, "→", r.x + r.width / 2, r.y + r.height / 2 + 20);
-        }
-    }
-
     /** Habilidad del Ciudadano: lineas entre los vecinos que se hablan (GrafoRelaciones). */
     private void dibujarVinculos(Graphics2D g) {
         double a = Math.min(1, (vinculosHasta - tiempo) / 1.0);
+        // aro dorado sobre los vecinos que aun no te han hablado
+        for (Actor x : getActores()) {
+            if (equipo.containsValue(x) || x.nombre == null || x.invisible || hablados.contains(x.id)) {
+                continue;
+            }
+            double p = 0.5 + 0.5 * Math.sin(tiempo * 5 + x.x * 0.01);
+            g.setColor(new Color(255, 211, 92, (int) ((90 + 90 * p) * a)));
+            g.setStroke(new BasicStroke(4f));
+            g.draw(new Ellipse2D.Double(x.x - x.ancho * 0.5, x.y - 16, x.ancho, 32));
+            dibujarDestello(g, x.x, x.y - x.alto - 26 - 6 * p, 12, new Color(255, 211, 92, (int) (230 * a)));
+        }
         g.setStroke(new BasicStroke(5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         for (Actor x : getActores()) {
             if (!partida.barrio.existe(x.id)) {
@@ -1050,6 +1820,29 @@ public class Lugar extends EscenaMundo {
                     g.setColor(new Color(255, 211, 92, (int) (200 * a)));
                     g.draw(new Line2D.Double(x.x, x.y - x.alto * 0.6, y.x, y.y - y.alto * 0.6));
                 }
+            }
+        }
+    }
+
+    /** Vecinos que SIEMPRE andan con mariposas amarillas alrededor (capricho bonito). */
+    private static final java.util.Set<String> CON_MARIPOSAS = java.util.Set.of("mauricio");
+
+    private void dibujarMariposasDeVecinos(Graphics2D g) {
+        for (Actor a : getActores()) {
+            if (a.invisible || a.id == null || !CON_MARIPOSAS.contains(a.id)) {
+                continue;
+            }
+            int n = 5;
+            for (int i = 0; i < n; i++) {
+                double fase = i * Math.PI * 2 / n + a.x * 0.01;
+                double ang = tiempo * (0.9 + i * 0.07) + fase;
+                double rx = 125 + (i % 2) * 30, ry = 85 + (i % 3) * 20;
+                double x = a.x + Math.cos(ang) * rx + Math.sin(tiempo * 2.3 + i) * 8;
+                double y = a.y - a.alto * 0.55 + Math.sin(ang * 1.3) * ry + Math.cos(tiempo * 3.1 + i) * 6;
+                // estela de brillitos
+                g.setColor(new Color(255, 214, 92, 70));
+                g.fill(new Ellipse2D.Double(x - Math.cos(ang) * 14 - 3, y - 3, 6, 6));
+                mariposita(g, x, y, 1.35 + (i % 3) * 0.2);
             }
         }
     }
@@ -1113,812 +1906,541 @@ public class Lugar extends EscenaMundo {
         }
     }
 
-    private void dibujarHud(Graphics2D g) {
-        // ---- reloj y dia ----
-      // ---- NUEVO RELOJ ESTETICO ----
-dibujarRelojHud(g);
+    // =====================================================================================
+    // HUD "AESTHETIC": pastillas crema translucidas, poca cosa en pantalla.
+    //   arriba izq.  -> dia, hora y lugar (una sola pastilla) + chip de misiones (TAB / M la abre)
+    //   arriba der.  -> tres anillos (animo, confianza, desinformacion) + boton del celular
+    //   abajo centro -> los cuatro personajes (1-4) y las teclas
+    //   abajo der.   -> el chat de la casa, solo unos segundos cuando llega un mensaje
+    // =====================================================================================
 
-        // ---- titulo del lugar y objetivos ----
-       
-        // ---- PANEL DEL LUGAR Y OBJETIVOS ----
-dibujarPanelLugar(g);
-        
-       
-// ---- MEDIDORES ESTETICOS ----
+    private static final Color HUD_CREMA = new Color(255, 250, 240, 228);
+    private static final Color HUD_BORDE = new Color(0xEAD7AE);
+    private static final Color HUD_TEXTO = new Color(0x5A3B1F);
+    private static final Color HUD_SUAVE = new Color(0xA88B6A);
+    private static final Color HUD_ROSA = new Color(0xF2A7B8);
+    private static final Color HUD_SALVIA = new Color(0x9CC08A);
 
-int animo = partida.animo;
-int confianza = partida.confianza.promedio();
+    /** Misiones: abiertas a mano (TAB o M) o un ratico solas (al entrar y al cumplir una). */
+    private boolean misionesFijas = false;
+    private double misionesHasta = -1;
+    private double misionesAnim = 0;
 
-dibujarMedidorHud(g,
-        1000, 24,
-        "ÁNIMO DE LA CASA",
-        animo + "/10",
-        animo / 10.0,
-        new Color(0xE7A83E),
-        0,
-        -1
-);
+    /** Chat: se muestra unos segundos cuando llega un mensaje nuevo. */
+    private ChatCasa.Mensaje ultimoChat;
+    private double chatHasta = -1;
 
-dibujarMedidorHud(g,
-        1245, 24,
-        "CONFIANZA",
-        confianza + "/10",
-        confianza / 10.0,
-        new Color(0x6C9CCB),
-        1,
-        -1
-);
+    void alternarMisiones() {
+        misionesFijas = !misionesFijas;
+        misionesHasta = -1;
+    }
 
-if (rumor != null) {
+    void mostrarMisionesUnRato(double segundos) {
+        misionesHasta = Math.max(misionesHasta, tiempo + segundos);
+    }
 
-    double ds = partida.desinfo(id);
+    /** Pastilla crema con sombrita (la base de todo el HUD). */
+    private static void pastilla(Graphics2D g, double x, double y, double w, double h, double r) {
+        g.setColor(new Color(60, 35, 15, 38));
+        g.fill(new RoundRectangle2D.Double(x + 1, y + 4, w, h, r, r));
+        g.setColor(HUD_CREMA);
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, r, r));
+        g.setColor(HUD_BORDE);
+        g.setStroke(new BasicStroke(1.6f));
+        g.draw(new RoundRectangle2D.Double(x, y, w, h, r, r));
+    }
 
-    Color colorDesinfo =
-            ds > Partida.UMBRAL_NIEBLA
-            ? new Color(0xD96C55)
-            : ds > 50
-            ? new Color(0xE5AA48)
-            : new Color(0x83A96B);
-
-    dibujarMedidorHud(g,
-            1490, 24,
-            "DESINFORMACIÓN",
-            (int) ds + "/100",
-            ds / 100.0,
-            colorDesinfo,
-            2,
-            Partida.UMBRAL_NIEBLA / 100.0
-    );
-}
-
-
-
-
-
-
-        // ---- celular ----
-        boolean pendiente = !digitalHecho && digOpciones != null;
-        AffineTransform at = g.getTransform();
-        g.translate(RECT_CELULAR.x + 55, RECT_CELULAR.y + 70);
-        if (pendiente && (tiempo % 2.5) < 0.35) {
-            g.rotate(Math.sin(tiempo * 60) * 0.08);
+    /** Teclita redonda (E, H, 1...). */
+    private static void teclita(Graphics2D g, String t, double cx, double cy, double r, boolean dorada) {
+        if (dorada) {
+            g.setPaint(new GradientPaint((float) cx, (float) (cy - r), Estilo.DORADO_CLARO, (float) cx, (float) (cy + r), Estilo.DORADO));
+        } else {
+            g.setColor(new Color(0xFFFDF7));
         }
-        g.setColor(Estilo.MADERA_OSCURA);
-        g.fill(new RoundRectangle2D.Double(-46, -62, 92, 124, 22, 22));
-        g.setColor(new Color(0x7FD3F0));
-        g.fill(new RoundRectangle2D.Double(-37, -50, 74, 98, 12, 12));
+        g.fill(new RoundRectangle2D.Double(cx - Math.max(r, t.length() * r * 0.45 + r * 0.4), cy - r,
+                Math.max(r, t.length() * r * 0.45 + r * 0.4) * 2, r * 2, r * 2, r * 2));
+        g.setColor(dorado(dorada));
+        g.setStroke(new BasicStroke(1.4f));
+        g.draw(new RoundRectangle2D.Double(cx - Math.max(r, t.length() * r * 0.45 + r * 0.4), cy - r,
+                Math.max(r, t.length() * r * 0.45 + r * 0.4) * 2, r * 2, r * 2, r * 2));
+        g.setColor(HUD_TEXTO);
+        g.setFont(Estilo.fuente(Font.BOLD, (float) (r * 1.05)));
+        FontMetrics fm = g.getFontMetrics();
+        g.drawString(t, (float) (cx - fm.stringWidth(t) / 2.0), (float) (cy + fm.getAscent() * 0.36));
+    }
+
+    private static Color dorado(boolean d) {
+        return d ? new Color(0xC98A12) : HUD_BORDE;
+    }
+
+    private static double anchoTeclita(String t, double r) {
+        return Math.max(r, t.length() * r * 0.45 + r * 0.4) * 2;
+    }
+
+    private void dibujarHud(Graphics2D g) {
+        Graphics2D gg = (Graphics2D) g.create();
+        gg.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        dibujarRelojHud(gg);
+        dibujarMisiones(gg);
+        dibujarAnillos(gg);
+        dibujarBotonCelular(gg);
+        dibujarBarraInferior(gg);
+        gg.dispose();
+    }
+
+    // ---- arriba a la izquierda: dia, hora y lugar ----
+    private void dibujarRelojHud(Graphics2D g) {
+        String hora = partida.reloj.texto();
+        String dia = "DÍA " + partida.dia + " DE " + Partida.DIAS;
+        String lugar = titulo.toUpperCase();
+        g.setFont(Estilo.fuente(Font.BOLD, 26f));
+        int wHora = g.getFontMetrics().stringWidth(hora);
+        g.setFont(Estilo.fuente(Font.BOLD, 14f));
+        int wLugar = g.getFontMetrics().stringWidth(lugar);
+        int w = Math.max(250, Math.max(wHora + 200, wLugar + 110));
+        int x = 24, y = 22, h = 68;
+        pastilla(g, x, y, w, h, h);
+
+        // relojito
+        int cx = x + 36, cy = y + h / 2, r = 22;
+        g.setPaint(new GradientPaint(cx, cy - r, new Color(0xFFE7A6), cx, cy + r, new Color(0xF3BE55)));
+        g.fillOval(cx - r, cy - r, r * 2, r * 2);
+        g.setColor(new Color(0xFFFBF1));
+        g.fillOval(cx - r + 4, cy - r + 4, r * 2 - 8, r * 2 - 8);
+        int min = partida.reloj.minutos();
+        double am = (min % 60) * Math.PI / 30 - Math.PI / 2;
+        double ah = (min % 720) * Math.PI / 360 - Math.PI / 2;
+        g.setStroke(new BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.setColor(HUD_TEXTO);
+        g.draw(new Line2D.Double(cx, cy, cx + Math.cos(ah) * 9, cy + Math.sin(ah) * 9));
+        g.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.setColor(new Color(0xD9774F));
+        g.draw(new Line2D.Double(cx, cy, cx + Math.cos(am) * 13, cy + Math.sin(am) * 13));
+        g.setColor(HUD_TEXTO);
+        g.fillOval(cx - 2, cy - 2, 5, 5);
+
+        // hora grande + dia chiquito
+        g.setFont(Estilo.fuente(Font.BOLD, 26f));
+        g.setColor(HUD_TEXTO);
+        g.drawString(hora, x + 70, y + 35);
+        g.setFont(Estilo.fuente(Font.BOLD, 13f));
+        g.setColor(HUD_SUAVE);
+        g.drawString(dia, x + 80 + wHora, y + 33);
+        // lugar
+        g.setColor(HUD_ROSA);
+        g.fillOval(x + 71, y + 46, 7, 7);
+        g.setFont(Estilo.fuente(Font.BOLD, 14f));
+        g.setColor(HUD_SUAVE);
+        g.drawString(lugar, x + 85, y + 54);
+    }
+
+    // ---- misiones: chip pequeñito; la lista solo cuando se pide (o un ratico) ----
+    private void dibujarMisiones(Graphics2D g) {
+        if (objetivos.isEmpty()) {
+            return;
+        }
+        int hechas = 0;
+        for (Objetivo o : objetivos) {
+            if (o.hecho) {
+                hechas++;
+            }
+        }
+
+        int x = 24, y = 102;
+        String t = hechas == objetivos.size() ? "Misiones listas" : "Misiones " + hechas + "/" + objetivos.size();
+        g.setFont(Estilo.fuente(Font.BOLD, 16f));
+        int wt = g.getFontMetrics().stringWidth(t);
+        int w = wt + 52 + (int) anchoTeclita("TAB", 11) + 10, h = 36;
+        pastilla(g, x, y, w, h, h);
+        // estrellita
+        dibujarDestello(g, x + 20, y + h / 2, 7, hechas == objetivos.size() ? HUD_SALVIA : Estilo.DORADO);
+        g.setColor(HUD_TEXTO);
+        g.drawString(t, x + 36, y + 24);
+        teclita(g, "TAB", x + 36 + wt + 12 + anchoTeclita("TAB", 11) / 2, y + h / 2, 11, false);
+
+        if (misionesAnim < 0.03) {
+            return;
+        }
+        // tarjeta con la lista
+        g.setFont(Estilo.fuente(Font.BOLD, 18f));
+        FontMetrics fm = g.getFontMetrics();
+        int wl = 0;
+        for (Objetivo o : objetivos) {
+            wl = Math.max(wl, fm.stringWidth(o.texto));
+        }
+        int cw = wl + 76, ch = 22 + objetivos.size() * 36;
+        Graphics2D c = (Graphics2D) g.create();
+        c.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) Math.min(1, misionesAnim)));
+        int cy = y + h + 8 - (int) ((1 - misionesAnim) * 12);
+        pastilla(c, x, cy, cw, ch, 26);
+        int ly = cy + 37;
+        for (Objetivo o : objetivos) {
+            int bx = x + 20, by = ly - 16;
+            if (o.hecho) {
+                c.setColor(HUD_SALVIA);
+                c.fillOval(bx, by, 20, 20);
+                c.setColor(Color.WHITE);
+                c.setStroke(new BasicStroke(2.6f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                c.drawLine(bx + 5, by + 10, bx + 9, by + 14);
+                c.drawLine(bx + 9, by + 14, bx + 15, by + 6);
+            } else {
+                c.setColor(new Color(0xFFFDF7));
+                c.fillOval(bx, by, 20, 20);
+                c.setColor(HUD_ROSA);
+                c.setStroke(new BasicStroke(2f));
+                c.drawOval(bx, by, 20, 20);
+            }
+            c.setFont(Estilo.fuente(Font.BOLD, 18f));
+            c.setColor(o.hecho ? HUD_SUAVE : HUD_TEXTO);
+            c.drawString(o.texto, x + 52, ly);
+            if (o.hecho) {
+                c.setColor(new Color(0xC9B08A));
+                c.setStroke(new BasicStroke(1.5f));
+                c.drawLine(x + 52, ly - 6, x + 52 + fm.stringWidth(o.texto), ly - 6);
+            }
+            ly += 36;
+        }
+        c.dispose();
+    }
+
+    /** Destello de cuatro puntas (adorno). */
+    private void dibujarDestello(Graphics2D g, double cx, double cy, double r, Color col) {
+        java.awt.geom.Path2D p = new java.awt.geom.Path2D.Double();
+        p.moveTo(cx, cy - r);
+        p.quadTo(cx, cy, cx + r, cy);
+        p.quadTo(cx, cy, cx, cy + r);
+        p.quadTo(cx, cy, cx - r, cy);
+        p.quadTo(cx, cy, cx, cy - r);
+        g.setColor(col);
+        g.fill(p);
+    }
+
+    // ---- arriba a la derecha: tres anillos ----
+    private void dibujarAnillos(Graphics2D g) {
+        int animo = partida.animo;
+        int confianza = partida.confianza.promedio();
+        boolean conRumor = rumor != null;
+        int n = conRumor ? 3 : 2;
+        int paso = 112, h = 92;
+        int w = n * paso + 16;
+        int x = 1780 - w - 14, y = 22;
+        pastilla(g, x, y, w, h, 40);
+        int cx = x + 8 + paso / 2, cy = y + 38;
+        anilloY = cy;
+        anilloX[0] = cx;
+        anilloX[1] = cx + paso;
+        anilloX[2] = cx + paso * 2;
+        anillo(g, cx, cy, animo / 10.0, new Color(0xF0A85C), 0, "ÁNIMO", animo + "/10", -1, false);
+        cx += paso;
+        anillo(g, cx, cy, confianza / 10.0, new Color(0x7FB2E0), 1, "CONFIANZA", confianza + "/10", -1, false);
+        if (conRumor) {
+            cx += paso;
+            double ds = partida.desinfo(id);
+            Color c = ds > Partida.UMBRAL_NIEBLA ? new Color(0xE0735E) : ds > 50 ? new Color(0xEDB45A) : HUD_SALVIA;
+            anillo(g, cx, cy, ds / 100.0, c, 2, tiempo < rumorPausaHasta ? "EN PAUSA" : "RUMOR",
+                    (int) ds + "%", Partida.UMBRAL_NIEBLA / 100.0, tiempo < rumorPausaHasta);
+        }
+    }
+
+    private void anillo(Graphics2D g, int cx, int cy, double p, Color col, int icono, String nombre,
+            String valor, double umbral, boolean pausa) {
+        p = Math.max(0, Math.min(1, p));
+        int r = (int) (25 * (1 + 0.28 * Math.sin(anilloPop[Math.min(2, icono)] * Math.PI)));
+        g.setStroke(new BasicStroke(7f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+        g.setColor(new Color(0xF1E6D0));
+        g.drawOval(cx - r, cy - r, r * 2, r * 2);
+        g.setColor(col);
+        if (p > 0.001) {
+            g.draw(new java.awt.geom.Arc2D.Double(cx - r, cy - r, r * 2, r * 2, 90, -360 * p, java.awt.geom.Arc2D.OPEN));
+        }
+        if (umbral >= 0) {
+            // puntico que marca donde empieza la niebla
+            double a = -Math.PI / 2 + umbral * Math.PI * 2;
+            double px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+            g.setColor(Color.WHITE);
+            g.fill(new Ellipse2D.Double(px - 5, py - 5, 10, 10));
+            g.setColor(new Color(0xE0735E));
+            g.fill(new Ellipse2D.Double(px - 3, py - 3, 6, 6));
+        }
+        // icono en el centro
+        g.setColor(col.darker());
+        if (icono == 0) {          // corazon
+            g.fillOval(cx - 9, cy - 7, 10, 10);
+            g.fillOval(cx - 1, cy - 7, 10, 10);
+            g.fillPolygon(new int[]{cx - 9, cx + 9, cx}, new int[]{cy - 1, cy - 1, cy + 9}, 3);
+        } else if (icono == 1) {   // dos manitos / personas
+            g.fillOval(cx - 9, cy - 8, 8, 8);
+            g.fillOval(cx + 1, cy - 8, 8, 8);
+            g.fillRoundRect(cx - 11, cy + 1, 11, 9, 6, 6);
+            g.fillRoundRect(cx, cy + 1, 11, 9, 6, 6);
+        } else if (pausa) {        // pausa
+            g.fillRoundRect(cx - 7, cy - 8, 5, 16, 3, 3);
+            g.fillRoundRect(cx + 2, cy - 8, 5, 16, 3, 3);
+        } else {                   // megafono chiquito
+            g.fillPolygon(new int[]{cx - 9, cx - 2, cx + 8, cx + 8, cx - 2, cx - 9},
+                    new int[]{cy - 4, cy - 4, cy - 10, cy + 10, cy + 4, cy + 4}, 6);
+        }
+        g.setFont(Estilo.fuente(Font.BOLD, 12f));
+        FontMetrics fm = g.getFontMetrics();
+        String t = nombre + " · " + valor;
+        g.setColor(HUD_SUAVE);
+        g.drawString(t, cx - fm.stringWidth(t) / 2, cy + r + 22);
+    }
+
+    // ---- el celular: boton redondo ----
+    private void dibujarBotonCelular(Graphics2D g) {
+        boolean pendiente = !digitalHecho && digOpciones != null;
+        int cx = RECT_CELULAR.x + RECT_CELULAR.width / 2, cy = RECT_CELULAR.y + 46;
+        double s = pendiente ? 1 + 0.06 * Math.sin(tiempo * 6) : 1;
+        int r = (int) (40 * s);
+        g.setColor(new Color(60, 35, 15, 38));
+        g.fillOval(cx - r + 1, cy - r + 4, r * 2, r * 2);
+        g.setColor(HUD_CREMA);
+        g.fillOval(cx - r, cy - r, r * 2, r * 2);
+        g.setColor(pendiente ? HUD_ROSA : HUD_BORDE);
+        g.setStroke(new BasicStroke(pendiente ? 3f : 1.6f));
+        g.drawOval(cx - r, cy - r, r * 2, r * 2);
+        // telefonito
+        AffineTransform at = g.getTransform();
+        g.translate(cx, cy);
+        if (pendiente && (tiempo % 2.5) < 0.35) {
+            g.rotate(Math.sin(tiempo * 60) * 0.1);
+        }
+        g.setColor(HUD_TEXTO);
+        g.fill(new RoundRectangle2D.Double(-13, -21, 26, 42, 9, 9));
+        g.setPaint(new GradientPaint(0, -16, new Color(0xBFE6F7), 0, 14, new Color(0x8EC5E8)));
+        g.fill(new RoundRectangle2D.Double(-10, -16, 20, 30, 5, 5));
         g.setColor(Color.WHITE);
-        g.fill(new RoundRectangle2D.Double(-30, -42, 60, 12, 6, 6));
-        g.fill(new RoundRectangle2D.Double(-30, -24, 44, 10, 5, 5));
+        g.fill(new RoundRectangle2D.Double(-7, -12, 14, 4, 3, 3));
+        g.fill(new RoundRectangle2D.Double(-7, -5, 10, 4, 3, 3));
         g.setTransform(at);
         if (pendiente) {
-            g.setColor(new Color(0xE0302A));
-            g.fillOval(RECT_CELULAR.x + 82, RECT_CELULAR.y - 8, 40, 40);
+            g.setColor(new Color(0xE8607A));
+            g.fillOval(cx + r - 22, cy - r - 4, 24, 24);
             g.setColor(Color.WHITE);
-            g.setFont(Estilo.fuente(Font.BOLD, 24f));
-            centrado(g, "!", RECT_CELULAR.x + 102, RECT_CELULAR.y + 21);
+            g.setFont(Estilo.fuente(Font.BOLD, 16f));
+            centrado(g, "!", cx + r - 10, cy - r + 14);
         }
-        g.setColor(Estilo.DORADO);
-        g.fillRoundRect(RECT_CELULAR.x + 35, RECT_CELULAR.y + 130, 40, 36, 10, 10);
-        g.setColor(Estilo.MADERA_OSCURA);
-        g.setFont(Estilo.fuente(Font.BOLD, 26f));
-        centrado(g, "Q", RECT_CELULAR.x + 55, RECT_CELULAR.y + 158);
-
-        // ---- quien camina y teclas ----
-       // ---- NUEVA BARRA INFERIOR ----
-dibujarBarraInferior(g);
-    }
-    
-    
-    
-    
-    
-private void dibujarMedidorHud(
-        Graphics2D g,
-        int x, int y,
-        String titulo,
-        String valor,
-        double progreso,
-        Color color,
-        int icono,
-        double umbral) {
-
-    Graphics2D gg = (Graphics2D) g.create();
-
-    int w = 230;
-    int h = 112;
-
-    Color marron = new Color(0x6A3F1C);
-    Color crema = new Color(0xFFF8E8);
-    Color borde = new Color(0xD9B77C);
-
-    progreso = Math.max(0, Math.min(1, progreso));
-
-    // Sombra
-    gg.setColor(new Color(45, 25, 10, 55));
-    gg.fill(new RoundRectangle2D.Double(
-            x + 3, y + 5, w, h, 23, 23));
-
-    // Fondo crema
-    gg.setPaint(new GradientPaint(
-            x, y, Color.WHITE,
-            x, y + h, crema));
-
-    gg.fill(new RoundRectangle2D.Double(
-            x, y, w, h, 23, 23));
-
-    // Contorno
-    gg.setColor(marron);
-    gg.setStroke(new BasicStroke(3f));
-    gg.draw(new RoundRectangle2D.Double(
-            x, y, w, h, 23, 23));
-
-    // Borde interior
-    gg.setColor(borde);
-    gg.setStroke(new BasicStroke(1.5f));
-    gg.draw(new RoundRectangle2D.Double(
-            x + 5, y + 5, w - 10, h - 10, 19, 19));
-
-    // Medallón
-    gg.setPaint(new GradientPaint(
-            x, y + 24, new Color(0xFFF1CF),
-            x + 48, y + 85, new Color(0xE9D3A5)));
-
-    gg.fillOval(x + 13, y + 28, 49, 49);
-
-    gg.setColor(borde);
-    gg.setStroke(new BasicStroke(2f));
-    gg.drawOval(x + 13, y + 28, 49, 49);
-
-    // Dibujar iconos sin PNG
-    gg.setColor(color);
-
-    if (icono == 0) {
-
-        // Corazón
-        gg.fillOval(x + 24, y + 41, 17, 17);
-        gg.fillOval(x + 35, y + 41, 17, 17);
-
-        gg.fillPolygon(
-                new int[]{x + 24, x + 52, x + 38},
-                new int[]{y + 51, y + 51, y + 67},
-                3
-        );
-
-    } else if (icono == 1) {
-
-        // Comunidad: tres personas
-        gg.fillOval(x + 28, y + 38, 11, 11);
-        gg.fillOval(x + 42, y + 38, 11, 11);
-        gg.fillOval(x + 35, y + 32, 13, 13);
-
-        gg.fillRoundRect(x + 25, y + 51, 17, 15, 8, 8);
-        gg.fillRoundRect(x + 40, y + 51, 17, 15, 8, 8);
-
-    } else {
-
-        // Megáfono
-        gg.fillPolygon(
-                new int[]{
-                    x + 25, x + 43,
-                    x + 53, x + 53,
-                    x + 25
-                },
-                new int[]{
-                    y + 45, y + 39,
-                    y + 32, y + 60,
-                    y + 54
-                },
-                5
-        );
-
-        gg.setStroke(new BasicStroke(
-                4f, BasicStroke.CAP_ROUND,
-                BasicStroke.JOIN_ROUND));
-
-        gg.drawLine(
-                x + 30, y + 54,
-                x + 35, y + 67
-        );
-
-        gg.drawLine(
-                x + 57, y + 38,
-                x + 63, y + 33
-        );
+        teclita(g, "Q", cx, cy + r + 4, 11, pendiente);
     }
 
-    // Título
-    gg.setFont(Estilo.fuente(Font.BOLD, 15f));
-    gg.setColor(new Color(0x97734D));
-    gg.drawString(titulo, x + 69, y + 33);
-
-    // Valor numérico
-    gg.setFont(Estilo.fuente(Font.BOLD, 23f));
-    gg.setColor(marron);
-    gg.drawString(valor, x + 69, y + 60);
-
-    // Barra de fondo
-    int barraX = x + 69;
-    int barraY = y + 75;
-    int barraW = 145;
-    int barraH = 9;
-
-    gg.setColor(new Color(0xE9DEC9));
-    gg.fillRoundRect(
-            barraX, barraY,
-            barraW, barraH,
-            12, 12
-    );
-
-    // Progreso
-    gg.setColor(color);
-    gg.fillRoundRect(
-            barraX, barraY,
-            (int) (barraW * progreso),
-            barraH,
-            12, 12
-    );
-
-    // Marcador de peligro de desinformación
-    if (umbral >= 0) {
-
-        int marcaX = barraX + (int) (barraW * umbral);
-
-        gg.setColor(marron);
-        gg.setStroke(new BasicStroke(2f));
-
-        gg.drawLine(
-                marcaX, barraY - 4,
-                marcaX, barraY + barraH + 4
-        );
-    }
-
-    gg.dispose();
-}
-
-    
-    
-private void dibujarPanelLugar(Graphics2D g) {
-
-    Graphics2D gg = (Graphics2D) g.create();
-
-    int x = 24;
-    int y = 104;
-    int w = 640;
-    int h = 58 + objetivos.size() * 40;
-
-    Color marron = new Color(0x6A3F1C);
-    Color crema = new Color(0xFBF0D2);
-    Color dorado = new Color(0xD9B77C);
-
-    // Sombra suave
-    gg.setColor(new Color(50, 29, 14, 55));
-    gg.fill(new RoundRectangle2D.Double(
-            x + 3, y + 5, w, h, 22, 22));
-
-    // Fondo de pergamino
-    gg.setPaint(new GradientPaint(
-            x, y, new Color(0xFFF9E9),
-            x, y + h, crema
-    ));
-
-    gg.fill(new RoundRectangle2D.Double(
-            x, y, w, h, 22, 22));
-
-    // Contorno exterior
-    gg.setColor(marron);
-    gg.setStroke(new BasicStroke(3f));
-
-    gg.draw(new RoundRectangle2D.Double(
-            x, y, w, h, 22, 22));
-
-    // Contorno interior dorado
-    gg.setColor(dorado);
-    gg.setStroke(new BasicStroke(1.5f));
-
-    gg.draw(new RoundRectangle2D.Double(
-            x + 5, y + 5, w - 10, h - 10, 18, 18));
-
-    // ---- PEQUEÑA FLOR DECORATIVA ----
-
-    int fx = x + 28;
-    int fy = y + 28;
-
-    gg.setColor(Color.WHITE);
-
-    gg.fillOval(fx - 7, fy - 12, 13, 13);
-    gg.fillOval(fx - 12, fy - 5, 13, 13);
-    gg.fillOval(fx + 2, fy - 5, 13, 13);
-    gg.fillOval(fx - 7, fy + 2, 13, 13);
-
-    gg.setColor(new Color(0xEFBF46));
-    gg.fillOval(fx - 4, fy - 4, 9, 9);
-
-    // ---- NOMBRE DEL LUGAR ----
-
-    gg.setFont(Estilo.fuente(Font.BOLD, 22f));
-    gg.setColor(marron);
-
-    gg.drawString(titulo.toUpperCase(), x + 54, y + 36);
-
-    // ---- OBJETIVOS ----
-
-    if (!objetivos.isEmpty()) {
-
-        // Separador decorativo
-        gg.setColor(new Color(0xD9B77C));
-        gg.setStroke(new BasicStroke(1.5f));
-
-        gg.drawLine(
-                x + 25, y + 53,
-                x + w - 25, y + 53
-        );
-
-        int ly = y + 86;
-
-        for (Objetivo o : objetivos) {
-
-            // Casilla
-            gg.setColor(o.hecho
-                    ? new Color(0x86A96A)
-                    : new Color(0xFFFDF4));
-
-            gg.fillRoundRect(
-                    x + 28, ly - 19,
-                    23, 23, 7, 7
-            );
-
-            // Borde
-            gg.setColor(o.hecho
-                    ? new Color(0x547B42)
-                    : marron);
-
-            gg.setStroke(new BasicStroke(1.8f));
-
-            gg.drawRoundRect(
-                    x + 28, ly - 19,
-                    23, 23, 7, 7
-            );
-
-            // Marca de completado
-            if (o.hecho) {
-
-                gg.setColor(Color.WHITE);
-
-                gg.setStroke(new BasicStroke(
-                        3f,
-                        BasicStroke.CAP_ROUND,
-                        BasicStroke.JOIN_ROUND
-                ));
-
-                gg.drawLine(
-                        x + 33, ly - 8,
-                        x + 38, ly - 3
-                );
-
-                gg.drawLine(
-                        x + 38, ly - 3,
-                        x + 47, ly - 15
-                );
+    // ---- abajo: los cuatro personajes (1-4) y las teclas ----
+    private void dibujarBarraInferior(Graphics2D g) {
+        boolean red = Sincronia.activa();
+        Jugador lider = red ? partida.jugador(Sincronia.miRol()) : partida.lider();
+        if (lider == null || dialogoActivo()) {
+            return;
+        }
+        Rol[] orden = {Rol.CIUDADANO, Rol.INFLUENCER, Rol.PERIODISTA, Rol.CANDIDATO};
+        List<Jugador> js = new ArrayList<>();
+        for (Rol r : orden) {
+            Jugador j = partida.jugador(r);
+            if (j != null && (!red || j == lider)) {
+                js.add(j);
             }
+        }
+        boolean listo = !partida.bandera("hab_" + id + "_" + lider.rol.name());
+        List<String[]> teclas = new ArrayList<>();
+        teclas.add(new String[]{"H", lider.rol.habilidad.nombre});
+        if (!red) {
+            teclas.add(new String[]{"P", "Prestar"});
+        }
+        teclas.add(new String[]{"F", "Frases"});
 
-            // Texto
-            gg.setFont(Estilo.fuente(Font.BOLD, 19f));
+        // medidas
+        int caraR = 22, caraActivaR = 28, hueco = 12;
+        int wCaras = 0;
+        for (Jugador j : js) {
+            wCaras += (j == lider ? caraActivaR : caraR) * 2 + hueco;
+        }
+        g.setFont(Estilo.fuente(Font.BOLD, 18f));
+        int wNombre = g.getFontMetrics().stringWidth(lider.nombre) + 10;
+        g.setFont(Estilo.fuente(Font.BOLD, 15f));
+        FontMetrics fm = g.getFontMetrics();
+        int wTeclas = 0;
+        for (String[] t : teclas) {
+            wTeclas += (int) anchoTeclita(t[0], 12) + 8 + fm.stringWidth(t[1]) + 20;
+        }
+        int h = 66;
+        int w = 24 + wCaras + wNombre + 70 + 26 + wTeclas + 10;
+        int x = (W - w) / 2, y = H - h - 18;
+        pastilla(g, x, y, w, h, h);
 
-            gg.setColor(o.hecho
-                    ? new Color(0x82916D)
-                    : marron);
+        // caras
+        int cx = x + 22;
+        int cy = y + h / 2;
+        for (int i = 0; i < js.size(); i++) {
+            Jugador j = js.get(i);
+            boolean act = j == lider;
+            int r = act ? caraActivaR : caraR;
+            cx += r;
+            retrato(g, j, cx, cy, r, act);
+            if (!red) {
+                int num = java.util.Arrays.asList(orden).indexOf(j.rol) + 1;
+                g.setColor(act ? j.rol.color : new Color(0xFFFDF7));
+                g.fillOval(cx + r - 14, cy + r - 16, 18, 18);
+                g.setColor(act ? Color.WHITE : HUD_TEXTO);
+                g.setFont(Estilo.fuente(Font.BOLD, 12f));
+                centrado(g, String.valueOf(num), cx + r - 5, cy + r - 3);
+            }
+            cx += r + hueco;
+        }
+        // nombre + mariposas
+        g.setFont(Estilo.fuente(Font.BOLD, 18f));
+        g.setColor(HUD_TEXTO);
+        g.drawString(lider.nombre, cx, cy - 2);
+        g.setFont(Estilo.fuente(Font.BOLD, 12f));
+        g.setColor(HUD_SUAVE);
+        g.drawString(lider.rol.nombre.toUpperCase(), cx, cy + 16);
+        int mx = cx + wNombre + 14;
+        mariposita(g, mx, cy, 1.0);
+        g.setFont(Estilo.fuente(Font.BOLD, 17f));
+        g.setColor(HUD_TEXTO);
+        g.drawString(String.valueOf(lider.mariposas), mx + 16, cy + 6);
+        cx = mx + 56;
 
-            gg.drawString(o.texto, x + 67, ly);
+        // separador
+        g.setColor(HUD_BORDE);
+        g.setStroke(new BasicStroke(1.4f));
+        g.drawLine(cx, y + 16, cx, y + h - 16);
+        cx += 18;
 
-            ly += 40;
+        // teclas
+        for (String[] t : teclas) {
+            double kw = anchoTeclita(t[0], 12);
+            boolean brilla = "H".equals(t[0]) && listo;
+            if (brilla) {
+                double a = 0.35 + 0.35 * Math.sin(tiempo * 3);
+                g.setColor(new Color(242, 176, 30, (int) (90 * a)));
+                g.fill(new RoundRectangle2D.Double(cx - 5, cy - 17, kw + 8 + fm.stringWidth(t[1]) + 12, 34, 34, 34));
+            }
+            teclita(g, t[0], cx + kw / 2, cy, 12, brilla);
+            g.setFont(Estilo.fuente(Font.BOLD, 15f));
+            g.setColor(brilla ? HUD_TEXTO : HUD_SUAVE);
+            g.drawString(t[1], (float) (cx + kw + 8), cy + 5);
+            cx += (int) kw + 8 + fm.stringWidth(t[1]) + 20;
         }
     }
 
-    gg.dispose();
-}
-
-    
-  
-private void dibujarBarraInferior(Graphics2D g) {
-
-    boolean red = Sincronia.activa();
-
-    Jugador lider = red
-            ? partida.jugador(Sincronia.miRol())
-            : partida.lider();
-
-    if (lider == null) {
-        return;
+    /** Carita redonda del personaje (recorta la cabeza de su sprite "quieto"). */
+    private void retrato(Graphics2D g, Jugador j, int cx, int cy, int r, boolean activo) {
+        if (activo) {
+            double p = 0.5 + 0.5 * Math.sin(tiempo * 3);
+            g.setColor(new Color(j.rol.color.getRed(), j.rol.color.getGreen(), j.rol.color.getBlue(), (int) (60 + 50 * p)));
+            g.fillOval(cx - r - 5, cy - r - 5, (r + 5) * 2, (r + 5) * 2);
+        }
+        Ellipse2D c = new Ellipse2D.Double(cx - r, cy - r, r * 2, r * 2);
+        g.setColor(new Color(0xFFF6E6));
+        g.fill(c);
+        String ruta = "/imagenes/personajes/" + j.rol.carpeta + "/quieto.png";
+        if (Recursos.existe(ruta)) {
+            java.awt.image.BufferedImage im = Recursos.imagen(ruta, 205, 250);
+            double esc = (r * 2.5) / im.getWidth();
+            int iw = (int) (im.getWidth() * esc), ih = (int) (im.getHeight() * esc);
+            java.awt.Shape antes = g.getClip();
+            g.clip(c);
+            g.drawImage(im, cx - iw / 2, (int) (cy - r * 1.05), iw, ih, null);
+            g.setClip(antes);
+        } else {
+            g.setColor(j.rol.color);
+            g.setFont(Estilo.fuente(Font.BOLD, r * 0.9f));
+            centrado(g, j.rol.nombre.substring(0, 1), cx, cy + (int) (r * 0.32));
+        }
+        g.setColor(activo ? j.rol.color : HUD_BORDE);
+        g.setStroke(new BasicStroke(activo ? 3f : 1.6f));
+        g.draw(c);
+        if (!activo) {
+            g.setColor(new Color(255, 250, 240, 70));
+            g.fill(c);
+        }
     }
 
-    Graphics2D gg = (Graphics2D) g.create();
-
-    int x = 24;
-    int y = 994;
-    int w = 1180;
-    int h = 66;
-
-    Color marron = new Color(0x6A3F1C);
-    Color crema = new Color(0xFBF0D2);
-    Color dorado = new Color(0xD9B77C);
-
-    // Sombra
-    gg.setColor(new Color(40, 24, 12, 65));
-    gg.fill(new RoundRectangle2D.Double(
-            x + 3, y + 4, w, h, 26, 26));
-
-    // Fondo
-    gg.setPaint(new GradientPaint(
-            x, y, new Color(0xFFF9E9),
-            x, y + h, crema));
-
-    gg.fill(new RoundRectangle2D.Double(
-            x, y, w, h, 26, 26));
-
-    // Contorno
-    gg.setColor(marron);
-    gg.setStroke(new BasicStroke(3f));
-
-    gg.draw(new RoundRectangle2D.Double(
-            x, y, w, h, 26, 26));
-
-    // Borde interior
-    gg.setColor(dorado);
-    gg.setStroke(new BasicStroke(1.3f));
-
-    gg.draw(new RoundRectangle2D.Double(
-            x + 5, y + 5, w - 10, h - 10, 21, 21));
-
-    // ---- PERSONAJE ACTIVO ----
-
-    gg.setColor(lider.rol.color);
-    gg.fillOval(x + 15, y + 15, 36, 36);
-
-    gg.setColor(marron);
-    gg.setStroke(new BasicStroke(2f));
-    gg.drawOval(x + 15, y + 15, 36, 36);
-
-    gg.setFont(Estilo.fuente(Font.BOLD, 12f));
-    gg.setColor(new Color(0x97734D));
-
-    gg.drawString(
-            red ? "TU PERSONAJE" : "PERSONAJE ACTIVO",
-            x + 61, y + 24
-    );
-
-    gg.setFont(Estilo.fuente(Font.BOLD, 19f));
-    gg.setColor(marron);
-
-    gg.drawString(lider.titulo(), x + 61, y + 46);
-
-    // ---- MARIPOSAS ----
-
-    int bx = x + 230;
-    int by = y + 33;
-
-    gg.setColor(new Color(0xE7B83F));
-
-    gg.fillOval(bx - 9, by - 9, 12, 17);
-    gg.fillOval(bx + 1, by - 9, 12, 17);
-
-    gg.setColor(marron);
-    gg.fillOval(bx - 1, by - 7, 4, 15);
-
-    gg.setFont(Estilo.fuente(Font.BOLD, 18f));
-    gg.drawString(String.valueOf(lider.mariposas), bx + 20, y + 40);
-
-    // Separador
-    gg.setColor(dorado);
-    gg.setStroke(new BasicStroke(1.5f));
-
-    gg.drawLine(
-            x + 295, y + 13,
-            x + 295, y + 53
-    );
-
-    // ---- ACCIONES DISPONIBLES ----
-
-    List<String[]> acciones = new ArrayList<>();
-
-    if (red) {
-        acciones.add(new String[]{"E", "Hablar"});
-    } else {
-        acciones.add(new String[]{"TAB", "Cambiar"});
+    private void mariposita(Graphics2D g, double x, double y, double esc) {
+        double ala = 0.8 + 0.2 * Math.abs(Math.sin(tiempo * 5));
+        Color a1 = new Color(0xF6C445), a2 = new Color(0xFBE08F);
+        g.setColor(a1);
+        g.fill(new Ellipse2D.Double(x - 15 * esc * ala, y - 12 * esc, 15 * esc * ala, 14 * esc));
+        g.fill(new Ellipse2D.Double(x, y - 12 * esc, 15 * esc * ala, 14 * esc));
+        g.setColor(a2);
+        g.fill(new Ellipse2D.Double(x - 11 * esc * ala, y, 11 * esc * ala, 10 * esc));
+        g.fill(new Ellipse2D.Double(x, y, 11 * esc * ala, 10 * esc));
+        g.setColor(new Color(0xC98A12));
+        g.setStroke(new BasicStroke(1.2f));
+        g.draw(new Ellipse2D.Double(x - 15 * esc * ala, y - 12 * esc, 15 * esc * ala, 14 * esc));
+        g.draw(new Ellipse2D.Double(x, y - 12 * esc, 15 * esc * ala, 14 * esc));
+        g.setColor(HUD_TEXTO);
+        g.fill(new RoundRectangle2D.Double(x - 1.5, y - 11 * esc, 3, 21 * esc, 3, 3));
     }
 
-    acciones.add(new String[]{"H", "Habilidad"});
-    acciones.add(new String[]{"P", "Prestar"});
-    acciones.add(new String[]{"F", "Frases"});
-
-    boolean pendiente = !digitalHecho && digOpciones != null;
-
-    if (pendiente) {
-        acciones.add(new String[]{"Q", "Celular"});
-    }
-
-    int ax = x + 315;
-
-    gg.setFont(Estilo.fuente(Font.BOLD, 14f));
-
-    for (String[] accion : acciones) {
-
-        String tecla = accion[0];
-        String nombre = accion[1];
-
-        Font fuenteTecla = Estilo.fuente(Font.BOLD, 15f);
-        gg.setFont(fuenteTecla);
-
-        FontMetrics fmTecla = gg.getFontMetrics();
-
-        int kw = Math.max(29, fmTecla.stringWidth(tecla) + 14);
-        int kh = 29;
-
-        // Tecla
-        gg.setColor(new Color(0xFFFDF5));
-
-        gg.fillRoundRect(
-                ax, y + 18,
-                kw, kh, 9, 9
-        );
-
-        gg.setColor(new Color(0xA77A43));
-        gg.setStroke(new BasicStroke(1.5f));
-
-        gg.drawRoundRect(
-                ax, y + 18,
-                kw, kh, 9, 9
-        );
-
-        // Letra
-        gg.setColor(marron);
-
-        centrado(
-                gg,
-                tecla,
-                ax + kw / 2,
-                y + 38
-        );
-
-        // Nombre de la acción
-        gg.setFont(Estilo.fuente(Font.BOLD, 14f));
-        gg.setColor(new Color(0x806345));
-
-        gg.drawString(
-                nombre,
-                ax + kw + 7,
-                y + 37
-        );
-
-        FontMetrics fm = gg.getFontMetrics();
-
-        ax += kw + 7 + fm.stringWidth(nombre) + 17;
-    }
-
-    gg.dispose();
-}  
-    
-    
-    
-    
-    
-    
-    
-private void dibujarRelojHud(Graphics2D g) {
-
-    Graphics2D gg = (Graphics2D) g.create();
-
-    // Posiciones principales
-    int cx = 68;
-    int cy = 60;
-    int radio = 38;
-
-    // Colores
-    Color marron = new Color(0x6A3F1C);
-    Color dorado = new Color(0xF2B01E);
-    Color doradoClaro = new Color(0xFFD35C);
-    Color crema = new Color(0xFFF8E3);
-    Color pergamino = new Color(0xFBF0D2);
-
-    // ---- SOMBRA DEL PERGAMINO ----
-    gg.setColor(new Color(45, 25, 10, 65));
-    gg.fill(new RoundRectangle2D.Double(
-            31, 29, 390, 73, 28, 28));
-
-    // ---- PLACA PRINCIPAL ----
-    gg.setPaint(new GradientPaint(
-            0, 24, new Color(0xFFF9E8),
-            0, 96, pergamino));
-
-    gg.fill(new RoundRectangle2D.Double(
-            27, 20, 390, 76, 28, 28));
-
-    // Borde exterior
-    gg.setStroke(new BasicStroke(4f));
-    gg.setColor(marron);
-    gg.draw(new RoundRectangle2D.Double(
-            27, 20, 390, 76, 28, 28));
-
-    // Borde interior dorado
-    gg.setStroke(new BasicStroke(2f));
-    gg.setColor(new Color(0xE6C47D));
-    gg.draw(new RoundRectangle2D.Double(
-            33, 26, 378, 64, 23, 23));
-
-    // ---- RELOJ CIRCULAR ----
-
-    // Sombra
-    gg.setColor(new Color(55, 30, 10, 75));
-    gg.fillOval(cx - 44, cy - 41, 90, 90);
-
-    // Aro exterior
-    gg.setPaint(new GradientPaint(
-            cx - 40, cy - 40, doradoClaro,
-            cx + 40, cy + 40, new Color(0xC98212)));
-
-    gg.fillOval(cx - 42, cy - 42, 84, 84);
-
-    // Contorno
-    gg.setStroke(new BasicStroke(4f));
-    gg.setColor(marron);
-    gg.drawOval(cx - 42, cy - 42, 84, 84);
-
-    // Aro interior
-    gg.setColor(new Color(0xFFE18A));
-    gg.fillOval(cx - 35, cy - 35, 70, 70);
-
-    // Esfera
-    gg.setPaint(new GradientPaint(
-            cx, cy - 30, Color.WHITE,
-            cx, cy + 30, crema));
-
-    gg.fillOval(cx - 30, cy - 30, 60, 60);
-
-    gg.setColor(new Color(0xC99B50));
-    gg.setStroke(new BasicStroke(1.5f));
-    gg.drawOval(cx - 30, cy - 30, 60, 60);
-
-    // ---- MARCAS HORARIAS ----
-
-    gg.setStroke(new BasicStroke(
-            3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-
-    gg.setColor(marron);
-
-    for (int i = 0; i < 12; i++) {
-
-        double angulo = Math.PI * 2 * i / 12 - Math.PI / 2;
-
-        int x1 = (int) (cx + Math.cos(angulo) * 23);
-        int y1 = (int) (cy + Math.sin(angulo) * 23);
-
-        int x2 = (int) (cx + Math.cos(angulo) * 27);
-        int y2 = (int) (cy + Math.sin(angulo) * 27);
-
-        gg.drawLine(x1, y1, x2, y2);
-    }
-
-    // ---- AGUJAS SEGUN LA HORA REAL ----
-
-    int minutos = partida.reloj.minutos();
-
-    double anguloMinutos =
-            (minutos % 60) * Math.PI / 30 - Math.PI / 2;
-
-    double anguloHoras =
-            (minutos % 720) * Math.PI / 360 - Math.PI / 2;
-
-    // Aguja de horas
-    gg.setStroke(new BasicStroke(
-            4.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-
-    gg.setColor(marron);
-
-    gg.drawLine(
-            cx, cy,
-            (int) (cx + Math.cos(anguloHoras) * 15),
-            (int) (cy + Math.sin(anguloHoras) * 15)
-    );
-
-    // Aguja de minutos
-    gg.setStroke(new BasicStroke(
-            3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
-
-    gg.setColor(new Color(0x955523));
-
-    gg.drawLine(
-            cx, cy,
-            (int) (cx + Math.cos(anguloMinutos) * 23),
-            (int) (cy + Math.sin(anguloMinutos) * 23)
-    );
-
-    // Centro de las agujas
-    gg.setColor(dorado);
-    gg.fillOval(cx - 5, cy - 5, 10, 10);
-
-    gg.setColor(marron);
-    gg.setStroke(new BasicStroke(1.5f));
-    gg.drawOval(cx - 5, cy - 5, 10, 10);
-
-    // ---- PEQUEÑO BRILLO ----
-
-    gg.setColor(new Color(255, 255, 255, 155));
-    gg.fillOval(cx - 21, cy - 23, 13, 7);
-
-    // ---- INFORMACION DEL DIA ----
-
-    gg.setFont(Estilo.fuente(Font.BOLD, 19f));
-    gg.setColor(new Color(0xA77A43));
-
-    gg.drawString(
-            "DÍA " + partida.dia + " DE " + Partida.DIAS,
-            125, 52
-    );
-
-    // Línea decorativa
-    gg.setStroke(new BasicStroke(1.5f));
-    gg.setColor(new Color(0xD9B77C));
-    gg.drawLine(125, 59, 395, 59);
-
-    // Hora digital
-    gg.setFont(Estilo.fuente(Font.BOLD, 29f));
-    gg.setColor(marron);
-
-    gg.drawString(partida.reloj.texto(), 125, 85);
-
-    // Pequeño detalle decorativo
-    gg.setColor(dorado);
-    gg.fillOval(385, 73, 7, 7);
-
-    gg.dispose();
-}
-
-
-    /** Ultimos mensajes del chat de la casa. */
+    /** Chat de la casa: aparece unos segundos cuando llega algo nuevo y se va solito. */
     private void dibujarChat(Graphics2D g) {
-        List<ChatCasa.Mensaje> ms = partida.chat.ultimos(3);
+        List<ChatCasa.Mensaje> ms = partida.chat.ultimos(2);
         if (ms.isEmpty()) {
             return;
         }
-        int x = 1340, y = 860, w = 556;
-        g.setColor(new Color(0x1F2B22));
-        g.fill(new RoundRectangle2D.Double(x, y - 46, w, 46 + ms.size() * 42, 22, 22));
-        g.setFont(Estilo.fuente(Font.BOLD, 20f));
-        g.setColor(new Color(0x8BE07A));
-        g.drawString(ChatCasa.NOMBRE, x + 18, y - 16);
-        g.setFont(Estilo.fuente(Font.PLAIN, 20f));
-        int ty = y + 28;
+        ChatCasa.Mensaje u = ms.get(ms.size() - 1);
+        if (u != ultimoChat) {
+            if (ultimoChat != null) {
+                chatHasta = tiempo + 7;
+            }
+            ultimoChat = u;
+        }
+        if (tiempo > chatHasta) {
+            return;
+        }
+        float a = (float) Math.max(0, Math.min(1, Math.min((chatHasta - tiempo) / 0.8, (tiempo - (chatHasta - 7)) / 0.3)));
+        Graphics2D gg = (Graphics2D) g.create();
+        gg.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        gg.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, a));
+        int w = 470, x = W - w - 24;
+        int h = 46 + ms.size() * 34;
+        int y = H - 100 - h + (int) ((1 - a) * 16);
+        pastilla(gg, x, y, w, h, 26);
+        gg.setColor(new Color(0x7CC47A));
+        gg.fillOval(x + 18, y + 18, 10, 10);
+        gg.setFont(Estilo.fuente(Font.BOLD, 15f));
+        gg.setColor(HUD_SUAVE);
+        gg.drawString(ChatCasa.NOMBRE.toUpperCase(), x + 36, y + 28);
+        gg.setFont(Estilo.fuente(Font.PLAIN, 17f));
+        FontMetrics fm = gg.getFontMetrics();
+        int ty = y + 60;
         for (ChatCasa.Mensaje m : ms) {
-            g.setColor(new Color(0xBFD8C4));
-            g.drawString(m.hora, x + 18, ty);
-            g.setColor(Color.WHITE);
+            gg.setColor(HUD_SUAVE);
+            gg.drawString(m.hora, x + 18, ty);
+            gg.setColor(HUD_TEXTO);
             String t = m.texto;
-            FontMetrics fm = g.getFontMetrics();
-            while (fm.stringWidth(t) > w - 110 && t.length() > 4) {
+            while (fm.stringWidth(t) > w - 100 && t.length() > 4) {
                 t = t.substring(0, t.length() - 4) + "…";
             }
-            g.drawString(t, x + 90, ty);
-            ty += 42;
+            gg.drawString(t, x + 78, ty);
+            ty += 34;
         }
+        gg.dispose();
     }
 
+    /** Avisos: pastillitas centradas arriba, con un puntico del color del aviso. */
     private void dibujarToasts(Graphics2D g) {
-        g.setFont(Estilo.fuente(Font.BOLD, 26f));
-        FontMetrics fm = g.getFontMetrics();
-        int y = 200;
+        Graphics2D gg0 = (Graphics2D) g.create();
+        gg0.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        gg0.setFont(Estilo.fuente(Font.BOLD, 20f));
+        FontMetrics fm = gg0.getFontMetrics();
+        int y = 24;
         for (Toast t : toasts) {
             double a = t.t < 0.25 ? t.t / 0.25 : (t.t > 2.6 ? Math.max(0, (3.2 - t.t) / 0.6) : 1);
-            int w = fm.stringWidth(t.s) + 40;
-            int x = W - w - 24 + (int) ((1 - Math.min(1, t.t / 0.25)) * 80);
-            Graphics2D gg = (Graphics2D) g.create();
+            int w = fm.stringWidth(t.s) + 58, h = 40;
+            int x = (W - w) / 2;
+            int yy = y - (int) ((1 - Math.min(1, t.t / 0.25)) * 14);
+            Graphics2D gg = (Graphics2D) gg0.create();
             gg.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) a));
-            gg.setColor(new Color(0, 0, 0, 170));
-            gg.fill(new RoundRectangle2D.Double(x, y, w, 44, 22, 22));
+            pastilla(gg, x, yy, w, h, h);
             gg.setColor(t.c);
-            gg.drawString(t.s, x + 20, y + 31);
+            gg.fillOval(x + 16, yy + h / 2 - 6, 12, 12);
+            gg.setColor(HUD_TEXTO);
+            gg.drawString(t.s, x + 38, yy + 27);
             gg.dispose();
-            y += 52;
+            y += 48;
         }
+        gg0.dispose();
     }
 
     private void dibujarDecision(Graphics2D g, Decision d) {
@@ -2022,7 +2544,7 @@ private void dibujarRelojHud(Graphics2D g) {
             barra(g, 740, 1010, 1090, 28, f, c);
             g.setFont(Estilo.fuente(Font.BOLD, 22f));
             g.setColor(Color.WHITE);
-            g.drawString("Si no decides, te quedas en silencio...", 760, 1000);
+            g.drawString(d.avisoLimite != null ? d.avisoLimite : "Si no decides, te quedas en silencio...", 760, 1000);
         }
     }
 
@@ -2068,7 +2590,8 @@ private void dibujarRelojHud(Graphics2D g) {
             ty += fm.getHeight();
         }
 
-        // contadores que suben solos
+        // contadores que suben solos (no en las votaciones de la casa: es el chat de la casa)
+        if (d.avisoLimite == null) {
         double ds = partida.desinfo(id) - Partida.DESINFO_INICIAL;
         int likes = 120 + (int) (ds * 4 + d.t * 7);
         int coms = 40 + (int) (ds * 1.5 + d.t * 3);
@@ -2086,6 +2609,7 @@ private void dibujarRelojHud(Graphics2D g) {
         gg.fillPolygon(new int[]{450, 450, 478}, new int[]{626, 650, 638}, 3);
         gg.setColor(Estilo.TEXTO);
         gg.drawString(String.valueOf(shares), 490, 650);
+        }
 
         // contexto
         if (d.contexto != null && !d.contexto.isEmpty()) {

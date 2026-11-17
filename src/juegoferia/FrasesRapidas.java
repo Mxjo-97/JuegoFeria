@@ -32,6 +32,11 @@ public final class FrasesRapidas {
         if (de == null) {
             return;
         }
+        if (de.tiene("a_su_ritmo")) {
+            // votacion de la casa: eligio "Voy a mi ritmo"
+            l.toast(de.nombre + " va a su ritmo: en esta escena no puede pedir ayuda.", new java.awt.Color(0xFFE08A));
+            return;
+        }
         Lugar.Opcion[] ops = new Lugar.Opcion[FRASES.length];
         for (int i = 0; i < FRASES.length; i++) {
             String f = FRASES[i];

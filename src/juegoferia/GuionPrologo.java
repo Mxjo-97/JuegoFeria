@@ -4,7 +4,7 @@ package juegoferia;
 /**
  * Lo que NO se juega al principio:
  * antesDelMenu(): los 8 cuadros iniciales.
- * llegada(): el prologo despues de elegir personajes.
+ * llegada(): el prologo CORTO despues de elegir personajes (5 cuadros, sin cinematicas nuevas).
  *
  * El sonido del mar acompaña las escenas de playa
  * y se detiene al cambiar de escenario o saltar.
@@ -128,97 +128,84 @@ public final class GuionPrologo {
                 .musica(SND + "musica_titulo.wav", 0.8, 0.8);
     }
 
+    /** Fondos que ya existen en el proyecto (no hacen falta cinematicas nuevas). */
+    private static final String PLAYA = C + "07_los_cuatro.png";      // la misma playa de la intro
+    private static final String CASA = "/imagenes/casapuertasin.png";
+    private static final String MALECON = "/imagenes/malecon.png";
+    private static final String PANADERIA = "/imagenes/panaderia.png"; // la tele ya dice "Día 1 de 2"
+
+    /** Los cuatro de pie (solo los principales tienen animaciones; aqui basta "quieto"). */
+    private static Cinematica losCuatro(Cinematica c, int x0, int y, int paso) {
+        String[] roles = {"ciudadano", "influencer", "periodista", "candidato"};
+        for (int i = 0; i < 4; i++) {
+            c.sprite("/imagenes/personajes/" + roles[i] + "/quieto.png", x0 + i * paso, y + (i % 2) * 20, 205, 250);
+        }
+        return c;
+    }
+
+    /** NPC con su unico sprite estatico (/imagenes/personaje/<Nombre>/<Nombre>.png). */
+    private static Cinematica npc(Cinematica c, String id, int x, int y, int ancho, int alto) {
+        return c.sprite(Rutas.spriteVecino(id), x, y, ancho, alto);
+    }
+
     /**
-     * Prologo: Escena 1 (la playa),
-     * Escena 2 (la casa de Dona Rosa),
-     * Escena 3 (tres semanas despues).
+     * Prologo CORTO (5 cuadros, antes eran 15): la playa, Doña Rosa, la casa, tres semanas despues y la tele.
+     * Solo usa la playa de la intro y tres fondos del juego. Nadie camina: los principales salen "quieto"
+     * y Melquiades, Doña Rosa y Samuel con su sprite estatico.
      */
     public static Cinematica llegada(Partida p) {
 
-        return new Cinematica(p)
+        Cinematica c = new Cinematica(p);
 
-                // ---- ESCENA 1: LA PLAYA ----
+        // ---- 1. LA PLAYA: despiertan y llega Melquiades ----
+        c.cuadro(PLAYA,
+                "De noche. Los cuatro despiertan en la arena, sin señal. Suena un pito de latón: Melquíades llega con un aparato de latas, alambres y un imán.",
+                "CANDIDATO: ¿Dónde estamos?",
+                "PERIODISTA: No sé. Pero esto no es mi barrio.",
+                "INFLUENCER: ¿Alguien tiene señal?",
+                "MELQUÍADES: Con esto sus aparatos vuelven a hablar. Pero solo en cuatro lugares: la panadería, el malecón, la Junta y la Alcaldía.",
+                "MELQUÍADES: Y un consejo: aquí las palabras corren más que los pies.")
+                .ambiente(MAR);
+        losCuatro(c, 200, 500, 300);
+        npc(c, "melquiades", 1480, 440, 220, 270);
 
-                .cuadro(C + "p1_playa.png",
-                        "De noche. Los cuatro despiertan en la arena, a unos pasos uno del otro. El celular no tiene señal. Se oye el mar.",
-                        "CANDIDATO: ¿Dónde estamos?",
-                        "PERIODISTA: No sé. Pero esto no es mi barrio.",
-                        "INFLUENCER: ¡Y no hay señal! ¿Alguien tiene señal?",
-                        "CIUDADANO: Por aquí debe de haber gente. Vamos.")
-                // Sprites independientes. Los cuatro roles usan el mismo formato de personaje.
-                .sprite("/imagenes/personajes/ciudadano/quieto.png", 330, 465, 205, 250)
-                .sprite("/imagenes/personajes/influencer/quieto.png", 650, 465, 205, 250)
-                .sprite("/imagenes/personajes/periodista.png", 970, 465, 205, 250)
-                .sprite("/imagenes/personajes/candidato.png", 1290, 465, 205, 250)
-                .ambiente(MAR)
+        // ---- 2. LA PLAYA: llega Doña Rosa ----
+        c.cuadro(PLAYA,
+                "En cada celular aparece una raya de señal. Llega Doña Rosa con un farol y una canasta de pan.",
+                "CIUDADANO: Por aquí debe de haber gente...",
+                "DOÑA ROSA: Ya, ya. No se queden ahí mirando a la nada. Ustedes cuatro se vienen conmigo. Aquí no se duerme en la arena.");
+        losCuatro(c, 200, 500, 300);
+        npc(c, "rosa", 1480, 430, 230, 280);
 
-                .cuadro(C + "p1_melquiades.png",
-                        "Suena un pito de latón. Melquíades aparece con su aparato de latas, alambres y un imán atado con cabuya.",
-                        "MELQUÍADES: Con esto a lo mejor sus aparatos vuelven a hablar.",
-                        "MELQUÍADES: Pero solo en cuatro lugares: la panadería, el malecón, la Junta y la Alcaldía. En ningún otro sitio.")
-                // Melquiades utiliza un unico sprite estatico; no necesita animacion de caminar.
-                .sprite("/imagenes/personajes/melquiades.png", 1430, 405, 220, 270)
+        // ---- 3. LA CASA DE DOÑA ROSA ----
+        c.cuadro(CASA,
+                "La casa de huéspedes, sobre la panadería. Doña Rosa reparte cobijas. Samuel, su nieto, se asoma con los ojos grandes.",
+                "DOÑA ROSA: Cuatro cuartos, uno para cada quien. Si quieren pan, me avisan antes de las siete.",
+                "CIUDADANO: Yo buscaré trabajo. Si necesitan algo, avísenme temprano.",
+                "INFLUENCER: Yo hago videos. Si alguien encuentra señal, que me diga dónde.",
+                "PERIODISTA: Yo escribo para un diario. Si me cuentan algo, que sea verdad.",
+                "CANDIDATO: Yo quiero lanzarme a la alcaldía. Vi un cartel: hay elecciones en tres semanas.",
+                "SAMUEL: ¿Son de verdad de la tele?",
+                "DOÑA ROSA: Samuel, a dormir. Mañana les preguntas.");
+        losCuatro(c, 280, 520, 240);
+        npc(c, "rosa", 1300, 470, 230, 280);
+        npc(c, "samuel", 1580, 540, 180, 220);
 
-                .cuadro(C + "p1_senal.png",
-                        "En cada celular aparece una raya de señal. Desde las casas, el pueblo los mira como si hubieran bajado del cielo.",
-                        "MELQUÍADES: Y les doy un consejo: aquí las palabras corren más que los pies.")
+        // ---- 4. TRES SEMANAS DESPUES ----
+        c.cuadro(MALECON,
+                "Pasan tres semanas. {CIUDADANO} trae pan de su turno, {INFLUENCER} filma el malecón, {PERIODISTA} anota lo que le cuenta Doña Úrsula y {CANDIDATO} pega afiches: «Una candidatura independiente. Con ustedes.»",
+                "RINGO: Pasaron tres semanas. Los cuatro se quedaron.",
+                "RINGO: Llegaron justo cuando la isla se preparaba para elegir alcalde, y desde entonces comparten techo, pan y celular.");
+        losCuatro(c, 480, 520, 260);
 
-                .cuadro(C + "p1_rosa.png",
-                        "Llega Doña Rosa con un farol y una canasta de pan.",
-                        "DOÑA ROSA: Ya, ya. No se queden ahí mirando a la nada. Ustedes cuatro se vienen conmigo.",
-                        "DOÑA ROSA: Aquí no se duerme en la arena.")
-                // Dona Rosa utiliza un unico sprite estatico; no necesita animacion de caminar.
-                .sprite("/imagenes/personajes/dona_rosa.png", 1430, 405, 230, 280)
+        // ---- 5. LA TELE DE LA PANADERIA ----
+        c.cuadro(PANADERIA,
+                "Se enciende la tele de la panadería. Aparece Vlado.",
+                "VLADO: Faltan dos días para la elección, Macondo. Y hay una candidatura nueva: una independiente que se inscribió hace tres semanas.",
+                "INFLUENCER: Tres semanas y todavía me sorprende ver tu cara en un afiche. Luces bien, {CANDIDATO}.",
+                "CANDIDATO: A mí también.");
+        losCuatro(c, 380, 500, 240);
 
-                // ---- ESCENA 2: CASA DE DOÑA ROSA ----
-
-                .cuadro(C + "p2_casa.png",
-                        "La casa de huéspedes, sobre la panadería. Cuatro cuartos, una cocina y una mesa grande con cuatro sillas. Doña Rosa reparte cobijas.",
-                        "DOÑA ROSA: Cuatro cuartos, uno para cada quien. Escojan sin pelear.",
-                        "DOÑA ROSA: Abajo está la panadería. Si quieren pan, me avisan antes de las siete.")
-
-                .cuadro(C + "p2_pasillo.png",
-                        "Los cuatro se quedan en el pasillo, sin saber qué decir.",
-                        "CIUDADANO: Yo buscaré un trabajo. Si necesitan algo, avísenme temprano.",
-                        "INFLUENCER: Yo hago videos. Si alguien encuentra señal, que me diga dónde.",
-                        "PERIODISTA: Yo escribo para un diario. Aunque ahora no sé si este lugar tenga uno. Soy todo oídos por si me quieren comentar algo, pero que sea verdad.",
-                        "CANDIDATO: Yo quiero lanzarme a la alcaldía. Vi un cartel por ahí de que hay elecciones en tres semanas.")
-
-                .cuadro(C + "p2_samuel.png",
-                        "Se miran. Cada quien entra a su cuarto. Samuel, el nieto de Doña Rosa, asoma desde la cocina con los ojos grandes.",
-                        "SAMUEL: ¿Son de verdad de la tele?",
-                        "DOÑA ROSA: Samuel, a dormir.",
-                        "SAMUEL: Es que nunca había visto a alguien que viniera de afuera.",
-                        "DOÑA ROSA: Mañana les preguntas. Hoy, a dormir.")
-
-                // ---- ESCENA 3: TRES SEMANAS DESPUÉS ----
-
-                .cuadro(C + "p3_calendario.png",
-                        "Hojas de calendario que caen una por una sobre la mesa de la casa.")
-
-                .cuadro(C + "p3_ciudadano.png",
-                        "{CIUDADANO} llega de su turno con una bolsa de pan y la pasa a los demás.")
-
-                .cuadro(C + "p3_influencer.png",
-                        "{INFLUENCER} filma el malecón con el celular en alto. Unos niños se asoman a la cámara.")
-
-                .cuadro(C + "p3_periodista.png",
-                        "{PERIODISTA} escribe en una libreta mientras Doña Úrsula le cuenta algo al oído.")
-
-                .cuadro(C + "p3_candidato.png",
-                        "{CANDIDATO} pega un afiche en un poste: «Una candidatura independiente. Con ustedes.» Doña Rosa lo mira con las manos en la cintura.",
-                        "RINGO: Pasaron tres semanas. Los cuatro se quedaron.",
-                        "RINGO: Llegaron justo cuando la isla se preparaba para elegir alcalde, y desde entonces comparten techo, pan y celular.")
-
-                .cuadro(C + "p3_tele.png",
-                        "Se enciende la tele del salón. Aparece Vlado.",
-                        "VLADO: Faltan dos días para la elección, Macondo. Hay varias candidaturas, y una es nueva: una candidatura independiente que se inscribió hace tres semanas.")
-
-                .cuadro(C + "p3_tele.png",
-                        "Los otros tres miran a {CANDIDATO}.",
-                        "INFLUENCER: Tres semanas y todavía me sorprende ver tu cara en un afiche. Luces bien, {CANDIDATO}.",
-                        "CANDIDATO: A mí también.")
-
-                .titulo("7:00", "Día 1 de 2. Faltan dos días para la elección.");
+        return c.titulo("7:00", "Día 1 de 2. Faltan dos días para la elección.");
     }
 }

@@ -93,7 +93,7 @@ public class Partida {
         return r;
     }
 
-    /** El jugador que camina ahora (los otros lo siguen). TAB lo cambia. */
+    /** El jugador que camina ahora (los otros lo siguen). Las teclas 1-4 lo cambian. */
     public Jugador lider() {
         Jugador j = jugadores.get(lider);
         return j != null ? j : (jugadores.isEmpty() ? null : jugadores.values().iterator().next());

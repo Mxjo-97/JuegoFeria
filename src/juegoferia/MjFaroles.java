@@ -112,8 +112,12 @@ public class MjFaroles extends Minijuego {
 
     @Override
     protected void dibujarJuego(Graphics2D g) {
-        fondo(g, "/imagenes/minijuegos/plaza_apagon.png");
-        if (!Recursos.existe("/imagenes/minijuegos/plaza_apagon.png")) {
+        // el mismo fondo del apagon (o uno propio en /imagenes/minijuegos/plaza_apagon.png)
+        String fa = Recursos.existe("/imagenes/minijuegos/plaza_apagon.png") ? "/imagenes/minijuegos/plaza_apagon.png"
+                : Rutas.primera(Rutas.PLAZA_APAGON);
+        if (Recursos.existe(fa)) {
+            fondo(g, fa);
+        } else {
             g.setColor(new Color(10, 12, 30));
             g.fillRect(0, 0, W, H);
         }

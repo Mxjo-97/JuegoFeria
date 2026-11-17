@@ -111,6 +111,7 @@ public class JuegoMacondo extends JPanel implements Lugar.Anfitrion {
     @Override
     public void cinematica(Cinematica c, Runnable fin) {
         final Lugar volver = actual;
+        Musica.parar();   // la cinematica trae su propia musica
         add(c, "cine");
         revalidate();
         mostrar("cine", c);
@@ -121,6 +122,7 @@ public class JuegoMacondo extends JPanel implements Lugar.Anfitrion {
             if (volver != null) {
                 mostrar(partida.dia + ":" + volver.id, volver);
                 volver.requestFocusInWindow();
+                Musica.ambienteJuego(partida.hayNiebla(volver.id));
             }
             if (fin != null) {
                 fin.run();

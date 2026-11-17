@@ -55,7 +55,9 @@ if (base.getEncoding() != AudioFormat.Encoding.PCM_SIGNED
             // Algunos equipos no soportan este control y por eso se verifica antes de usarlo
             if (clip.isControlSupported(FloatControl.Type.MASTER_GAIN)) {
                 FloatControl volumen = (FloatControl) clip.getControl(FloatControl.Type.MASTER_GAIN);
-                volumen.setValue(volumen.getMaximum());
+                // volumen de los efectos (boton del parlante): 1.0 = como antes
+                float db = volumen.getMaximum() + Ajustes.db(Ajustes.fEfectos());
+                volumen.setValue(Math.max(volumen.getMinimum(), Math.min(volumen.getMaximum(), db)));
             }
 
             clip.addLineListener(event -> {

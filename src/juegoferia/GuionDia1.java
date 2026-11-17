@@ -95,8 +95,10 @@ public final class GuionDia1 {
 
         /** La prueba de un rol: se hace hablando con el vecino 'id' cuando ese rol camina. */
         void prueba(String id, Rol rol, String idPieza, String nombrePieza, String... lineas) {
+            l.marcarPrueba(id, rol);   // el "!" dorado encima del vecino
             pruebas.computeIfAbsent(id, k -> new EnumMap<>(Rol.class)).put(rol, () -> l.dialogo(() -> {
                 l.darPieza(rol, idPieza, nombrePieza);
+                l.pruebaHecha(rol);
                 hechas.add(rol);
                 if (hechas.size() == 4) {
                     l.completar("pruebas");
@@ -109,7 +111,8 @@ public final class GuionDia1 {
 
         void activarPruebas() {
             pruebasActivas = true;
-            l.toast(Sincronia.activa() ? "Cada quien consigue su pieza del Letrero, con su propio personaje." : "Cada quien consigue su pieza del Letrero. TAB cambia quién camina.", new Color(0xFFD35C));
+            l.mostrarMarcas(true);
+            l.toast(Sincronia.activa() ? "Cada quien consigue su pieza del Letrero, con su propio personaje." : "Cada quien consigue su pieza del Letrero. Con 1, 2, 3 y 4 cambias quién camina.", new Color(0xFFD35C));
         }
 
         private void hablar(Actor a) {
@@ -123,7 +126,7 @@ public final class GuionDia1 {
                 for (Rol r : m.keySet()) {
                     if (!hechas.contains(r)) {
                         Jugador j = p.jugador(r);
-                        l.burbuja(a, "Esto es con " + (j != null ? j.nombre : r.nombre) + "." + (Sincronia.activa() ? "" : " (TAB)"), 3);
+                        l.burbuja(a, "Esto es con " + (j != null ? j.nombre : r.nombre) + "." + (Sincronia.activa() ? "" : " (tecla " + (java.util.Arrays.asList(Rol.CIUDADANO, Rol.INFLUENCER, Rol.PERIODISTA, Rol.CANDIDATO).indexOf(r) + 1) + ")"), 3);
                         return;
                     }
                 }
@@ -186,16 +189,17 @@ public final class GuionDia1 {
         Lugar l = new Lugar(p, h, CASA, "La casa de Doña Rosa", Reloj.h(7, 0));
         Ctx c = new Ctx(l);
         l.fondo(Rutas.CASA);
-        l.caminable(80, 560, 1760, 480);
+        l.caminable(80, 620, 1760, 440);
         l.equipoEn(900, 900);
-        c.vecino("samuel", "Samuel", "el niño", 1500, 760, new Color(0x6FA8DC),
+        c.vecino("samuel", "Samuel", "el niño", 1380, 700, new Color(0x6FA8DC),
                 "SAMUEL: Salomé me dijo que hoy hay algo raro en el grupo del barrio.",
                 "CIUDADANO: ¿Raro cómo?",
                 "SAMUEL: No sé. Mi abuela dice que no lea cosas de los grandes.",
                 "INFLUENCER: Tu abuela tiene razón. Y no tiene razón.");
-            l.salida(400, 850, 350, 230, PANADERIA, "Bajar a la panadería");
-       
-            l.alPrimeraEntrada(() -> l.dialogo(null,
+        l.salida(440, 930, 290, 130, PANADERIA, "Bajar a la panadería");
+        l.obstaculo(560, 640, 440, 160, "Mesa");  l.obstaculo(60, 760, 380, 320, "Baranda");
+
+        l.alPrimeraEntrada(() -> l.dialogo(null,
                 "Narrador: Los cuatro despiertan a la vez. Abajo se oye a Doña Rosa abriendo la panadería.",
                 "INFLUENCER: ¿Alguien más durmió? Yo soñé que mi afiche me hablaba.",
                 "PERIODISTA: Yo no. Llevo dos horas escribiendo lo que se comenta de la elección. Luego lo mando a la imprenta y lo reparto por ahí.",
@@ -216,7 +220,8 @@ public final class GuionDia1 {
         Ctx c = new Ctx(l);
         l.fondo(Rutas.PANADERIA);
         l.caminable(70, 570, 1780, 470);
-        l.obstaculo(1060, 440, 760, 150, "Mostrador");
+        l.obstaculo(980, 440, 740, 160, "Mostrador");
+        l.obstaculo(100, 820, 300, 200, "Mesita");
         l.equipoEn(900, 960);
 
         l.rumor("Dicen que cierran el colegio en enero.", 0);
@@ -230,25 +235,25 @@ public final class GuionDia1 {
         l.objetivo("pruebas", "Las cuatro piezas del Letrero");
 
         // ---- vecinos (posicion = pies) ----
-        c.vecino("rosa", "Doña Rosa", "la señora", 1400, 610, new Color(0xB5473A),
+        c.vecino("rosa", "Doña Rosa", "la señora", 1400, 600, new Color(0xB5473A),
                 "DOÑA ROSA: Siéntense, que el pan caliente no espera.");
-        c.vecino("ursula", "Doña Úrsula", "la anciana", 250, 700, new Color(0x8A6A9A),
+        c.vecino("ursula", "Doña Úrsula", "la anciana", 200, 670, new Color(0x8A6A9A),
                 "DOÑA ÚRSULA: Esto ya lo viví, aunque no sabría decir cuándo.");
-        c.vecino("nubia", "Nubia", "la del audio", 600, 680, new Color(0xD98AB0),
+        c.vecino("nubia", "Nubia", "la del audio", 620, 700, new Color(0xD98AB0),
                 "NUBIA: ¿Vieron lo del noticiero?");
-        c.vecino("samuel", "Samuel", "el niño", 1650, 900, new Color(0x6FA8DC),
+        c.vecino("samuel", "Samuel", "el niño", 1350, 880, new Color(0x6FA8DC),
                 "SAMUEL: ¿Cierran mi colegio?");
-        c.vecino("mateo", "Mateo", "el muchacho", 880, 720, new Color(0x4C8BD9),
+        c.vecino("mateo", "Mateo", "el muchacho", 820, 680, new Color(0x4C8BD9),
                 "MATEO: Mi hermana y yo estudiamos ahí. ¿De dónde sacan eso?");
-        c.vecino("camila", "Camila", "la niña", 980, 770, new Color(0xF2B01E));
-        c.vecino("ximena", "Ximena", "la señora", 1150, 830, new Color(0x5BA843));
-        c.vecino("lorena", "Lorena", "la señora", 1260, 850, new Color(0x3E7F2F));
-        c.vecino("salome", "Salomé", "la niña", 1200, 920, new Color(0xF9A3BF));
-        c.vecino("eliecer", "Don Eliécer", "el señor", 450, 900, new Color(0x7A6A5A),
+        c.vecino("ximena", "Ximena", "la señora", 1150, 700, new Color(0x5BA843));
+        c.vecino("lorena", "Lorena", "la señora", 1300, 720, new Color(0x3E7F2F));
+        c.vecino("salome", "Salomé", "la niña", 1220, 880, new Color(0xF9A3BF));
+        c.vecino("eliecer", "Don Eliécer", "el señor", 450, 930, new Color(0x7A6A5A),
                 "DON ELIÉCER: Pues si lo cierran, por algo será.");
-        c.vecino("vlado", "Vlado (tele)", "la tele", 1760, 640, new Color(0x333344),
+        c.vecino("vlado", "Vlado (tele)", "la tele", 1720, 620, new Color(0x333344),
                 "VLADO: Buenos días, Macondo.");
-        l.salida(1490, 960, 330, 120, CAMINO, "Salir hacia el malecón");
+
+        l.salida(1480, 930, 280, 110, CAMINO, "Salir hacia el malecón");
 
         // ---- al entrar: el audio, la tele y la decision de respeto ----
         l.alPrimeraEntrada(() -> new Secuencia()
@@ -310,7 +315,7 @@ public final class GuionDia1 {
 
         // ---- la verdad del rumor ----
         l.alCompletar(() -> {
-            l.npc("visitacion", "Rectora Visitación", "la rectora", 300, 820, new Color(0x2E4A7A));
+            l.npc("visitacion", "Rectora Visitación", "la rectora", 470, 700, new Color(0x2E4A7A));
             l.dialogo(() -> l.toast("Salgan hacia el malecón (puerta de la izquierda)", new Color(0xFFD35C)),
                     "VLADO: Quiero aclarar algo. Dije «se rumora». No dije «se confirma». Fue un error de énfasis.",
                     "RECTORA VISITACIÓN: (entra con un folder) Nadie ha anunciado cierre. Hay una revisión de programas, nada más.",
@@ -424,20 +429,20 @@ public final class GuionDia1 {
 
         boolean pista = el.containsValue(Lugar.A);
         boolean lupa = p.bandera("lupa_" + PANADERIA);
-        l.dialogo(() -> l.minijuegoFijo(Rol.CIUDADANO, new MjRastreaAudio(pista, lupa), res -> {
+        l.dialogo(() -> l.minijuegoFijo(Rol.CIUDADANO, new MjRastreaAudio(pista, lupa).dialogoFinal(nv -> {
             String[] r;
-            if (res.puntos == Minijuego.BIEN) {
+            if (nv == Minijuego.BIEN) {
                 r = new String[]{"CIUDADANO: La tele dijo «se rumora». El segundo dijo «dicen». El tercero ya dice «cierran en enero».",
                     "PERIODISTA: Cada vez que pasa, el verbo se hace más fuerte."};
-            } else if (res.puntos == Minijuego.REGULAR) {
+            } else if (nv == Minijuego.REGULAR) {
                 r = new String[]{"PERIODISTA: Llegaste. Falta ver qué cambió por el camino."};
             } else {
                 r = new String[]{"VLADO: (desde la tele) Debo aclarar algo. Yo dije «se rumora». No dije «se confirma»."};
             }
-            l.dialogo(() -> {
+            return r;
+        }), res -> {
                 l.completar("minijuego");
                 c.activarPruebas();
-            }, r);
         }), d.toArray(new String[0]));
     }
 
@@ -449,18 +454,19 @@ public final class GuionDia1 {
         Lugar l = new Lugar(p, h, CAMINO, "Camino al malecón", Reloj.h(9, 0));
         Ctx c = new Ctx(l);
         l.fondo(Rutas.CAMINO_MALECON);
-        l.caminable(60, 600, 1800, 440);
-        l.equipoEn(200, 900);
+        l.caminable(60, 560, 1800, 480);
+        l.obstaculo(100, 700, 370, 130, "Banca");
+        l.equipoEn(700, 960);
         l.objetivo("charla", "Caminar juntos");
         c.vecino("melquiades", "Melquíades", "el gitano", 1100, 700, new Color(0x7A3A8A),
                 "MELQUÍADES: La verdad también necesita quien la reparta. Y ustedes son cuatro. Úsense.");
-        c.vecino("vendedor", "Vendedor de bolsas", "el vendedor", 600, 760, new Color(0x9A8F6A),
-                "UN VENDEDOR DE BOLSAS: Si andan buscando el malecón, siempre es hacia donde huele a río.");
-        c.vecino("nina_pajaro", "Niña con un pájaro de papel", "la niña", 1400, 840, new Color(0xF9A3BF),
-                "UNA NIÑA: ¿Ustedes saben hacer pajaritos de papel?");
-        c.vecino("ursula", "Doña Úrsula", "la anciana", 350, 680, new Color(0x8A6A9A),
+        c.vecino("foncho", "Foncho", "el señor", 680, 700, new Color(0x9A8F6A),
+                "FONCHO: (cargando bolsas) Si andan buscando el malecón, siempre es hacia donde huele a río.");
+        c.vecino("esperanza", "Esperanza", "la señora", 1350, 800, new Color(0xF9A3BF),
+                "ESPERANZA: (doblando un pájaro de papel) ¿Ustedes saben hacer pajaritos de papel? Mi nieta me enseñó.");
+        c.vecino("ursula", "Doña Úrsula", "la anciana", 520, 760, new Color(0x8A6A9A),
                 "DOÑA ÚRSULA: (desde su silla) No se demoren. Las cosas que se aplazan se vuelven niebla.");
-        l.salida(1780, 600, 140, 440, MALECON, "Seguir al malecón");
+        l.salida(800, 560, 260, 90, MALECON, "Seguir al malecón");
 
         l.alPrimeraEntrada(() -> new Secuencia()
                 .paso(sig -> l.dialogo(sig,
@@ -497,9 +503,10 @@ public final class GuionDia1 {
         Lugar l = new Lugar(p, h, MALECON, "Parque y malecón", Reloj.h(11, 0));
         Ctx c = new Ctx(l);
         l.fondo(Rutas.MALECON);
-        l.caminable(60, 600, 1800, 440);
-        l.obstaculo(60, 560, 1800, 60, "Muro del río");
-        l.equipoEn(300, 920);
+        l.caminable(60, 450, 1800, 380);
+        l.obstaculo(1240, 700, 260, 80, "Banca");
+        l.obstaculo(700, 440, 470, 60, "Banca del árbol");  l.obstaculo(60, 560, 280, 250, "Carrito de arepas");
+        l.equipoEn(720, 760);
 
         l.rumor("Hay que limpiar el río. Los vendedores se van.", 0);
         l.letrero("ESTO ES EL RÍO, Y HOY ESTÁ LIMPIO. ESTO ES UN OFICIO, NO UN ESTORBO.");
@@ -511,17 +518,17 @@ public final class GuionDia1 {
         l.objetivo("minijuego", "La fecha del agua");
         l.objetivo("pruebas", "Las cuatro piezas del Letrero");
 
-        c.vecino("samuel", "Samuel", "el niño", 1500, 700, new Color(0x6FA8DC),
+        c.vecino("samuel", "Samuel", "el niño", 560, 520, new Color(0x6FA8DC),
                 "SAMUEL: Salomé quiere ser abogada para que nadie moleste a sus mamás.");
-        c.vecino("chela", "Chela", "la pescadora", 700, 720, new Color(0x3F8EDC),
+        c.vecino("chela", "Chela", "la pescadora", 1380, 640, new Color(0x3F8EDC),
                 "CHELA: El río tiene su modo. Cuando se enoja, se lo cuenta uno al otro.");
-        c.vecino("emiro", "Emiro", "el de los jugos", 1000, 760, new Color(0xE0A030),
+        c.vecino("emiro", "Emiro", "el de los jugos", 1290, 520, new Color(0xE0A030),
                 "EMIRO: Ni se acerquen sin jugo. Aquí manda el hambre.");
-        c.vecino("daniela", "Daniela", "la de las arepas", 1250, 800, new Color(0x3F8EDC),
+        c.vecino("daniela", "Daniela", "la de las arepas", 430, 640, new Color(0x3F8EDC),
                 "DANIELA: Cuando quieran arepa, me avisan. Las hago con huevo y con cariño.");
-        c.vecino("beatriz", "Doña Beatriz", "la señora", 1600, 900, new Color(0xD9A5EC));
-        c.vecino("julian", "Julián", "el muchacho", 450, 980, new Color(0x7A6A5A));
-        l.salida(1780, 620, 140, 420, JUNTA, "Subir a la Junta");
+        c.vecino("beatriz", "Doña Beatriz", "la señora", 1530, 520, new Color(0xD9A5EC));
+        c.vecino("julian", "Julián", "el muchacho", 1000, 540, new Color(0x7A6A5A));
+        l.salida(1600, 450, 220, 110, JUNTA, "Subir a la Junta");
 
         l.alPrimeraEntrada(() -> new Secuencia()
                 .paso(sig -> l.dialogo(sig,
@@ -616,17 +623,17 @@ public final class GuionDia1 {
                         d.add("INFLUENCER: No pensé que fuera tan viejo.");
                     }
                     d.add("CHELA: (le entrega siete tarjetas a {INFLUENCER}) Todo está aquí. Póngalo en orden y verá.");
-                    l.dialogo(() -> l.minijuegoFijo(Rol.INFLUENCER, new MjFechaDelAgua(el.containsValue(Lugar.A)), res -> {
-                        String[] r = res.puntos == Minijuego.BIEN
+                    l.dialogo(() -> l.minijuegoFijo(Rol.INFLUENCER, new MjFechaDelAgua(el.containsValue(Lugar.A)).dialogoFinal(nv -> {
+                        String[] r = nv == Minijuego.BIEN
                                 ? new String[]{"INFLUENCER: El episodio del titular ya se cerró hace un año. El papel de hoy lo usa como si fuera de ahora.",
                                     "CHELA: Eso es lo que digo yo."}
-                                : res.puntos == Minijuego.REGULAR
+                                : nv == Minijuego.REGULAR
                                         ? new String[]{"CHELA: Casi. Revise el orden de las dos del medio."}
                                         : new String[]{"CHELA: Mire, yo se lo explico. Todo eso ya se cerró hace un año."};
-                        l.dialogo(() -> {
+            return r;
+        }), res -> {
                             l.completar("minijuego");
                             c.activarPruebas();
-                        }, r);
                     }), d.toArray(new String[0]));
                 });
         l.esporadicos("Las mariposas escriben", MjMariposasEscriben::new,
@@ -666,9 +673,10 @@ public final class GuionDia1 {
         Lugar l = new Lugar(p, h, JUNTA, "Junta de Acción Comunal", Reloj.h(14, 0));
         Ctx c = new Ctx(l);
         l.fondo(Rutas.JUNTA);
-        l.caminable(60, 600, 1800, 440);
-        l.obstaculo(700, 560, 700, 120, "Mesa larga");
-        l.equipoEn(250, 940);
+        l.caminable(60, 640, 1800, 400);
+        l.obstaculo(1200, 680, 220, 70, "Banca");
+        l.obstaculo(170, 700, 470, 180, "Escritorio");
+        l.equipoEn(560, 980);
 
         l.rumor("La Junta se robó la plata del alcantarillado.", 0);
         l.letrero("ESTO ES LA PLATA, Y ESTÁ EN UN PAPEL QUE NADIE HA LEÍDO.");
@@ -681,17 +689,17 @@ public final class GuionDia1 {
         l.objetivo("minijuego", "El papel que nadie leyó");
         l.objetivo("pruebas", "Las cuatro piezas del Letrero");
 
-        c.vecino("alirio", "Don Alirio", "el señor", 300, 760, new Color(0x6A5ACD),
+        c.vecino("alirio", "Don Alirio", "el señor", 700, 760, new Color(0x6A5ACD),
                 "DON ALIRIO: Ustedes que andan con aparatos, ¿no pueden mandar a alguien que nos suba la mesa?");
-        c.vecino("gustavo", "Don Gustavo", "el señor", 450, 780, new Color(0x5A7ACD));
-        c.vecino("petra", "Doña Petra", "la presidenta", 1000, 720, new Color(0xC9553A),
+        c.vecino("gustavo", "Don Gustavo", "el señor", 460, 940, new Color(0x5A7ACD));
+        c.vecino("petra", "Doña Petra", "la presidenta", 1010, 720, new Color(0xC9553A),
                 "DOÑA PETRA: Leer no es lo mismo que comprobar, Wilson.");
-        c.vecino("wilson", "Wilson", "el muchacho", 1200, 760, new Color(0x4C8BD9),
+        c.vecino("wilson", "Wilson", "el muchacho", 1150, 800, new Color(0x4C8BD9),
                 "WILSON: Yo solo digo lo que leo.");
-        c.vecino("amaranta", "Amaranta", "la secretaria", 1500, 720, new Color(0x2B2350));
-        Actor sofia = c.vecino("sofia", "La señora del tinto", "la señora", 1700, 880, new Color(0xA0522D));
+        c.vecino("amaranta", "Amaranta", "la secretaria", 1350, 880, new Color(0x2B2350));
+        Actor sofia = c.vecino("sofia", "La señora del tinto", "la señora", 1720, 900, new Color(0xA0522D));
         sofia.interactuar("Preguntarle el nombre", () -> respetoNombre(l, sofia));
-        l.salida(0, 620, 110, 420, PLAZA, "Bajar a la plaza");
+        l.salida(700, 990, 600, 60, PLAZA, "Bajar a la plaza");
 
         l.alPrimeraEntrada(() -> new Secuencia()
                 .paso(sig -> l.dialogo(sig,
@@ -768,17 +776,17 @@ public final class GuionDia1 {
                         d.add("INFLUENCER: … Vi la palabra y ya.");
                     }
                     d.add("AMARANTA: (sin levantar la vista, con un guante de lana negro en la mano izquierda) Si busca el acta de la cuenta del alcantarillado, está en la tercera carpeta. Nadie me la ha pedido en dos años.");
-                    l.dialogo(() -> l.minijuegoFijo(Rol.CANDIDATO, new MjPapelQueNadieLeyo(el.containsValue(Lugar.A)), res -> {
-                        String[] r = res.puntos == Minijuego.BIEN
+                    l.dialogo(() -> l.minijuegoFijo(Rol.CANDIDATO, new MjPapelQueNadieLeyo(el.containsValue(Lugar.A)).dialogoFinal(nv -> {
+                        String[] r = nv == Minijuego.BIEN
                                 ? new String[]{"CANDIDATO: El dinero no se perdió: está depositado. El contratista existe: figura con factura. Y los dos millones no aparecen en ningún papel.",
                                     "AMARANTA: Y nadie los había buscado. Gracias."}
-                                : res.puntos == Minijuego.REGULAR
+                                : nv == Minijuego.REGULAR
                                         ? new String[]{"AMARANTA: Casi. Revise la de los dos millones."}
                                         : new String[]{"AMARANTA: Siéntese. Yo se lo explico con el papel en la mano."};
-                        l.dialogo(() -> {
+            return r;
+        }), res -> {
                             l.completar("minijuego");
                             c.activarPruebas();
-                        }, r);
                     }), d.toArray(new String[0]));
                 });
         l.esporadicos("Las mariposas escriben", MjMariposasEscriben::new,
@@ -841,15 +849,16 @@ public final class GuionDia1 {
         Lugar l = new Lugar(p, h, PLAZA, "El apagón", Reloj.h(17, 0));
         Ctx c = new Ctx(l);
         l.fondo(Rutas.PLAZA_APAGON);
-        l.caminable(60, 560, 1800, 480);
-        l.equipoEn(900, 940);
+        l.caminable(60, 450, 1800, 380);
+        l.obstaculo(1240, 700, 260, 80, "Banca");  l.obstaculo(60, 560, 280, 250, "Carrito de arepas");
+        l.equipoEn(900, 760);
         l.objetivo("faroles", "Prender los faroles");
         l.objetivo("rumor", "El rumor de boca en boca");
-        c.vecino("ursula", "Doña Úrsula", "la anciana", 300, 700, new Color(0x8A6A9A),
+        c.vecino("ursula", "Doña Úrsula", "la anciana", 560, 560, new Color(0x8A6A9A),
                 "DOÑA ÚRSULA: Cuando se cae la luz, la gente sale de la casa y se cuenta las cosas a la cara.");
-        c.vecino("mauricio", "Mauricio", "el de la bicicleta", 1400, 760, new Color(0x5BA843),
+        c.vecino("mauricio", "Mauricio", "el de la bicicleta", 1250, 620, new Color(0x5BA843),
                 "MAURICIO: Yo no sé de dónde sale eso. Yo solo llevo papeles.");
-        l.salida(1780, 600, 140, 440, CENA, "Volver a la casa para la cena");
+        l.salida(300, 450, 160, 100, CENA, "Volver a la casa para la cena");
 
         String[] boca = {"Preguntarle a Mauricio de dónde lo oyó.", "Contárselo al vecino de al lado.",
             "Quedarte en silencio y seguir con el farol."};
@@ -889,6 +898,7 @@ public final class GuionDia1 {
                         },
                         el -> {
                             if (el.containsValue(0)) {
+                                p.poner("apagon_pregunto_mauricio");   // el Dia 2 Mauricio lo recuerda
                                 l.dialogo(sig, "MAURICIO: Yo oí que son cuarenta y seis contratos que vencen en tres semanas. No sé más.");
                             } else {
                                 sig.run();
@@ -909,11 +919,13 @@ public final class GuionDia1 {
     private static Lugar cena(Partida p, Lugar.Anfitrion h) {
         Lugar l = new Lugar(p, h, CENA, "La cena", Reloj.h(19, 0));
         l.fondo(Rutas.CASA_CENA);
-        l.caminable(80, 600, 1760, 440);
-        l.obstaculo(660, 600, 600, 140, "Mesa");
+        l.caminable(80, 300, 1760, 740);
+        l.obstaculo(470, 250, 980, 600, "Mesa");
         l.equipoEn(960, 900);
-        l.npc("rosa", "Doña Rosa", "la señora", 1500, 680, new Color(0xB5473A));
-        l.npc("samuel", "Samuel", "el niño", 600, 700, new Color(0x6FA8DC));
+        l.npc("rosa", "Doña Rosa", "la señora", 1600, 620, new Color(0xB5473A));
+        l.npc("samuel", "Samuel", "el niño", 330, 620, new Color(0x6FA8DC));
+        // la cena se ve como cinematica: los cuatro sentados al fondo de la mesa, nadie camina
+        l.modoCinematica(new int[][]{{600, 400}, {810, 375}, {1110, 375}, {1320, 400}});
 
         String animo = p.nivelAnimo();
         String lineaAnimo = animo.equals("alto") ? "DOÑA ROSA: Hoy se les nota. Siguen así."
@@ -947,11 +959,14 @@ public final class GuionDia1 {
                                     : "Narrador: El papel está casi en blanco: solo se ven cinco pedazos sueltos.",
                             "DOÑA ROSA: (mirándolo) Eso también es un mensaje.");
                 })
-                .paso(sig -> l.minijuegoFijo(Rol.PERIODISTA, new MjPergaminos(), res -> l.dialogo(sig,
-                        res.puntos == Minijuego.BIEN
-                                ? "PERIODISTA: «Dirá la isla que lo oyó todo y no habrá escuchado nada.»"
-                                : "MELQUÍADES: Siempre se me confunde el orden.")))
+                .paso(sig -> l.minijuegoFijo(Rol.PERIODISTA, new MjPergaminos().dialogoFinal(nv -> nv == Minijuego.BIEN
+                        ? new String[]{"PERIODISTA: «Dirá la isla que lo oyó todo y no habrá escuchado nada.»",
+                            "MELQUÍADES: Eso es lo que yo escribí. Y lo que ustedes acaban de leer."}
+                        : nv == Minijuego.REGULAR
+                                ? new String[]{"MELQUÍADES: Casi. Falta una frase."}
+                                : new String[]{"MELQUÍADES: Siempre se me confunde el orden."}), res -> sig.run()))
                 .paso(sig -> laNoche(l, sig))
+                .paso(sig -> votoCuidarLetreros(l, sig))
                 .paso(sig -> l.dialogo(sig,
                         "Narrador: Antes de dormir, la tele se enciende sola unos segundos.",
                         "VLADO: Perdón por esto. Me acaban de pasar el origen del audio.",
@@ -960,15 +975,16 @@ public final class GuionDia1 {
                         "PERIODISTA: No. Alguien quería que corriera.",
                         "SAMUEL: (baja las escaleras en pijama) Doña Rosa, ¿nos cierran el colegio?",
                         "DOÑA ROSA: No, mijo. Pero hay que estar pendientes.",
-                        "Narrador: Los cuatro se quedan mirando la tele apagada.",
-                        "Narrador: Día 1 de 2 completado. Empieza el Día 2."))
+                        "Narrador: Los cuatro se quedan mirando la tele apagada."))
+                .paso(sig -> votoOrigenAudio(l, sig))
+                .paso(sig -> l.dialogo(sig, "Narrador: Día 1 de 2 completado. Empieza el Día 2."))
                 .hacer(() -> h.terminarDia())
                 .iniciar());
         return l;
     }
 
     /** Cada jugador decide si pone sus piezas en los Letreros de la mesa. */
-    private static void armarLetreros(Lugar l, Runnable fin) {
+    static void armarLetreros(Lugar l, Runnable fin) {
         Partida p = l.partida();
         DecisionGrupal.cadaUno(l, "En la mesa hay cuatro huecos por Letrero. ¿Pones tus piezas?",
                 new String[]{"Poner mis piezas", "Guardármelas"},
@@ -1007,6 +1023,64 @@ public final class GuionDia1 {
                         fin.run();
                     } else {
                         l.dialogo(fin, d.toArray(new String[0]));
+                    }
+                });
+    }
+
+    /** Votacion de la noche: ¿cuidamos los Letreros o dormimos? (guion, final del Dia 1). */
+    private static void votoCuidarLetreros(Lugar l, Runnable fin) {
+        Partida p = l.partida();
+        l.dialogo(() -> DecisionGrupal.votacion(l, "¿Cuidamos los Letreros o dormimos?",
+                new String[]{"Cuidar los letreros por turnos.", "Dormir (prudente)."}, 1,
+                g -> {
+                    if (g == 0) {
+                        for (Jugador j : p.jugadores()) {
+                            l.efecto(j, Efecto.de(EstadoJuego.BIENESTAR, -1), "Votación: cuidar los letreros");
+                        }
+                        for (Letrero le : p.letreros()) {
+                            if (le.piezas() == 3) {      // resisten como si tuvieran cuatro hasta mañana
+                                p.poner("letrero_cuidado_" + le.lugar);
+                            }
+                        }
+                        p.poner("noche_cuidaron_letreros");
+                        l.dialogo(fin,
+                                "CIUDADANO: Hagamos turnos de dos horas. Yo empiezo.",
+                                "PERIODISTA: Yo tomo el último.",
+                                "SAMUEL: ¿Se quedan despiertos por mí?",
+                                "DOÑA ROSA: Por ustedes, mijo. Y por las mariposas.");
+                    } else {
+                        for (Jugador j : p.jugadores()) {
+                            l.efecto(j, Efecto.de(EstadoJuego.BIENESTAR, 2), "Votación: dormir");
+                        }
+                        l.efectoCompartido(Efecto.de(Partida.ANIMO, 1), "Votación: dormir");
+                        l.dialogo(fin,
+                                "INFLUENCER: Si no dormimos, mañana nos equivocamos. Y sin querer.",
+                                "DOÑA ROSA: Eso. Las velas se apagan solas.");
+                    }
+                }),
+                "Narrador: Doña Rosa deja una vela y una manta sobre la mesa. Afuera, la bruma se queda quieta, esperando.",
+                "DOÑA ÚRSULA: (desde la ventana) La niebla no mira el reloj. Pero ustedes sí deberían.");
+    }
+
+    /**
+     * Votacion del giro: ¿que hacemos con el origen del audio? Deja la bandera origen_audio_A/B/C;
+     * los efectos se aplican en la manana del Dia 2 (GuionDia2), que es cuando "el Dia 2 empieza con...".
+     */
+    private static void votoOrigenAudio(Lugar l, Runnable fin) {
+        Partida p = l.partida();
+        DecisionGrupal.votacion(l, "¿Qué hacemos con el origen del audio?",
+                new String[]{"Contárselo a Doña Rosa y a Samuel ahora (prudente).",
+                    "Investigar entre los cuatro sin avisar a nadie.",
+                    "Dejarlo hasta mañana."}, 0,
+                g -> {
+                    p.poner("origen_audio_" + (char) ('A' + g));
+                    if (g == 0) {
+                        l.dialogo(fin, "CIUDADANO: Se lo contamos. En esta casa no se esconde nada.",
+                                "DOÑA ROSA: (desde la escalera) Gracias por decírmelo a la cara.");
+                    } else if (g == 1) {
+                        l.dialogo(fin, "PERIODISTA: Yo busco el hilo. No hay por qué asustar a nadie todavía.");
+                    } else {
+                        l.dialogo(fin, "CANDIDATO: Es de noche. Mañana lo vemos con la cabeza fría.");
                     }
                 });
     }

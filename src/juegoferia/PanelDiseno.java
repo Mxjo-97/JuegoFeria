@@ -129,6 +129,9 @@ public abstract class PanelDiseno extends JPanel {
 
     @Override
     protected void processMouseEvent(MouseEvent e) {
+        if (ratonDeAjustes(e)) {
+            return;
+        }
         if (Sincronia.activa() && !Sincronia.inyectando()) {
             if (e.getID() == MouseEvent.MOUSE_PRESSED) {
                 requestFocusInWindow();
@@ -142,6 +145,9 @@ public abstract class PanelDiseno extends JPanel {
 
     @Override
     protected void processMouseMotionEvent(MouseEvent e) {
+        if (ratonDeAjustes(e)) {
+            return;
+        }
         if (Sincronia.activa() && !Sincronia.inyectando()) {
             Sincronia.ratonLocal(e, aDisenoReal(e.getPoint()));
             e.consume();
@@ -201,9 +207,35 @@ public abstract class PanelDiseno extends JPanel {
         Estilo.suave(g);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         dibujar(g);
+        if (conAjustes()) {
+            Ajustes.dibujar(g, 1 / 60.0);
+        }
+    }
+
+    /** true = esta pantalla muestra el boton del parlante (lugares, minijuegos y cinematicas). */
+    protected boolean conAjustes() {
+        return false;
+    }
+
+    /** El boton del parlante se queda con el clic si es suyo (el juego no lo recibe). */
+    private boolean ratonDeAjustes(MouseEvent e) {
+        if (!conAjustes() || Sincronia.inyectando()) {
+            return false;
+        }
+        if (Ajustes.raton(e.getID(), aDisenoReal(e.getPoint()))) {
+            e.consume();
+            repaint();
+            return true;
+        }
+        return false;
     }
 
     // ===================== UTILIDADES DE DIBUJO =====================
+
+    /** Igual que envolver(...), pero publico (lo usa el kit de arte de los minijuegos). */
+    public static List<String> envolverTexto(String texto, FontMetrics fm, int maxW) {
+        return envolver(texto, fm, maxW);
+    }
 
     protected static List<String> envolver(String texto, FontMetrics fm, int maxW) {
         List<String> lineas = new ArrayList<>();

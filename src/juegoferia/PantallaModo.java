@@ -12,7 +12,7 @@ import java.awt.event.MouseEvent;
 /**
  * Despues de JUGAR: como quieren jugar.
  *   EN RED        cuatro computadores (cada quien con su personaje y su teclado)
- *   EN UN SOLO PC los cuatro en el mismo computador (TAB cambia quien camina)
+ *   EN UN SOLO PC los cuatro en el mismo computador (1-4 cambian quien camina)
  * Los botones se dibujan con codigo y se hunden al presionar.
  */
 public class PantallaModo extends PanelDiseno {
@@ -26,7 +26,7 @@ public class PantallaModo extends PanelDiseno {
     private final String[] titulo = {"EN RED", "EN UN SOLO PC", "VOLVER"};
     private final String[] detalle = {
         "4 jugadores, cada uno en su computador y con su personaje",
-        "Los cuatro en este computador · TAB cambia quién camina",
+        "Los cuatro en este computador · 1, 2, 3 y 4 cambian quién camina",
         null
     };
     private int encima = -1, pulsado = -1;

@@ -31,6 +31,8 @@ public class Actor {
     public int hitAncho = 56, hitAlto = 30;
     public boolean solido = true;
     public String etiqueta;
+    /** true = no se dibuja (ej: Vlado, que es la voz de la tele dibujada en el fondo), pero si se puede hablar. */
+    public boolean invisible;
     public Runnable alInteractuar;
     public String nombre, nombreNiebla;   // placa con el nombre (y como se llama cuando hay niebla)
     public boolean mirandoIzquierda, caminando;
@@ -184,6 +186,9 @@ public class Actor {
     // ---- dibujo ----
 
     public void dibujar(Graphics2D g, double t) {
+        if (invisible) {
+            return;
+        }
         AffineTransform guardado = g.getTransform();
 
         g.setColor(new Color(0, 0, 0, 60));

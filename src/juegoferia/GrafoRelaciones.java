@@ -207,7 +207,7 @@ public class GrafoRelaciones {
         g.conectar("nubia", "yolanda");
         g.conectar("nubia", "eliecer");
         g.conectar("rosa", "mateo");
-        g.conectar("mateo", "camila");
+        g.conectar("mateo", "esperanza");
         g.conectar("ximena", "lorena");
         g.conectar("ximena", "salome");
         g.conectar("lorena", "salome");

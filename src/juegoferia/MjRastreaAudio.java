@@ -1,6 +1,5 @@
 package juegoferia;
 
-import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FontMetrics;
@@ -51,6 +50,19 @@ public class MjRastreaAudio extends Minijuego {
     }
 
     @Override
+    protected String carpetaArte() {
+        return "rastrea";
+    }
+
+    @Override
+    protected void iconoAviso(Graphics2D g, int cx, int cy) {
+        if (!ArteMj.pegar(g, "rastrea", "rastrea_celular_microfono", cx - 20, cy, 200)) {
+            ArteMj.lupa(g, cx, cy, 160);
+        }
+        ArteMj.pegar(g, "rastrea", "rastrea_lupa_ampliada", cx + 70, cy + 80, 110);
+    }
+
+    @Override
     public String instrucciones() {
         return "Doña Rosa te pasa su celular. Sube por los reenvíos hasta encontrar de dónde salió el audio. "
                 + "En cada paso elige de quién llegó el mensaje y marca las palabras que cambiaron.";
@@ -67,7 +79,7 @@ public class MjRastreaAudio extends Minijuego {
         nubia.agregarHijo(new Nodo("wilson", "Wilson", "Ojo: Aguado cierra el colegio en enero."));
         Nodo barrio = nubia.agregarHijo(new Nodo("barrio", "Grupo del barrio", "Dicen que cierran el colegio en enero."));
         barrio.agregarHijo(new Nodo("eliecer", "Don Eliécer", "Pues si lo cierran, por algo será."));
-        barrio.agregarHijo(new Nodo("camila", "Camila", "¿Mi colegio?"));
+        barrio.agregarHijo(new Nodo("esteban", "Esteban", "¿El colegio de mis hijos?"));
         barrio.agregarHijo(new Nodo("rosa", "Grupo de la panadería", "Cierran el colegio en enero. Pásalo."));
         return raiz;
     }
@@ -206,52 +218,64 @@ public class MjRastreaAudio extends Minijuego {
 
     @Override
     protected void dibujarJuego(Graphics2D g) {
-        fondo(g, "/imagenes/minijuegos/rastrea_audio.png");
+        ArteMj.fondoOficial(g, Rutas.PANADERIA, 100);
         String[] cs = {"Sube un nivel.", "Mira la palabra «dicen».", "Compara con el de arriba."};
         cabecera(g, nombre(), cs[consejo % cs.length]);
-        g.setFont(Estilo.fuente(Font.BOLD, 26f));
-        g.setColor(Estilo.TEXTO);
-        g.drawString("Nivel " + actual.nivel() + " · palabras bien marcadas: " + buenas + " · intentos fallidos: " + errores,
-                60, 140);
+        // contador
+        String cont = "Nivel " + actual.nivel() + " · bien marcadas: " + buenas;
+        g.setFont(ArteMj.letra(26f));
+        int cw = g.getFontMetrics().stringWidth(cont) + 70;
+        ArteMj.pildora(g, 1860 - cw, 44, cw, 62, ArteMj.CREMA, 4f);
+        ArteMj.centrado(g, cont, 1860 - cw / 2.0, 85, ArteMj.TEXTO);
+        if (lupa) {
+            ArteMj.pegar(g, "rastrea", "rastrea_lupa_ampliada", 1860 - cw - 60, 75, 84);
+        }
 
         if (paso == Paso.ELEGIR_PADRE) {
-            mensaje(g, actual, 160, 200, 1600, false);
-            g.setFont(Estilo.fuente(Font.BOLD, 40f));
-            g.setColor(Estilo.TEXTO);
-            g.drawString("¿De quién le llegó?", 160, 520);
+            mensaje(g, actual, 160, 160, 1600, false);
+            g.setFont(ArteMj.letra(38f));
+            ArteMj.pegar(g, "rastrea", "rastrea_flecha_ramificada", 960, 440, 110);
+            ArteMj.pildora(g, 620, 476, 680, 64, ArteMj.AMARILLO_CLARO, 4f);
+            ArteMj.centrado(g, "¿De quién le llegó?", 960, 522, ArteMj.TEXTO);
             for (int i = 0; i < candidatos.size(); i++) {
-                Rectangle r = rectCandidato(i);
-                mensajeCaja(g, candidatos.get(i), r);
+                mensajeCaja(g, candidatos.get(i), rectCandidato(i));
             }
+            ArteMj.intentos(g, 1700, 900, 3 - errores, 3);
         } else {
-            g.setFont(Estilo.fuente(Font.BOLD, 30f));
-            g.setColor(Estilo.TEXTO_SUAVE);
-            g.drawString("De arriba (de quien lo recibió):", 160, 200);
-            mensaje(g, actual.padre, 160, 220, 1600, false);
-            g.drawString("Este mensaje. Toca las palabras que cambiaron:", 160, 500);
+            g.setFont(ArteMj.letra(26f));
+            g.setColor(ArteMj.CREMA);
+            g.drawString("De arriba (de quien lo recibió):", 160, 150);
+            mensaje(g, actual.padre, 160, 165, 1600, false);
+            if (actual.padre.esRaiz()) {
+                ArteMj.pegar(g, "rastrea", "rastrea_pin_origen_megafono", 1720, 200, 120);
+            }
+            if (!ArteMj.pegar(g, "rastrea", "rastrea_flecha_curva", 960, 448, 80)) {
+                ArteMj.flecha(g, 960, 470, 960, 420, ArteMj.AMARILLO, 16, 0);
+            }
+            g.setFont(ArteMj.letra(26f));
+            g.setColor(ArteMj.CREMA);
+            g.drawString("Este mensaje. Toca las palabras que cambiaron:", 160, 505);
             mensaje(g, actual, 160, 520, 1600, true);
             boton(g, subir, actual.padre.esRaiz() ? "Llegar al origen" : "Subir un nivel", true);
         }
-        if (!aviso.isEmpty()) {
-            g.setFont(Estilo.fuente(Font.BOLD, 30f));
-            g.setColor(Estilo.ROJO);
-            g.drawString(aviso, 160, 900);
-        }
+        ArteMj.aviso(g, aviso, 960, 880);
     }
 
+    /** Un chat que se puede elegir: burbuja crema con el icono de quien lo manda. */
     private void mensajeCaja(Graphics2D g, Nodo n, Rectangle r) {
-        Estilo.pergamino(g, r.x, r.y, r.width, r.height, 26);
-        g.setColor(Estilo.MADERA_OSCURA);
-        g.setStroke(new BasicStroke(3f));
-        g.drawRoundRect(r.x, r.y, r.width, r.height, 26, 26);
-        g.setFont(Estilo.fuente(Font.BOLD, 28f));
-        g.drawString(n.tipo, r.x + 24, r.y + 44);
+        ArteMj.globo(g, r.x + 20, r.y, r.width - 20, r.height, -1, ArteMj.CREMA);
+        if (!ArteMj.pegar(g, "rastrea", "rastrea_emisor_perfil_vacio", r.x + 70, r.y + 56, 70)) {
+            ArteMj.cara(g, r.x + 70, r.y + 56, 30, null, null);
+        }
+        g.setFont(ArteMj.letra(28f));
+        g.setColor(new Color(0xB0562E));
+        g.drawString(n.tipo, r.x + 116, r.y + 64);
         g.setFont(Estilo.fuente(Font.PLAIN, 26f));
-        g.setColor(Estilo.TEXTO);
         FontMetrics fm = g.getFontMetrics();
-        int y = r.y + 90;
-        for (String l : envolver(n.descripcion, fm, r.width - 48)) {
-            g.drawString(l, r.x + 24, y);
+        int y = r.y + 116;
+        g.setColor(ArteMj.TEXTO);
+        for (String l : envolver(n.descripcion, fm, r.width - 80)) {
+            g.drawString(l, r.x + 50, y);
             y += fm.getHeight();
         }
     }
@@ -277,10 +301,13 @@ public class MjRastreaAudio extends Minijuego {
 
     /** Dibuja un mensaje palabra por palabra. Si clicable, marca las cambiadas (lupa) y las elegidas. */
     private void mensaje(Graphics2D g, Nodo n, int x, int y, int w, boolean clicable) {
-        Estilo.pergamino(g, x, y, w, 220, 30);
-        g.setFont(Estilo.fuente(Font.BOLD, 28f));
-        g.setColor(Estilo.TEXTO_SUAVE);
-        g.drawString(n.tipo, x + 30, y + 44);
+        ArteMj.globo(g, x + 20, y, w - 20, 220, -1, clicable ? ArteMj.VERDE_CLARO : ArteMj.CREMA);
+        if (!ArteMj.pegar(g, "rastrea", n.esRaiz() ? "rastrea_megafono" : "rastrea_emisor_sin_rostro", x - 70, y + 70, 110)) {
+            ArteMj.cara(g, x - 70, y + 70, 44, null, null);
+        }
+        g.setFont(ArteMj.letra(28f));
+        g.setColor(new Color(0xB0562E));
+        g.drawString(n.tipo, x + 50, y + 46);
         g.setFont(Estilo.fuente(Font.PLAIN, 40f));
         Set<Integer> cambio = clicable && lupa ? cambiadas(n) : Collections.emptySet();
         String[] ws = palabras(n.descripcion);
@@ -289,16 +316,14 @@ public class MjRastreaAudio extends Minijuego {
             Rectangle r = rs.get(i);
             if (clicable) {
                 if (cambio.contains(i)) {
-                    g.setColor(new Color(255, 230, 90, 140));
-                    g.fillRoundRect(r.x, r.y, r.width, r.height, 12, 12);
+                    g.setColor(new Color(255, 225, 120, 150));
+                    g.fill(ArteMj.redondo(r.x, r.y, r.width, r.height, 12));
                 }
                 if (marcadas.contains(i)) {
-                    g.setColor(Estilo.ROJO);
-                    g.setStroke(new BasicStroke(4f));
-                    g.drawRoundRect(r.x, r.y, r.width, r.height, 12, 12);
+                    ArteMj.pildora(g, r.x - 2, r.y + 2, r.width + 4, r.height - 2, ArteMj.AMARILLO, 3f);
                 }
             }
-            g.setColor(Estilo.TEXTO);
+            g.setColor(ArteMj.TEXTO);
             g.drawString(ws[i], r.x + 6, r.y + 36);
         }
     }

@@ -28,6 +28,18 @@ public final class AudioCine {
     private static Clip musica;
     private static String rutaMusica;
     private static final List<Clip> efectos = new ArrayList<>();
+    /** Volumen "logico" de cada clip (0..1, sin el boton del parlante) y cuales son musica. */
+    private static final java.util.Map<Clip, Double> logico = new java.util.WeakHashMap<>();
+    private static final java.util.Set<Clip> sonMusica = java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
+
+    /** Lo llama el boton del parlante. */
+    public static synchronized void reaplicarVolumen() {
+        for (java.util.Map.Entry<Clip, Double> e : new java.util.ArrayList<>(logico.entrySet())) {
+            if (e.getKey().isOpen()) {
+                ponerVolumen(e.getKey(), e.getValue());
+            }
+        }
+    }
 
     // ===================== MUSICA =====================
 
@@ -46,6 +58,7 @@ public final class AudioCine {
         if (c == null) return;
         musica = c;
         rutaMusica = ruta;
+        sonMusica.add(c);
         ponerVolumen(c, fadeEntradaSeg > 0 ? 0 : volumen);
         c.loop(Clip.LOOP_CONTINUOUSLY);
         if (fadeEntradaSeg > 0) fade(c, volumen, fadeEntradaSeg, null);
@@ -137,7 +150,9 @@ public final class AudioCine {
         try {
             if (!c.isControlSupported(FloatControl.Type.MASTER_GAIN)) return;
             FloatControl ctl = (FloatControl) c.getControl(FloatControl.Type.MASTER_GAIN);
-            double lineal = Math.max(0, Math.min(1, v));
+            logico.put(c, v);
+            double factor = sonMusica.contains(c) ? Ajustes.fMusica() : Ajustes.fEfectos();
+            double lineal = Math.max(0, Math.min(1, v)) * factor;
             float db = lineal <= 0.0001 ? ctl.getMinimum() : (float) (20 * Math.log10(lineal));
             ctl.setValue(Math.max(ctl.getMinimum(), Math.min(ctl.getMaximum(), db)));
         } catch (Exception ignorar) {
@@ -146,6 +161,10 @@ public final class AudioCine {
     }
 
     private static double volumenActual(Clip c) {
+        Double l = logico.get(c);
+        if (l != null) {
+            return l;
+        }
         try {
             FloatControl ctl = (FloatControl) c.getControl(FloatControl.Type.MASTER_GAIN);
             return Math.pow(10, ctl.getValue() / 20.0);

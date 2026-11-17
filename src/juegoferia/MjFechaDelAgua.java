@@ -1,5 +1,7 @@
 package juegoferia;
 
+import java.awt.Graphics2D;
+
 /**
  * Minijuego fijo del MALECON: "La fecha del agua". Lo juega Influencer.
  * Chela entrega siete tarjetas y hay que ordenarlas por fecha.
@@ -18,6 +20,34 @@ public class MjFechaDelAgua extends MjOrdenar {
     @Override
     public String nombre() {
         return "La fecha del agua";
+    }
+
+    @Override
+    protected String carpetaArte() {
+        return "fecha_agua";
+    }
+
+    @Override
+    protected String[] fondoLugar() {
+        return Rutas.MALECON;
+    }
+
+    @Override
+    protected void iconoAviso(Graphics2D g, int cx, int cy) {
+        if (!ArteMj.pegar(g, "fecha_agua", "agua_calendario_mensual", cx, cy - 20, 170)) {
+            ArteMj.numero(g, 1, cx, cy, 120, true);
+        }
+        ArteMj.pegar(g, "fecha_agua", "agua_gota_grande", cx + 80, cy + 80, 100);
+    }
+
+    @Override
+    protected void adornos(Graphics2D g) {
+        ArteMj.pegar(g, "fecha_agua", "agua_tarjeta_noticia", 1830, 200, 120);
+        ArteMj.pegar(g, "fecha_agua", "agua_gota_con_ondas", 1830, 330, 90);
+        g.setFont(ArteMj.letra(22f));
+        ArteMj.centrado(g, "más vieja", 95, 190, ArteMj.CREMA);
+        ArteMj.flecha(g, 95, 210, 95, 880, ArteMj.AZUL, 16, 0);
+        ArteMj.centrado(g, "hoy", 95, 920, ArteMj.CREMA);
     }
 
     @Override

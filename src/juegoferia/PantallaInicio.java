@@ -172,6 +172,24 @@ public class PantallaInicio extends JPanel {
 
         iniciarElementos();
 
+        // boton de CREDITOS (abajo a la derecha): se dibuja en paintChildren y se toca aqui
+        MouseAdapter creditos = new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                if (alCreditos != null && ZONA_CREDITOS.contains(aDisenoUI(e.getX(), e.getY()))) {
+                    Ajustes.sfx("/sonidos/click.wav", "/sonidos/tecla.wav");
+                    alCreditos.run();
+                }
+            }
+
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                sobreCreditos = ZONA_CREDITOS.contains(aDisenoUI(e.getX(), e.getY()));
+            }
+        };
+        addMouseListener(creditos);
+        addMouseMotionListener(creditos);
+
         reloj = new Timer(16, e -> {
             long ahora = System.nanoTime();
             double dt = Math.min(0.05, (ahora - ultimo) / 1e9);
@@ -194,6 +212,66 @@ public class PantallaInicio extends JPanel {
                 }
             }
         });
+    }
+
+    // ---------- boton de creditos ----------
+    private static final Rectangle2D ZONA_CREDITOS = new Rectangle2D.Double(1676, 984, 214, 66);
+    private Runnable alCreditos;
+    private boolean sobreCreditos;
+    private double hoverCreditos;
+
+    /** Lo que pasa al tocar "Créditos" (VentanaJuego abre la pantalla de creditos). */
+    public void setAlCreditos(Runnable r) {
+        alCreditos = r;
+    }
+
+    private java.awt.geom.Point2D aDisenoUI(int px, int py) {
+        double us = escalaUI();
+        double ox = (getWidth() - W * us) / 2.0, oy = (getHeight() - H * us) / 2.0;
+        return new java.awt.geom.Point2D.Double((px - ox) / us, (py - oy) / us);
+    }
+
+    private void dibujarBotonCreditos(Graphics2D g) {
+        if (alCreditos == null) {
+            return;
+        }
+        double p = clamp((t - 1.0) / 0.5);
+        if (p <= 0) {
+            return;
+        }
+        hoverCreditos += ((sobreCreditos ? 1 : 0) - hoverCreditos) * 0.2;
+        java.awt.Composite c0 = g.getComposite();
+        g.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, (float) p));
+        Rectangle2D r = ZONA_CREDITOS;
+        double lift = hoverCreditos * 5 + Math.sin(t * 1.6) * 2;
+        double x = r.getX(), y = r.getY() - lift + (1 - p) * 30, w = r.getWidth(), h = r.getHeight();
+        g.setColor(new Color(60, 30, 10, 70));
+        g.fill(new RoundRectangle2D.Double(x + 2, y + 7, w, h, h, h));
+        g.setPaint(new GradientPaint(0, (float) y, hoverCreditos > 0.5 ? new Color(0xFFE9F0) : new Color(0xFFF6EA),
+                0, (float) (y + h), new Color(0xF9D3DE)));
+        g.fill(new RoundRectangle2D.Double(x, y, w, h, h, h));
+        g.setColor(BORDE);
+        g.setStroke(new BasicStroke(4f));
+        g.draw(new RoundRectangle2D.Double(x, y, w, h, h, h));
+        // corazoncito
+        double hx = x + 38, hy = y + h / 2 - 2;
+        double lat = 1 + 0.08 * Math.sin(t * 6);
+        g.setColor(new Color(0xE8607A));
+        g.fill(new Ellipse2D.Double(hx - 11 * lat, hy - 8 * lat, 12 * lat, 12 * lat));
+        g.fill(new Ellipse2D.Double(hx - 1 * lat, hy - 8 * lat, 12 * lat, 12 * lat));
+        Path2D pico = new Path2D.Double();
+        pico.moveTo(hx - 11 * lat, hy - 1);
+        pico.lineTo(hx + 11 * lat, hy - 1);
+        pico.lineTo(hx, hy + 12 * lat);
+        pico.closePath();
+        g.fill(pico);
+        g.setFont(new Font("SansSerif", Font.BOLD, 28));
+        if (Estilo.fuente(Font.BOLD, 28f) != null) {
+            g.setFont(Estilo.fuente(Font.BOLD, 28f));
+        }
+        g.setColor(TEXTO);
+        g.drawString("Créditos", (float) (x + 62), (float) (y + h / 2 + 10));
+        g.setComposite(c0);
     }
 
     private void cargarFondo() {
@@ -550,6 +628,7 @@ public class PantallaInicio extends JPanel {
 
         Graphics2D u = graficosUI(g0);
         dibujarDecoracionRueda(u);
+        dibujarBotonCreditos(u);
         u.dispose();
 
         Graphics2D g = graficosFondo(g0);

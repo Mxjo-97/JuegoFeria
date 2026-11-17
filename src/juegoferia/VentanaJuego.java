@@ -16,7 +16,7 @@ import javax.swing.JPanel;
  *     -> menu (PantallaInicio)
  *        -> JUGAR: como quieren jugar (PantallaModo)
  *             -> EN RED: conectar / sala (PanelRed) -> cuando estan los 4: JuegoMacondo en red
- *             -> EN UN SOLO PC: elegir personaje -> JuegoMacondo (TAB cambia quien camina)
+ *             -> EN UN SOLO PC: elegir personaje -> JuegoMacondo (1-4 cambian quien camina)
  *        -> INSTRUCCIONES: tu imagen "instrucciones.png" -> menu
  *        -> MINIJUEGOS: pantalla de pruebas -> menu
  *        -> SALIR
@@ -61,6 +61,10 @@ public class VentanaJuego extends JFrame {
         PantallaInicio menu = new PantallaInicio(this::irAModo, this::irAInstrucciones,
                 () -> System.exit(0), this::irAMinijuegos);
         raiz.add(menu, "menu");
+
+        // creditos (boton chiquito abajo a la derecha del menu)
+        raiz.add(new PantallaCreditos(this::irAlMenu), "creditos");
+        menu.setAlCreditos(() -> cartas.show(raiz, "creditos"));
 
         // como jugar: tu imagen instrucciones.png (1591 x 989) o, si no esta, la nueva (1920 x 1080)
         raiz.add(crearComoJugar(), "instrucciones");

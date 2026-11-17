@@ -43,6 +43,29 @@ public abstract class MjOrdenar extends Minijuego {
         return null;
     }
 
+    /** Fondo oficial del lugar (lista de Rutas); si no es null, gana sobre rutaFondo(). */
+    protected String[] fondoLugar() {
+        return null;
+    }
+
+    /**
+     * Dibuja una tarjeta en su puesto (las subclases la cambian: papel con fecha, pedazo de pergamino...).
+     * puesto empieza en 1. elegida = levantada; fija = la de la pista.
+     */
+    protected void tarjeta(Graphics2D g, int puesto, Rectangle r, String texto, boolean elegida, boolean fija) {
+        int off = elegida ? -8 : 0;
+        Rectangle rr = new Rectangle(r.x, r.y + off, r.width, r.height);
+        ArteMj.sticker(g, ArteMj.redondo(rr.x, rr.y, rr.width, rr.height, 24),
+                elegida ? ArteMj.AMARILLO_CLARO : fija ? ArteMj.VERDE_CLARO : ArteMj.CREMA, 5f);
+        ArteMj.numero(g, puesto, rr.x + 52, rr.getCenterY(), rr.height * 0.82, elegida);
+        g.setFont(Estilo.fuente(Font.PLAIN, 30f));
+        ArteMj.textoEnCaja(g, texto, new Rectangle(rr.x + 110, rr.y + 4, rr.width - 150, rr.height - 8), ArteMj.TEXTO);
+    }
+
+    /** Adornos propios (iconos de los recursos) despues de las tarjetas. */
+    protected void adornos(Graphics2D g) {
+    }
+
     /** Cuantas tarjetas empiezan ya en su sitio (pista por haber verificado antes). */
     protected int fijasAlInicio() {
         return 0;
@@ -135,34 +158,19 @@ public abstract class MjOrdenar extends Minijuego {
 
     @Override
     protected void dibujarJuego(Graphics2D g) {
-        fondo(g, rutaFondo());
+        if (fondoLugar() != null) {
+            ArteMj.fondoOficial(g, fondoLugar(), 100);
+        } else {
+            fondo(g, rutaFondo());
+        }
         String[] c = consejos();
         cabecera(g, nombre(), c.length == 0 ? null : c[consejo % c.length]);
         String[] t = tarjetasEnOrden();
         for (int i = 0; i < orden.size(); i++) {
-            Rectangle r = rect(i);
-            Estilo.pergamino(g, r.x, r.y, r.width, r.height, 26);
-            g.setStroke(new BasicStroke(i == elegida ? 7f : 3f));
-            g.setColor(i == elegida ? Estilo.DORADO : i < fijasAlInicio() ? Estilo.HOJA : Estilo.MADERA_OSCURA);
-            g.drawRoundRect(r.x, r.y, r.width, r.height, 26, 26);
-            g.setFont(Estilo.fuente(Font.BOLD, 30f));
-            g.setColor(Estilo.TEXTO_SUAVE);
-            g.drawString(String.valueOf(i + 1), r.x + 24, r.y + r.height / 2 + 11);
-            g.setFont(Estilo.fuente(Font.PLAIN, 30f));
-            g.setColor(Estilo.TEXTO);
-            FontMetrics fm = g.getFontMetrics();
-            List<String> ls = envolver(t[orden.get(i)], fm, r.width - 120);
-            int ty = r.y + r.height / 2 - (ls.size() - 1) * fm.getHeight() / 2 + 10;
-            for (String l : ls) {
-                g.drawString(l, r.x + 80, ty);
-                ty += fm.getHeight();
-            }
+            tarjeta(g, i + 1, rect(i), t[orden.get(i)], i == elegida, i < fijasAlInicio());
         }
+        adornos(g);
         boton(g, listo, "Listo", true);
-        g.setColor(new Color(0, 0, 0, 120));
-        g.fillRoundRect(pedirConsejo.x, pedirConsejo.y, pedirConsejo.width, pedirConsejo.height, 28, 28);
-        g.setColor(Color.WHITE);
-        g.setFont(Estilo.fuente(Font.BOLD, 24f));
-        centrado(g, "Otro consejo", pedirConsejo.x + pedirConsejo.width / 2, pedirConsejo.y + 37);
+        ArteMj.opcion(g, pedirConsejo, "Otro consejo", false);
     }
 }

@@ -1,6 +1,5 @@
 package juegoferia;
 
-import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -53,6 +52,19 @@ public class MjPapelQueNadieLeyo extends Minijuego {
     @Override
     public String nombre() {
         return "El papel que nadie leyó";
+    }
+
+    @Override
+    protected String carpetaArte() {
+        return "papel";
+    }
+
+    @Override
+    protected void iconoAviso(Graphics2D g, int cx, int cy) {
+        if (!ArteMj.pegar(g, "papel", "papel_documento_oficial", cx - 20, cy, 190)) {
+            ArteMj.hojaPapel(g, cx - 70, cy - 90, 140, 180, ArteMj.CREMA);
+        }
+        ArteMj.lupa(g, cx + 70, cy + 70, 110);
     }
 
     @Override
@@ -117,41 +129,46 @@ public class MjPapelQueNadieLeyo extends Minijuego {
 
     @Override
     protected void dibujarJuego(Graphics2D g) {
-        fondo(g, "/imagenes/minijuegos/papel_que_nadie_leyo.png");
+        ArteMj.fondoOficial(g, Rutas.JUNTA, 100);
         String[] cs = {"Busca el monto exacto.", "Mira la línea del contratista.", "Si no aparece, márcalo."};
         cabecera(g, nombre(), cs[consejo % cs.length]);
 
         // hoja de cuentas
-        Estilo.pergamino(g, 60, 150, 960, 820, 30);
+        ArteMj.hojaPapel(g, 50, 140, 980, 830, ArteMj.CREMA);
+        ArteMj.pegar(g, "papel", "papel_tabla_datos", 940, 190, 100);
+        g.setFont(ArteMj.letra(28f));
+        g.setColor(ArteMj.TEXTO);
+        g.drawString("Hoja de cuentas de la Junta", 90, 190);
         g.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 24));
-        g.setColor(Estilo.TEXTO);
         for (int i = 0; i < HOJA.length; i++) {
-            g.drawString(HOJA[i], 90, 210 + i * 62);
+            if (i % 2 == 0) {
+                g.setColor(new Color(246, 226, 180, 140));
+                g.fillRect(80, 222 + i * 60, 920, 54);
+            }
+            g.setColor(ArteMj.TEXTO);
+            g.drawString(HOJA[i], 90, 258 + i * 60);
         }
 
         // acusaciones
+        String[] tipo = {"Coincide", "No coincide", "No aparece"};
+        int[] color = {0, 1, 2};
         for (int a = 0; a < 3; a++) {
             int y = 250 + a * 220;
-            g.setFont(Estilo.fuente(Font.BOLD, 30f));
-            g.setColor(Estilo.TEXTO);
-            g.drawString(ACUSACIONES[a], 1080, y + 40);
+            ArteMj.panel(g, 1060, y - 30, 820, 196, ArteMj.CREMA);
+            ArteMj.pegar(g, "papel", "papel_etiqueta_cifra", 1130, y + 8, 64);
+            g.setFont(ArteMj.letra(26f));
+            ArteMj.parrafo(g, ACUSACIONES[a], 1200, y + 18, 660, ArteMj.TEXTO);
             for (int o = 0; o < 3; o++) {
                 Rectangle r = rectOpcion(a, o);
-                boolean sel = marca[a] == o;
-                g.setColor(sel ? Estilo.DORADO : Estilo.PERGAMINO);
-                g.fillRoundRect(r.x, r.y, r.width, r.height, 24, 24);
-                g.setColor(Estilo.MADERA_OSCURA);
-                g.setStroke(new BasicStroke(sel ? 5f : 3f));
-                g.drawRoundRect(r.x, r.y, r.width, r.height, 24, 24);
-                g.setFont(Estilo.fuente(Font.BOLD, 26f));
-                centrado(g, OPCIONES[o], r.x + r.width / 2, r.y + 45);
+                Rectangle rr = new Rectangle(r.x, r.y + 6, r.width, r.height - 8);
+                if (marca[a] == o) {
+                    ArteMj.estado(g, rr, tipo[o], color[o]);
+                } else {
+                    ArteMj.opcion(g, rr, OPCIONES[o], false);
+                }
             }
         }
         boolean completo = marca[0] >= 0 && marca[1] >= 0 && marca[2] >= 0;
         boton(g, revisar, "Revisar", completo);
-        if (!completo) {
-            g.setColor(new Color(0, 0, 0, 90));
-            g.fillRoundRect(revisar.x, revisar.y, revisar.width, revisar.height, 30, 30);
-        }
     }
 }

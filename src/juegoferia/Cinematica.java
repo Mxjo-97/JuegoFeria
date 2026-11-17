@@ -23,6 +23,12 @@ import java.util.List;
  */
 public class Cinematica extends PanelDiseno {
 
+    /** El boton del parlante (volumen) tambien esta aqui. */
+    @Override
+    protected boolean conAjustes() {
+        return true;
+    }
+
     private static final class SpriteEscena {
         final String ruta;
         final int x, y, ancho, alto;
@@ -187,6 +193,11 @@ public class Cinematica extends PanelDiseno {
 
     private Cuadro ultimo() {
         return cuadros.isEmpty() ? null : cuadros.get(cuadros.size() - 1);
+    }
+
+    /** Una capa dibujada a mano (en pantalla, no se mueve con la camara). */
+    public Cinematica capa(EfectosCine.Capa c) {
+        return efecto(new EfectosCine.Efecto(false, c));
     }
 
     private Cinematica efecto(EfectosCine.Efecto e) {
@@ -436,7 +447,7 @@ public class Cinematica extends PanelDiseno {
     protected void actualizar(double dt) {
         tCuadro += dt;
         tEscena += dt;
-        letras += dt * LETRAS_POR_SEG;
+        letras += dt * LETRAS_POR_SEG * Ajustes.velocidadTexto();
         if (terminada) return;
         if (salida >= 0) {
             salida += dt;
