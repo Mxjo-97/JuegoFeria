@@ -76,7 +76,7 @@ public class PantallaCreditos extends JPanel {
                 "Efectos de sonido")
     };
 
-    private static final String[] AYUDANTES = {"ChatGPT", "Gemini", "Claude", "DeepSeek", "canva"};
+    private static final String[] AYUDANTES = {"ChatGPT", "Bocas De Ceniza","Gemini", "Claude", "DeepSeek", "canva", "el nequi de isabella", "powershel"};
 
     private final Runnable alVolver;
     private final Timer reloj = new Timer(16, e -> repaint());

@@ -154,6 +154,9 @@ public class MjRastreaAudio extends Minijuego {
 
     @Override
     protected void clicJuego(Point p, int boton) {
+        if (actual == null || actual.padre == null) {
+            return;   // ya se llego al origen
+        }
         if (paso == Paso.ELEGIR_PADRE) {
             for (int i = 0; i < candidatos.size(); i++) {
                 if (rectCandidato(i).contains(p)) {
@@ -241,6 +244,13 @@ public class MjRastreaAudio extends Minijuego {
                 mensajeCaja(g, candidatos.get(i), rectCandidato(i));
             }
             ArteMj.intentos(g, 1700, 900, 3 - errores, 3);
+        } else if (actual.padre == null) {
+            // ya llegaron al origen (el juego termino): solo se muestra el mensaje original
+            g.setFont(ArteMj.letra(26f));
+            g.setColor(ArteMj.CREMA);
+            g.drawString("El origen del audio:", 160, 150);
+            mensaje(g, actual, 160, 165, 1600, false);
+            ArteMj.pegar(g, "rastrea", "rastrea_pin_origen_megafono", 1720, 200, 120);
         } else {
             g.setFont(ArteMj.letra(26f));
             g.setColor(ArteMj.CREMA);
@@ -309,7 +319,7 @@ public class MjRastreaAudio extends Minijuego {
         g.setColor(new Color(0xB0562E));
         g.drawString(n.tipo, x + 50, y + 46);
         g.setFont(Estilo.fuente(Font.PLAIN, 40f));
-        Set<Integer> cambio = clicable && lupa ? cambiadas(n) : Collections.emptySet();
+        Set<Integer> cambio = clicable && lupa && n.padre != null ? cambiadas(n) : Collections.<Integer>emptySet();
         String[] ws = palabras(n.descripcion);
         List<Rectangle> rs = disponer(n, x, y, w);
         for (int i = 0; i < ws.length; i++) {
