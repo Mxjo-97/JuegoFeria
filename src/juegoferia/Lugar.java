@@ -98,6 +98,8 @@ public class Lugar extends EscenaMundo {
         String s;
         Color c;
         double t;
+        /** En red: solo se ve en la pantalla de este rol (null = todos). */
+        Rol para;
     }
 
     private static final class Objetivo {
@@ -117,6 +119,8 @@ public class Lugar extends EscenaMundo {
         Actor a;
         String texto;
         double t, dura;
+        /** En red: solo se ve en la pantalla de este rol (null = todos). */
+        Rol para;
     }
 
     private static final Color[] COLOR_LETRA = {
@@ -175,7 +179,80 @@ public class Lugar extends EscenaMundo {
     /** Vecinos con los que ya se hablo en este lugar (Ver vinculos marca a los que faltan). */
     private final java.util.Set<String> hablados = new java.util.HashSet<>();
 
+    /** La decision de TODOS (o la unica, en un solo PC). Mientras esta abierta nadie se mueve. */
     private Decision decision;
+    /** En red: las decisiones de cada jugador (solo le salen a el; los demas siguen jugando). */
+    private final List<java.util.LinkedList<Decision>> decisionesRol = new ArrayList<>();
+    /** La ultima que se abrio (colorTurno, limiteDecision y soloPara la ajustan). */
+    private Decision ultima;
+
+    {
+        for (int i = 0; i < Rol.values().length; i++) {
+            decisionesRol.add(new java.util.LinkedList<>());
+        }
+    }
+
+    /** true si esto se ve en MI pantalla (en un solo PC siempre). */
+    private boolean paraMi(Rol para) {
+        return para == null || !modoRed() || para == Sincronia.miRol();
+    }
+
+    private Decision decisionDe(Rol r) {
+        return r == null ? null : decisionesRol.get(r.ordinal()).peek();
+    }
+
+    /** Hay alguna decision abierta (de todos o de alguien). */
+    private boolean hayDecision() {
+        if (decision != null) {
+            return true;
+        }
+        for (java.util.LinkedList<Decision> q : decisionesRol) {
+            if (!q.isEmpty()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** La decision personal que ese jugador tiene AL FRENTE (si esta leyendo algo, espera a que termine). */
+    private Decision decisionAlFrente(Rol r) {
+        return r == null || dialogoActivoDe(r) ? null : decisionDe(r);
+    }
+
+    /** La decision que se ve en ESTA pantalla. */
+    private Decision decisionVista() {
+        if (decision != null) {
+            return decision;
+        }
+        return modoRed() ? decisionAlFrente(Sincronia.miRol()) : null;
+    }
+
+    /** Rol de quien mando la tecla/clic que se esta procesando (null en un solo PC). */
+    private Rol rolEntrada() {
+        if (!modoRed()) {
+            return null;
+        }
+        return Sincronia.inyectando() ? Sincronia.rolActual() : Sincronia.miRol();
+    }
+
+    /** La decision que responde la tecla/clic que se esta procesando. */
+    private Decision decisionDeEntrada() {
+        if (decision != null) {
+            return decision;
+        }
+        return decisionAlFrente(rolEntrada());
+    }
+
+    @Override
+    protected boolean congelado(Rol r) {
+        return decisionDe(r) != null;
+    }
+
+    @Override
+    protected String nombreDe(Rol r) {
+        Jugador j = partida.jugador(r);
+        return j != null ? j.nombre : r.nombre;
+    }
     private boolean primeraEntrada = true, completadoTodo;
     private Runnable alPrimeraEntrada, alCompletar;
 
@@ -235,6 +312,9 @@ public class Lugar extends EscenaMundo {
         for (Actor a : getActores()) {
             sb.append(',').append(a.id).append(Math.round(a.x)).append(':').append(Math.round(a.y));
         }
+        for (java.util.LinkedList<Decision> q : decisionesRol) {
+            sb.append(q.isEmpty() ? "_" : q.peek().titulo);
+        }
         sb.append('|').append(dialogoActivo()).append(decision == null ? "-" : decision.titulo)
                 .append(completadoTodo).append((int) partida.desinfo(id)).append(partida.hayNiebla(id));
         return sb.toString();
@@ -242,7 +322,8 @@ public class Lugar extends EscenaMundo {
 
     /** Para las pruebas automaticas: que esta pasando en este lugar. */
     String resumenPrueba() {
-        return decision != null ? "DEC" + decision.opciones.size() : dialogoActivo() ? "DLG" : "LIBRE";
+        Decision d = decision != null ? decision : decisionVista();
+        return d != null ? "DEC" + d.opciones.size() : dialogoActivo() ? "DLG" : "LIBRE";
     }
 
     public Actor actorDe(Rol r) {
@@ -493,6 +574,7 @@ public class Lugar extends EscenaMundo {
         Toast t = new Toast();
         t.s = s;
         t.c = c;
+        t.para = audiencia();
         toasts.add(t);
         if (toasts.size() > 6) {
             toasts.remove(0);
@@ -508,7 +590,8 @@ public class Lugar extends EscenaMundo {
         b.a = a;
         b.texto = partida.reemplazar(texto);
         b.dura = segundos;
-        burbujas.removeIf(x -> x.a == a);
+        b.para = audiencia();
+        burbujas.removeIf(x -> x.a == a && x.para == b.para);
         burbujas.add(b);
     }
 
@@ -569,7 +652,7 @@ public class Lugar extends EscenaMundo {
     // ===================== CELULAR (DECISION DIGITAL) =====================
 
     public void abrirCelular() {
-        if (decision != null || dialogoActivo() || estaBloqueado()) {
+        if (hayDecision() || dialogoActivo() || estaBloqueado()) {
             return;
         }
         if (digOpciones == null || digitalHecho) {
@@ -619,7 +702,8 @@ public class Lugar extends EscenaMundo {
 
     /** Ejecuta r cuando no haya dialogo ni decision abiertos. */
     public void esperarYLuego(Runnable r) {
-        pendientes.add(r);
+        // lo pendiente es de la escena: corre para todos (no para quien lo provoco)
+        pendientes.add(() -> conAudiencia(null, r));
     }
 
     private final List<Runnable> pendientes = new ArrayList<>();
@@ -645,8 +729,8 @@ public class Lugar extends EscenaMundo {
     /** Decision de un jugador en particular (se ve su color y "Turno de ..."). */
     public void decidirTurno(Jugador j, String situacion, Opcion... ops) {
         decidir("TURNO DE " + j.nombre.toUpperCase(), situacion, 0, null, ops);
-        decision.turno = j.rol.color;
-        decision.soloRol = j.rol;
+        ultima.turno = j.rol.color;
+        soloPara(j.rol);
     }
 
     /** Decision con estilo de celular (un mensaje o una publicacion). */
@@ -664,25 +748,55 @@ public class Lugar extends EscenaMundo {
     }
 
     void colorTurno(Color c) {
-        if (decision != null) {
-            decision.turno = c;
+        if (ultima != null) {
+            ultima.turno = c;
         }
     }
 
     /** Pone tiempo limite a la decision que esta abierta (votaciones de la casa: 30 segundos). */
     void limiteDecision(double segundos, Runnable alAgotar, String aviso) {
-        if (decision != null) {
-            decision.limite = segundos;
-            decision.restante = segundos;
-            decision.alAgotar = alAgotar;
-            decision.avisoLimite = aviso;
+        if (ultima != null) {
+            ultima.limite = segundos;
+            ultima.restante = segundos;
+            ultima.alAgotar = alAgotar;
+            ultima.avisoLimite = aviso;
         }
     }
 
     /** En red: solo este rol puede responder la decision abierta. */
     void soloPara(Rol r) {
-        if (decision != null) {
-            decision.soloRol = r;
+        Decision d = ultima;
+        if (d == null || !abierta(d)) {
+            return;
+        }
+        d.soloRol = r;
+        if (modoRed() && r != null) {
+            // en red se vuelve SUYA: solo le sale a el y los demas siguen jugando
+            sacar(d);
+            decisionesRol.get(r.ordinal()).add(d);
+        }
+    }
+
+    private boolean abierta(Decision d) {
+        if (d == decision) {
+            return true;
+        }
+        for (java.util.LinkedList<Decision> q : decisionesRol) {
+            if (q.contains(d)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Quita la decision de donde este (sin correr nada). */
+    private void sacar(Decision d) {
+        if (d == decision) {
+            decision = null;
+            bloquear(false);
+        }
+        for (java.util.LinkedList<Decision> q : decisionesRol) {
+            q.remove(d);
         }
     }
 
@@ -699,17 +813,30 @@ public class Lugar extends EscenaMundo {
 
     private void abrir(Decision d) {
         d.restante = d.limite;
+        ultima = d;
+        Rol a = audiencia();
+        if (a != null) {
+            // la abrio algo que hizo un jugador (hablar con alguien...): es SUYA
+            d.soloRol = a;
+            decisionesRol.get(a.ordinal()).add(d);
+            return;
+        }
         decision = d;
         bloquear(true);
     }
 
+    /** Cierra la decision de todos (compatibilidad con lo de antes). */
     private void cerrarDecision() {
-        decision = null;
-        bloquear(false);
+        if (decision != null) {
+            sacar(decision);
+        }
     }
 
     private void elegir(int i) {
-        Decision d = decision;
+        elegir(decisionDeEntrada(), i);
+    }
+
+    private void elegir(Decision d, int i) {
         if (d == null || i < 0 || i >= d.opciones.size()) {
             return;
         }
@@ -717,11 +844,16 @@ public class Lugar extends EscenaMundo {
         if (Sincronia.activa() && elegida.solo != null && elegida.solo != Sincronia.rolActual()) {
             return;      // esa opcion es de otro jugador
         }
+        if (Sincronia.activa() && d != decision && d.soloRol != null && d.soloRol != Sincronia.rolActual()) {
+            return;      // esa decision es de otro jugador
+        }
         Runnable accion = elegida.accion;
-        cerrarDecision();
-        Funciones.reproducirSonido("/sonidos/click.wav");
+        boolean suya = d != decision;
+        sacar(d);
+        Ajustes.sfx("/sonidos/click.wav", "/sonidos/tecla.wav");
         if (accion != null) {
-            accion.run();
+            // lo que pase despues de una decision personal le sale solo a ese jugador
+            conAudiencia(suya ? d.soloRol : null, accion);
         }
     }
 
@@ -737,6 +869,12 @@ public class Lugar extends EscenaMundo {
         partida.nieblaOn(id);
         Funciones.reproducirSonido("/sonidos/noticia.wav");
         dialogo(null, "Narrador: " + nieblaPantalla, nieblaLinea);
+    }
+
+    /** Las misiones (TAB / M) son de tu pantalla: en red no viajan a los demas. */
+    @Override
+    protected boolean teclaSoloLocal(int codigo) {
+        return super.teclaSoloLocal(codigo) || codigo == KeyEvent.VK_TAB || codigo == KeyEvent.VK_M;
     }
 
     @Override
@@ -907,7 +1045,7 @@ public class Lugar extends EscenaMundo {
             }
             return true;
         }
-        Decision d = decision;
+        Decision d = decisionDeEntrada();
         if (d != null) {
             if (pres) {
                 int i = -1;
@@ -919,7 +1057,7 @@ public class Lugar extends EscenaMundo {
                     i = 9;
                 }
                 if (i >= 0 && i < d.opciones.size()) {
-                    elegir(i);
+                    elegir(d, i);
                 }
             }
             return true;
@@ -927,7 +1065,7 @@ public class Lugar extends EscenaMundo {
         if (cine && k != KeyEvent.VK_E && k != KeyEvent.VK_ENTER && k != KeyEvent.VK_F1) {
             return true;   // en la cena nadie camina ni usa habilidades
         }
-        if (!pres || dialogoActivo() || estaBloqueado()) {
+        if (!pres || dialogoActivoDe(rolEntrada()) || estaBloqueado()) {
             return false;
         }
         switch (k) {
@@ -993,7 +1131,7 @@ public class Lugar extends EscenaMundo {
 
     @Override
     protected boolean ratonExtra(int tipo, Point p) {
-        Decision d = decision;
+        Decision d = decisionDeEntrada();
         if (d == null) {
             if (tipo == 1 && RECT_CELULAR.contains(p)) {
                 abrirCelular();
@@ -1010,7 +1148,7 @@ public class Lugar extends EscenaMundo {
             int pulsada = d.pulsada;
             d.pulsada = -1;
             if (pulsada >= 0 && pulsada == idx) {
-                elegir(idx);
+                elegir(d, idx);
             }
         }
         return true;
@@ -1035,7 +1173,7 @@ public class Lugar extends EscenaMundo {
 
     @Override
     protected void actualizar(double dt) {
-        boolean misAbiertas = (misionesFijas || tiempo < misionesHasta) && !dialogoActivo() && decision == null;
+        boolean misAbiertas = (misionesFijas || tiempo < misionesHasta) && !dialogoVisible() && decisionVista() == null;
         misionesAnim += ((misAbiertas ? 1 : 0) - misionesAnim) * Math.min(1, dt * 10);
         super.actualizar(dt);
         actualizarJugo(dt);
@@ -1061,7 +1199,21 @@ public class Lugar extends EscenaMundo {
 
         moverSeguidores();
 
-        boolean ocupado = dialogoActivo() || decision != null || redActiva();
+        boolean ocupado = dialogoActivo() || hayDecision() || redActiva();
+        // (el tiempo del modo feria solo se detiene por lo que es de todos: en red, que alguien
+        //  este charlando con un vecino no le para el reloj a los demas)
+        boolean pausaFeria = dialogoDeEscenaActivo() || hayDecision() || redActiva();
+        if (!pausaFeria && feriaRestante > 0 && !completadoTodo) {
+            feriaRestante -= dt;
+            if (feriaRestante <= 0) {
+                feriaRestante = 0;
+                Runnable f = feriaAlAgotar;
+                feriaAlAgotar = null;
+                if (f != null) {
+                    conAudiencia(null, f);
+                }
+            }
+        }
         if (ocupado) {
             partida.reloj.pausar();
         } else {
@@ -1073,19 +1225,33 @@ public class Lugar extends EscenaMundo {
             }
         }
 
-        Decision d = decision;
-        if (d != null) {
+        // decisiones abiertas: la de todos y las de cada jugador (con su tiempo limite)
+        List<Decision> abiertas = new ArrayList<>();
+        if (decision != null) {
+            abiertas.add(decision);
+        }
+        for (int i = 0; i < decisionesRol.size(); i++) {
+            Decision q = decisionAlFrente(Rol.values()[i]);
+            if (q != null) {
+                abiertas.add(q);          // (el tiempo de una decision no corre mientras su dueño lee)
+            }
+        }
+        boolean algunaAbierta = hayDecision();
+        for (Decision d : abiertas) {
             d.t += dt;
             if (d.limite > 0) {
                 d.restante -= dt;
                 if (d.restante <= 0) {
                     Runnable f = d.alAgotar;
-                    cerrarDecision();
+                    boolean suya = d != decision;
+                    sacar(d);
                     if (f != null) {
-                        f.run();
+                        conAudiencia(suya ? d.soloRol : null, f);
                     }
                 }
             }
+        }
+        if (algunaAbierta) {
             return;
         }
 
@@ -1158,6 +1324,9 @@ public class Lugar extends EscenaMundo {
 
     /** Lluvia de petalos / mariposas / destellos desde (x, y). */
     void lluvia(double x, double y, int n, int tipo) {
+        if (Ajustes.liviano) {
+            n = Math.max(3, n / 3);     // modo liviano: menos particulas
+        }
         for (int i = 0; i < n; i++) {
             Particula p = new Particula();
             double a = Math.random() * Math.PI * 2;
@@ -1337,7 +1506,7 @@ public class Lugar extends EscenaMundo {
     }
 
     private void dibujarMarcas(Graphics2D g) {
-        if (!marcasActivas || dialogoActivo() || decision != null) {
+        if (!marcasActivas || dialogoVisible() || decisionVista() != null) {
             return;
         }
         Jugador yo = Sincronia.activa() ? partida.jugador(Sincronia.miRol()) : partida.lider();
@@ -1415,7 +1584,7 @@ public class Lugar extends EscenaMundo {
             }
         }
         // pastillita "Sigue por aqui"
-        if (!salidas.isEmpty() && !dialogoActivo() && decision == null) {
+        if (!salidas.isEmpty() && !dialogoVisible() && decisionVista() == null) {
             Rectangle r = salidas.get(0);
             String t = "¡Sigue por aquí!";
             g.setFont(Estilo.fuente(Font.BOLD, 18f));
@@ -1686,6 +1855,36 @@ public class Lugar extends EscenaMundo {
     // =====================================================================================
 
     private boolean cine;
+
+    // ===================== MODO FERIA: tiempo por lugar =====================
+    private double feriaRestante = -1;
+    private Runnable feriaAlAgotar;
+
+    /** Modo feria: segundos de juego en este lugar (corre solo cuando nadie lee ni decide). */
+    public Lugar tiempoFeria(double segundos, Runnable alAgotar) {
+        feriaRestante = segundos;
+        feriaAlAgotar = alAgotar;
+        return this;
+    }
+
+    /** Da el lugar por terminado aunque falten objetivos (se acabo el tiempo). */
+    public void terminarYa() {
+        for (Objetivo o : objetivos) {
+            o.hecho = true;
+        }
+        if (!completadoTodo) {
+            completadoTodo = true;
+            if (alCompletar != null) {
+                conAudiencia(null, alCompletar);
+            }
+        }
+    }
+
+    /** Quita el "!" de un vecino (ya conto lo suyo). */
+    public void quitarMarca(String npc) {
+        pruebasNpc.remove(npc);
+    }
+    private java.awt.image.BufferedImage luzCena;
     private double cineT;
 
     /**
@@ -1713,10 +1912,21 @@ public class Lugar extends EscenaMundo {
         k = k * k * (3 - 2 * k);
         // luz calida que respira sobre la mesa
         double p = 0.5 + 0.5 * Math.sin(tiempo * 1.6) + 0.15 * Math.sin(tiempo * 7.3);
-        g.setPaint(new RadialGradientPaint(W / 2f, 520f, 760f, new float[]{0f, 0.55f, 1f},
-                new Color[]{new Color(255, 214, 140, (int) (40 + 18 * p)), new Color(255, 190, 110, 0), new Color(30, 15, 5, 150)}));
-        g.fillRect(0, 0, W, H);
-        // motitas de polvo
+        // (la luz se pinta UNA vez en una imagen y despues solo se dibuja: el degradado era lo mas lento)
+        if (luzCena == null) {
+            luzCena = new java.awt.image.BufferedImage(W / 2, H / 2, java.awt.image.BufferedImage.TYPE_INT_ARGB_PRE);
+            Graphics2D gl = luzCena.createGraphics();
+            gl.setPaint(new RadialGradientPaint(W / 4f, 260f, 380f, new float[]{0f, 0.55f, 1f},
+                    new Color[]{new Color(255, 214, 140, 58), new Color(255, 190, 110, 0), new Color(30, 15, 5, 150)}));
+            gl.fillRect(0, 0, W / 2, H / 2);
+            gl.dispose();
+        }
+        Graphics2D gl = (Graphics2D) g.create();
+        gl.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) Math.min(1, 0.82 + 0.18 * p)));
+        dibujarAPantalla(gl, luzCena, 0, 0, W, H);
+        gl.dispose();
+        // motitas de polvo (no en modo liviano)
+        if (!Ajustes.liviano)
         for (int i = 0; i < 26; i++) {
             double sx = (i * 0.37 % 1.0) * W + Math.sin(tiempo * 0.3 + i) * 40;
             double sy = ((i * 0.61 % 1.0) * H - tiempo * (8 + i % 5 * 3)) % H;
@@ -1764,14 +1974,17 @@ public class Lugar extends EscenaMundo {
         dibujarBurbujas(g);
         if (!cine) {
             dibujarHud(g);
-            if (!dialogoActivo() && decision == null) {
+            if (!dialogoVisible() && decisionVista() == null) {
                 dibujarChat(g);
             }
         }
         dibujarJugo(g);
         dibujarToasts(g);
-        if (decision != null) {
-            dibujarDecision(g, decision);
+        Decision dv = decisionVista();
+        if (dv != null) {
+            dibujarDecision(g, dv);
+        } else if (!dialogoVisible()) {
+            dibujarOtrosOcupados(g);
         }
         dibujarPropagacion(g);
     }
@@ -1828,6 +2041,9 @@ public class Lugar extends EscenaMundo {
     private static final java.util.Set<String> CON_MARIPOSAS = java.util.Set.of("mauricio");
 
     private void dibujarMariposasDeVecinos(Graphics2D g) {
+        if (Ajustes.liviano) {
+            return;
+        }
         for (Actor a : getActores()) {
             if (a.invisible || a.id == null || !CON_MARIPOSAS.contains(a.id)) {
                 continue;
@@ -1878,6 +2094,9 @@ public class Lugar extends EscenaMundo {
         g.setFont(Estilo.fuente(Font.BOLD, 24f));
         FontMetrics fm = g.getFontMetrics();
         for (Burbuja b : burbujas) {
+            if (!paraMi(b.para)) {
+                continue;
+            }
             List<String> ls = envolver(b.texto, fm, 380);
             int w = 0;
             for (String l : ls) {
@@ -1941,14 +2160,32 @@ public class Lugar extends EscenaMundo {
 
     /** Pastilla crema con sombrita (la base de todo el HUD). */
     private static void pastilla(Graphics2D g, double x, double y, double w, double h, double r) {
-        g.setColor(new Color(60, 35, 15, 38));
-        g.fill(new RoundRectangle2D.Double(x + 1, y + 4, w, h, r, r));
-        g.setColor(HUD_CREMA);
-        g.fill(new RoundRectangle2D.Double(x, y, w, h, r, r));
-        g.setColor(HUD_BORDE);
-        g.setStroke(new BasicStroke(1.6f));
-        g.draw(new RoundRectangle2D.Double(x, y, w, h, r, r));
+        // OPTIMIZACION: cada pastilla (sombra + crema + borde) se pinta una vez en una imagen y se reutiliza
+        int iw = (int) Math.round(w), ih = (int) Math.round(h), ir = (int) Math.round(r);
+        String clave = iw + "x" + ih + "r" + ir;
+        java.awt.image.BufferedImage img = PASTILLAS.get(clave);
+        if (img == null) {
+            img = new java.awt.image.BufferedImage(iw + 6, ih + 10, java.awt.image.BufferedImage.TYPE_INT_ARGB_PRE);
+            Graphics2D p = img.createGraphics();
+            Estilo.suave(p);
+            p.translate(2, 2);
+            p.setColor(new Color(60, 35, 15, 38));
+            p.fill(new RoundRectangle2D.Double(1, 4, iw, ih, ir, ir));
+            p.setColor(HUD_CREMA);
+            p.fill(new RoundRectangle2D.Double(0, 0, iw, ih, ir, ir));
+            p.setColor(HUD_BORDE);
+            p.setStroke(new BasicStroke(1.6f));
+            p.draw(new RoundRectangle2D.Double(0, 0, iw, ih, ir, ir));
+            p.dispose();
+            if (PASTILLAS.size() > 300) {
+                PASTILLAS.clear();
+            }
+            PASTILLAS.put(clave, img);
+        }
+        dibujarAPantalla(g, img, (int) Math.round(x) - 2, (int) Math.round(y) - 2, iw + 6, ih + 10);
     }
+
+    private static final Map<String, java.awt.image.BufferedImage> PASTILLAS = new java.util.HashMap<>();
 
     /** Teclita redonda (E, H, 1...). */
     private static void teclita(Graphics2D g, String t, double cx, double cy, double r, boolean dorada) {
@@ -1991,7 +2228,11 @@ public class Lugar extends EscenaMundo {
     // ---- arriba a la izquierda: dia, hora y lugar ----
     private void dibujarRelojHud(Graphics2D g) {
         String hora = partida.reloj.texto();
-        String dia = "DÍA " + partida.dia + " DE " + Partida.DIAS;
+        String dia = partida.feria ? "MODO FERIA" : "DÍA " + partida.dia + " DE " + Partida.DIAS;
+        if (partida.feria && feriaRestante >= 0) {
+            int sg = (int) Math.ceil(feriaRestante);
+            hora = sg / 60 + ":" + (sg % 60 < 10 ? "0" : "") + sg % 60;
+        }
         String lugar = titulo.toUpperCase();
         g.setFont(Estilo.fuente(Font.BOLD, 26f));
         int wHora = g.getFontMetrics().stringWidth(hora);
@@ -2021,7 +2262,8 @@ public class Lugar extends EscenaMundo {
 
         // hora grande + dia chiquito
         g.setFont(Estilo.fuente(Font.BOLD, 26f));
-        g.setColor(HUD_TEXTO);
+        boolean apurado = partida.feria && feriaRestante >= 0 && feriaRestante < 30 && !completadoTodo;
+        g.setColor(apurado && (int) (tiempo * 3) % 2 == 0 ? new Color(0xD9604A) : HUD_TEXTO);
         g.drawString(hora, x + 70, y + 35);
         g.setFont(Estilo.fuente(Font.BOLD, 13f));
         g.setColor(HUD_SUAVE);
@@ -2058,6 +2300,23 @@ public class Lugar extends EscenaMundo {
         g.drawString(t, x + 36, y + 24);
         teclita(g, "TAB", x + 36 + wt + 12 + anchoTeclita("TAB", 11) / 2, y + h / 2, 11, false);
 
+        // modo feria: la mision secreta de ESTA pantalla, en chiquito
+        if (partida.feria && misionesAnim < 0.5) {
+            Jugador yo = modoRed() ? partida.jugador(Sincronia.miRol()) : partida.lider();
+            if (yo != null && yo.misionNombre != null) {
+                String mt = "Misión secreta · " + yo.misionNombre + ": " + yo.misionTexto;
+                g.setFont(Estilo.fuente(Font.BOLD, 14f));
+                FontMetrics fmm = g.getFontMetrics();
+                while (fmm.stringWidth(mt) > 640 && mt.length() > 10) {
+                    mt = mt.substring(0, mt.length() - 4) + "…";
+                }
+                int mw = fmm.stringWidth(mt) + 40;
+                pastilla(g, x, y + h + 8, mw, 30, 30);
+                dibujarDestello(g, x + 16, y + h + 23, 6, HUD_ROSA);
+                g.setColor(HUD_SUAVE);
+                g.drawString(mt, x + 28, y + h + 28);
+            }
+        }
         if (misionesAnim < 0.03) {
             return;
         }
@@ -2228,7 +2487,7 @@ public class Lugar extends EscenaMundo {
     private void dibujarBarraInferior(Graphics2D g) {
         boolean red = Sincronia.activa();
         Jugador lider = red ? partida.jugador(Sincronia.miRol()) : partida.lider();
-        if (lider == null || dialogoActivo()) {
+        if (lider == null || dialogoVisible()) {
             return;
         }
         Rol[] orden = {Rol.CIUDADANO, Rol.INFLUENCER, Rol.PERIODISTA, Rol.CANDIDATO};
@@ -2418,6 +2677,44 @@ public class Lugar extends EscenaMundo {
         gg.dispose();
     }
 
+    /** En red: "Leo está conversando · Sol está decidiendo" (lo que hacen los demas en SU pantalla). */
+    private void dibujarOtrosOcupados(Graphics2D g) {
+        if (!modoRed() || cine) {
+            return;
+        }
+        Rol mi = Sincronia.miRol();
+        StringBuilder sb = new StringBuilder();
+        for (Rol r : Rol.values()) {
+            if (r == mi || partida.jugador(r) == null) {
+                continue;
+            }
+            String que = decisionDe(r) != null ? "está decidiendo" : dialogoActivoDe(r) ? "está conversando" : null;
+            if (que != null) {
+                sb.append(sb.length() > 0 ? "  ·  " : "").append(nombreDe(r)).append(' ').append(que);
+            }
+        }
+        if (sb.length() == 0) {
+            return;
+        }
+        Graphics2D gg = (Graphics2D) g.create();
+        gg.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        gg.setFont(Estilo.fuente(Font.BOLD, 16f));
+        String t = sb.toString();
+        int w = gg.getFontMetrics().stringWidth(t) + 44, h = 32;
+        int x = (W - w) / 2, y = H - 128;
+        gg.setColor(new Color(255, 250, 240, 200));
+        gg.fill(new RoundRectangle2D.Double(x, y, w, h, h, h));
+        gg.setColor(HUD_BORDE);
+        gg.setStroke(new BasicStroke(1.4f));
+        gg.draw(new RoundRectangle2D.Double(x, y, w, h, h, h));
+        double p = 0.5 + 0.5 * Math.sin(tiempo * 4);
+        gg.setColor(new Color(242, 167, 184, (int) (140 + 110 * p)));
+        gg.fillOval(x + 14, y + h / 2 - 5, 10, 10);
+        gg.setColor(HUD_SUAVE);
+        gg.drawString(t, x + 30, y + 21);
+        gg.dispose();
+    }
+
     /** Avisos: pastillitas centradas arriba, con un puntico del color del aviso. */
     private void dibujarToasts(Graphics2D g) {
         Graphics2D gg0 = (Graphics2D) g.create();
@@ -2426,6 +2723,9 @@ public class Lugar extends EscenaMundo {
         FontMetrics fm = gg0.getFontMetrics();
         int y = 24;
         for (Toast t : toasts) {
+            if (!paraMi(t.para)) {
+                continue;
+            }
             double a = t.t < 0.25 ? t.t / 0.25 : (t.t > 2.6 ? Math.max(0, (3.2 - t.t) / 0.6) : 1);
             int w = fm.stringWidth(t.s) + 58, h = 40;
             int x = (W - w) / 2;

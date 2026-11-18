@@ -94,8 +94,77 @@ public class Recursos {
             System.err.println("[Recursos] FALTA la imagen: " + ruta + " (se usa un cuadro provisional)");
             img = provisional(ruta, phW, phH);
         }
+        img = compatible(img);
         cache.put(ruta, img);
         return img;
+    }
+
+    /**
+     * OPTIMIZACION: la imagen se pasa al formato de la pantalla una sola vez al cargarla.
+     * Asi Java la puede dibujar con la tarjeta de video en vez de convertir cada pixel en cada cuadro.
+     */
+    static BufferedImage compatible(BufferedImage src) {
+        BufferedImage c;
+        try {
+            if (java.awt.GraphicsEnvironment.isHeadless()) {
+                c = new BufferedImage(src.getWidth(), src.getHeight(), BufferedImage.TYPE_INT_ARGB_PRE);
+            } else {
+                java.awt.GraphicsConfiguration gc = java.awt.GraphicsEnvironment.getLocalGraphicsEnvironment()
+                        .getDefaultScreenDevice().getDefaultConfiguration();
+                if (src.getColorModel().equals(gc.getColorModel(src.getTransparency()))) {
+                    return src;
+                }
+                c = gc.createCompatibleImage(src.getWidth(), src.getHeight(), src.getTransparency());
+            }
+        } catch (Exception e) {
+            return src;
+        }
+        Graphics2D g = c.createGraphics();
+        g.setComposite(java.awt.AlphaComposite.Src);
+        g.drawImage(src, 0, 0, null);
+        g.dispose();
+        return c;
+    }
+
+    /**
+     * OPTIMIZACION: la imagen ya achicada a ese tamaño (se calcula una vez, con buena calidad).
+     * Los sprites de 560x680 se dibujaban achicandolos en CADA cuadro.
+     */
+    public static synchronized BufferedImage escalada(String ruta, int w, int h) {
+        if (w <= 0 || h <= 0) {
+            return imagen(ruta, Math.max(1, w), Math.max(1, h));
+        }
+        String clave = ruta + "@" + w + "x" + h;
+        BufferedImage hecho = cache.get(clave);
+        if (hecho != null) {
+            return hecho;
+        }
+        BufferedImage img = imagen(ruta, w, h);
+        if (img.getWidth() == w && img.getHeight() == h) {
+            cache.put(clave, img);
+            return img;
+        }
+        // achicar por mitades (se ve mucho mejor que de un solo golpe)
+        BufferedImage actual = img;
+        int cw = img.getWidth(), ch = img.getHeight();
+        while (cw / 2 >= w && ch / 2 >= h) {
+            cw /= 2;
+            ch /= 2;
+            actual = redimensionar(actual, cw, ch);
+        }
+        hecho = compatible(redimensionar(actual, w, h));
+        cache.put(clave, hecho);
+        return hecho;
+    }
+
+    private static BufferedImage redimensionar(BufferedImage src, int w, int h) {
+        BufferedImage r = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB_PRE);
+        Graphics2D g = r.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        g.drawImage(src, 0, 0, w, h, null);
+        g.dispose();
+        return r;
     }
 
     private static BufferedImage provisional(String ruta, int w, int h) {

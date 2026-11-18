@@ -224,7 +224,10 @@ public class PanelRed extends JPanel implements RedMacondo.Oyente {
         if (!conectarA("127.0.0.1")) {
             cerrarRed();
         } else {
-            infoSala.setText("Dile a los otros tres que se unan a:  " + misIps());
+            // la anfitriona decide que partida se juega (la misma en las cuatro computadoras)
+            red.enviar("MODO", PantallaModo.feria ? "FERIA" : "COMPLETA");
+            infoSala.setText("Dile a los otros tres que se unan a:  " + misIps()
+                    + (PantallaModo.feria ? "   ·  Partida corta (Modo Feria)" : "   ·  Partida completa"));
         }
     }
 
@@ -470,6 +473,10 @@ public class PanelRed extends JPanel implements RedMacondo.Oyente {
         // 2) misma Partida en las cuatro (los jugadores siempre en el orden de los roles)
         Partida partida = new Partida();
         for (int i = 2; i + 1 < m.length; i += 2) {
+            if ("MODO".equals(m[i])) {
+                partida.feria = "FERIA".equals(m[i + 1]);
+                continue;
+            }
             partida.agregarJugador(m[i + 1], Rol.valueOf(m[i]));
         }
         RedMacondo.Cliente c = red;

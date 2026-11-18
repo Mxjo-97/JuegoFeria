@@ -33,6 +33,8 @@ public class Partida {
     private Rol lider = Rol.CIUDADANO;
 
     public int dia = 1;
+    /** true = MODO FERIA (partida corta: panaderia, malecon, junta y final). */
+    public boolean feria;
     public int animo = ANIMO_INICIAL;
     public final GrafoConfianza confianza = new GrafoConfianza(CONFIANZA_INICIAL);
     public final Reloj reloj = new Reloj();

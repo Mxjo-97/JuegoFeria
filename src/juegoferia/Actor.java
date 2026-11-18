@@ -202,7 +202,7 @@ public class Actor {
             g.scale(-1, 1);
         }
         if (tieneImagen) {
-            g.drawImage(Recursos.imagen(rutaActual(t), ancho, alto), -ancho / 2, (int) (-alto - bob), ancho, alto, null);
+            g.drawImage(Recursos.escalada(rutaActual(t), ancho, alto), -ancho / 2, (int) (-alto - bob), ancho, alto, null);
         } else {
             figura(g, t, bob);
         }

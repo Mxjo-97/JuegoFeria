@@ -1335,7 +1335,7 @@ public final class GuionDia2 {
     private static final String F_LEJOS = "/imagenes/fondoinicio.png";
 
     /** Los cuatro de pie (sprite "quieto"), en fila. */
-    private static void losCuatro(Cinematica c, int x0, int y, int paso) {
+    static void losCuatro(Cinematica c, int x0, int y, int paso) {
         String[] roles = {"ciudadano", "influencer", "periodista", "candidato"};
         for (int i = 0; i < 4; i++) {
             c.sprite("/imagenes/personajes/" + roles[i] + "/quieto.png", x0 + i * paso, y + (i % 2) * 18, 205, 250);
@@ -1343,7 +1343,7 @@ public final class GuionDia2 {
     }
 
     /** En la cena (vista desde arriba): dos a cada lado de la mesa, por encima del cuadro de dialogo. */
-    private static void alrededorDeLaMesa(Cinematica c) {
+    static void alrededorDeLaMesa(Cinematica c) {
         String[] roles = {"ciudadano", "influencer", "periodista", "candidato"};
         int[][] pos = {{200, 290}, {400, 320}, {1320, 290}, {1520, 320}};
         for (int i = 0; i < 4; i++) {
@@ -1352,7 +1352,7 @@ public final class GuionDia2 {
     }
 
     /** Un NPC con su sprite estatico (/imagenes/personaje/<Nombre>/<Nombre>.png). */
-    private static void npcFinal(Cinematica c, String id, int x, int y, int ancho, int alto) {
+    static void npcFinal(Cinematica c, String id, int x, int y, int ancho, int alto) {
         c.sprite(Rutas.spriteVecino(id), x, y, ancho, alto);
     }
 

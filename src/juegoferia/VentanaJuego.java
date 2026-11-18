@@ -154,6 +154,7 @@ public class VentanaJuego extends JFrame {
     // ===================== UN SOLO PC =====================
 
     private void empezarPartida(Partida partida) {
+        partida.feria = PantallaModo.feria;
         if (juego != null) {
             raiz.remove(juego);
         }

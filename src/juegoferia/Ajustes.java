@@ -35,6 +35,8 @@ public final class Ajustes {
     public static double efectos = 0.9;
     public static boolean silencio = false;
     public static boolean textoRapido = false;
+    /** Modo liviano (MODO FERIA): menos particulas y adornos animados, para que corra en cualquier PC. */
+    public static boolean liviano = false;
 
     /** Factor real de la musica (0 si esta en silencio). */
     public static double fMusica() {
@@ -48,7 +50,8 @@ public final class Ajustes {
 
     /** Multiplicador de la velocidad de los dialogos. */
     public static double velocidadTexto() {
-        return textoRapido ? 2.2 : 1.0;
+        // en red NO: el avance del dialogo tiene que ser igual en las cuatro computadoras
+        return textoRapido && !Sincronia.activa() ? 2.2 : 1.0;
     }
 
     /** Pasa un factor 0..1 a decibeles (para MASTER_GAIN). */

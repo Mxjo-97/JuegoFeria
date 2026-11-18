@@ -65,6 +65,14 @@ public class JuegoMacondo extends JPanel implements Lugar.Anfitrion {
 
     /** Prologo (la playa, la casa, tres semanas despues) y luego el Dia 1. */
     public void empezar() {
+        Ajustes.liviano = partida.feria;
+        if (partida.feria) {
+            cinematica(GuionFeria.intro(partida), () -> {
+                partida.reloj.reiniciar();
+                ir(GuionFeria.PRIMER_LUGAR);
+            });
+            return;
+        }
         cinematica(GuionPrologo.llegada(partida), () -> {
             partida.reloj.reiniciar();
             ir(GuionDia1.PRIMER_LUGAR);
@@ -76,7 +84,8 @@ public class JuegoMacondo extends JPanel implements Lugar.Anfitrion {
         String clave = partida.dia + ":" + destino;
         Lugar l = lugares.get(clave);
         if (l == null) {
-            l = partida.dia == 1 ? GuionDia1.crear(destino, partida, this) : GuionDia2.crear(destino, partida, this);
+            l = partida.feria ? GuionFeria.crear(destino, partida, this)
+                    : partida.dia == 1 ? GuionDia1.crear(destino, partida, this) : GuionDia2.crear(destino, partida, this);
             lugares.put(clave, l);
             add(l, clave);
             revalidate();
@@ -134,6 +143,11 @@ public class JuegoMacondo extends JPanel implements Lugar.Anfitrion {
     @Override
     public void terminarDia() {
         partida.imprimir();
+        if (partida.feria) {
+            actual = null;
+            cinematica(GuionFeria.finalFeria(partida), alTerminarPartida);
+            return;
+        }
         if (partida.dia < Partida.DIAS) {
             partida.avanzarDia();
             actual = null;

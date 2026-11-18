@@ -10,6 +10,8 @@ import java.util.function.Consumer;
 /**
  * Decisiones con TURNOS para cuatro jugadores (en un mismo computador o cada uno en el suyo).
  * Usa las ventanas de decision de Lugar y las encadena: cuando uno elige, le toca al siguiente.
+ * EN RED: digital, cadaUno/algunos y votacion se abren A LA VEZ, cada una en la pantalla de su
+ * jugador; lo que sigue (alTerminar / el conteo) corre cuando respondio el ultimo.
  *
  *   digital(...)  -> eligen los cuatro, uno por uno (decision digital A-E).
  *   respeto(...)  -> responde quien quiera primero; si elige la opcion que respeta (A),
@@ -27,6 +29,35 @@ public final class DecisionGrupal {
 
     public static void digital(Lugar l, String autor, String publicacion, String contexto, String[] opciones,
             BiConsumer<Jugador, Integer> alElegir, Consumer<Map<Rol, Integer>> alTerminar) {
+        if (Sincronia.activa()) {
+            // en red: los cuatro deciden A LA VEZ, cada quien en su pantalla
+            Map<Rol, Integer> el = new EnumMap<>(Rol.class);
+            List<Jugador> js = l.partida().jugadores();
+            int[] faltan = {js.size()};
+            for (Jugador j : js) {
+                Lugar.Opcion[] ops = new Lugar.Opcion[opciones.length];
+                for (int k = 0; k < opciones.length; k++) {
+                    final int op = k;
+                    ops[k] = Lugar.op(opciones[k], () -> {
+                        el.put(j.rol, op);
+                        if (alElegir != null) {
+                            alElegir.accept(j, op);
+                        }
+                        listo(l, faltan, () -> {
+                            if (alTerminar != null) {
+                                alTerminar.accept(el);
+                            }
+                        });
+                    });
+                }
+                l.conAudiencia(j.rol, () -> {
+                    l.decidirCelular("TU CELULAR, " + j.nombre.toUpperCase(), autor, publicacion, contexto, ops);
+                    l.colorTurno(j.rol.color);
+                    l.soloPara(j.rol);
+                });
+            }
+            return;
+        }
         turnoDigital(l, l.partida().jugadores(), 0, new EnumMap<>(Rol.class),
                 autor, publicacion, contexto, opciones, alElegir, alTerminar);
     }
@@ -78,7 +109,8 @@ public final class DecisionGrupal {
                     final int op = k;
                     ops[k] = Lugar.op(opciones[k], () -> {
                         if (alResponder != null) {
-                            alResponder.accept(j, op);
+                            // responder es algo publico: lo que pasa despues lo ven todos
+                            l.conAudiencia(null, () -> alResponder.accept(j, op));
                         }
                         if (op == 0) {
                             l.esperarYLuego(() -> yoTambien(l, l.partida().otros(j.rol), 0, new ArrayList<>(), alSumarse));
@@ -95,7 +127,7 @@ public final class DecisionGrupal {
             Consumer<List<Jugador>> alSumarse) {
         if (i >= otros.size()) {
             if (alSumarse != null) {
-                alSumarse.accept(sumados);
+                l.conAudiencia(null, () -> alSumarse.accept(sumados));
             }
             return;
         }
@@ -121,8 +153,39 @@ public final class DecisionGrupal {
         turno(l, quienes, 0, new EnumMap<>(Rol.class), situacion, opciones, alElegir, alTerminar);
     }
 
+    /** En red: cuando el ultimo responde, lo que sigue corre para todos (cuando nadie este ocupado). */
+    private static void listo(Lugar l, int[] faltan, Runnable fin) {
+        faltan[0]--;
+        if (faltan[0] == 0) {
+            l.conAudiencia(null, () -> l.esperarYLuego(fin));
+        }
+    }
+
     private static void turno(Lugar l, List<Jugador> js, int i, Map<Rol, Integer> elecciones, String situacion,
             String[] opciones, BiConsumer<Jugador, Integer> alElegir, Consumer<Map<Rol, Integer>> alTerminar) {
+        if (Sincronia.activa() && i == 0 && !js.isEmpty()) {
+            // en red: todos eligen a la vez, cada quien en su pantalla
+            int[] faltan = {js.size()};
+            for (Jugador j : js) {
+                Lugar.Opcion[] ops = new Lugar.Opcion[opciones.length];
+                for (int k = 0; k < opciones.length; k++) {
+                    final int op = k;
+                    ops[k] = Lugar.op(opciones[k], () -> {
+                        elecciones.put(j.rol, op);
+                        if (alElegir != null) {
+                            alElegir.accept(j, op);
+                        }
+                        listo(l, faltan, () -> {
+                            if (alTerminar != null) {
+                                alTerminar.accept(elecciones);
+                            }
+                        });
+                    });
+                }
+                l.conAudiencia(j.rol, () -> l.decidirTurno(j, situacion, ops));
+            }
+            return;
+        }
         if (i >= js.size()) {
             if (alTerminar != null) {
                 alTerminar.accept(elecciones);
@@ -170,6 +233,35 @@ public final class DecisionGrupal {
 
     private static void turnoVoto(Lugar l, List<Jugador> js, int i, Map<Rol, Integer> votos, String pregunta,
             String[] opciones, int prudente, Consumer<Integer> alGanar) {
+        if (Sincronia.activa() && i == 0 && !js.isEmpty()) {
+            // en red: los cuatro votan a la vez en su celular (30 segundos cada uno)
+            Partida p = l.partida();
+            int[] faltan = {js.size()};
+            Runnable contar = () -> contarVotos(l, votos, opciones, prudente, alGanar);
+            for (Jugador j : js) {
+                Lugar.Opcion[] ops = new Lugar.Opcion[opciones.length];
+                for (int k = 0; k < opciones.length; k++) {
+                    final int op = k;
+                    ops[k] = Lugar.op(opciones[k], () -> {
+                        votos.put(j.rol, op);
+                        GuionFeria.anotarVoto(j, op);
+                        p.chat.escribir(p.reloj.texto(), ChatCasa.NOMBRE, j.rol.nombre + " votó " + (char) ('A' + op) + ".");
+                        listo(l, faltan, contar);
+                    });
+                }
+                l.conAudiencia(j.rol, () -> {
+                    l.decidirCelular("VOTA " + j.nombre.toUpperCase(), ChatCasa.NOMBRE, pregunta,
+                            "Votación de la casa. Gana la mayoría; si hay empate, decide Doña Rosa.", ops);
+                    l.colorTurno(j.rol.color);
+                    l.soloPara(j.rol);
+                    l.limiteDecision(SEGUNDOS_VOTO, () -> {
+                        p.chat.escribir(p.reloj.texto(), ChatCasa.NOMBRE, j.rol.nombre + " no alcanzó a votar.");
+                        listo(l, faltan, contar);
+                    }, "Si no votas en 30 segundos, tu voto no cuenta...");
+                });
+            }
+            return;
+        }
         if (i >= js.size()) {
             contarVotos(l, votos, opciones, prudente, alGanar);
             return;
@@ -182,6 +274,7 @@ public final class DecisionGrupal {
             final int op = k;
             ops[k] = Lugar.op(opciones[k], () -> {
                 votos.put(j.rol, op);
+                GuionFeria.anotarVoto(j, op);
                 p.chat.escribir(p.reloj.texto(), ChatCasa.NOMBRE, j.rol.nombre + " votó " + (char) ('A' + op) + ".");
                 siguiente.run();
             });

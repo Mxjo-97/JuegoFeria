@@ -212,6 +212,42 @@ public abstract class PanelDiseno extends JPanel {
         }
     }
 
+    /**
+     * OPTIMIZACION: dibuja una imagen grande (un fondo) ya achicada al tamaño REAL de la ventana.
+     * Se achica una sola vez (y otra vez solo si cambia el tamaño de la ventana); despues es copiar pixeles.
+     */
+    public static void dibujarAPantalla(Graphics2D g, java.awt.image.BufferedImage img, int x, int y, int w, int h) {
+        java.awt.geom.AffineTransform t = g.getTransform();
+        if (t.getShearX() != 0 || t.getShearY() != 0) {
+            g.drawImage(img, x, y, w, h, null);
+            return;
+        }
+        int dx = (int) Math.round(t.getTranslateX() + x * t.getScaleX());
+        int dy = (int) Math.round(t.getTranslateY() + y * t.getScaleY());
+        int dw = (int) Math.round(w * t.getScaleX()), dh = (int) Math.round(h * t.getScaleY());
+        if (dw <= 0 || dh <= 0) {
+            return;
+        }
+        java.awt.image.BufferedImage listo = ESCALADAS.get(img);
+        if (listo == null || listo.getWidth() != dw || listo.getHeight() != dh) {
+            listo = new java.awt.image.BufferedImage(dw, dh, img.getTransparency() == java.awt.Transparency.OPAQUE
+                    ? java.awt.image.BufferedImage.TYPE_INT_RGB : java.awt.image.BufferedImage.TYPE_INT_ARGB_PRE);
+            Graphics2D gg = listo.createGraphics();
+            gg.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            gg.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            gg.drawImage(img, 0, 0, dw, dh, null);
+            gg.dispose();
+            listo = Recursos.compatible(listo);
+            ESCALADAS.put(img, listo);
+        }
+        g.setTransform(new java.awt.geom.AffineTransform());
+        g.drawImage(listo, dx, dy, null);
+        g.setTransform(t);
+    }
+
+    private static final java.util.Map<java.awt.image.BufferedImage, java.awt.image.BufferedImage> ESCALADAS =
+            new java.util.WeakHashMap<>();
+
     /** true = esta pantalla muestra el boton del parlante (lugares, minijuegos y cinematicas). */
     protected boolean conAjustes() {
         return false;

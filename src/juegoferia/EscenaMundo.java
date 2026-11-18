@@ -105,11 +105,67 @@ public class EscenaMundo extends PanelDiseno {
     private final Ctl[] porRol = new Ctl[Rol.values().length];
     private boolean enRed;
 
-    // dialogo
-    private final LinkedList<String[]> cola = new LinkedList<>();
-    private String dlgQuien, dlgTexto;
-    private double dlgChars;
-    private Runnable finCola;
+    // ===================== DIALOGOS (en red: uno por jugador) =====================
+    //
+    // Un solo PC: hay un dialogo ('comun') y se ve en la unica pantalla, como siempre.
+    // En red: cada rol tiene SU dialogo. Lo que pasa cuando un jugador habla con alguien
+    // (o elige algo suyo) le sale solo a el; lo que es de la escena (sin dueño) le sale a
+    // los cuatro, cada quien lo lee a su ritmo, y lo que sigue pasa cuando TODOS terminaron.
+    // Todo esto se simula igual en las cuatro computadoras (lockstep); cada una solo DIBUJA el suyo.
+
+    /** Un dialogo encolado: sus lineas, que pasa al final, de quien es y (si es de todos) su grupo. */
+    private static final class Bloque {
+        final List<String[]> lineas;
+        final Runnable fin;
+        final Rol de;
+        final Grupo grupo;
+
+        Bloque(List<String[]> lineas, Runnable fin, Rol de, Grupo grupo) {
+            this.lineas = lineas;
+            this.fin = fin;
+            this.de = de;
+            this.grupo = grupo;
+        }
+    }
+
+    /** Un dialogo de la escena repartido a todos: 'fin' corre una vez, cuando ya nadie lo esta leyendo. */
+    private static final class Grupo {
+        final java.util.EnumSet<Rol> faltan = java.util.EnumSet.noneOf(Rol.class);
+        final Runnable fin;
+
+        Grupo(Runnable fin) {
+            this.fin = fin;
+        }
+    }
+
+    /** El dialogo de una pantalla. */
+    private static final class Dlg {
+        final LinkedList<String[]> cola = new LinkedList<>();
+        final LinkedList<Bloque> espera = new LinkedList<>();
+        Bloque actual;
+        String quien, texto;
+        double chars, adelantoT;
+        double sinInteraccionHasta = -1;
+
+        void vaciar() {
+            cola.clear();
+            espera.clear();
+            actual = null;
+            quien = texto = null;
+        }
+    }
+
+    private final Dlg comun = new Dlg();
+    private final Dlg[] dlgRol = new Dlg[Rol.values().length];
+    private final List<Grupo> grupos = new ArrayList<>();
+    /** De quien es lo que se esta procesando ahora (null = de la escena / de todos). Solo cuenta en red. */
+    private Rol audiencia;
+
+    {
+        for (int i = 0; i < dlgRol.length; i++) {
+            dlgRol[i] = new Dlg();
+        }
+    }
 
     public EscenaMundo() {
         addKeyListener(new KeyAdapter() {
@@ -131,8 +187,9 @@ public class EscenaMundo extends PanelDiseno {
                 if (ratonExtra(1, p)) {
                     return;
                 }
-                if (dlgTexto != null) {
-                    avanzarDialogo();
+                Dlg d = dlgDe(ctlDeEntrada());
+                if (d.texto != null) {
+                    avanzar(d);
                 }
             }
 
@@ -186,8 +243,67 @@ public class EscenaMundo extends PanelDiseno {
         return false;
     }
 
+    /** Hay ALGUN dialogo abierto (de cualquiera): el reloj y lo pendiente esperan. */
     protected boolean dialogoActivo() {
-        return dlgTexto != null;
+        if (comun.texto != null) {
+            return true;
+        }
+        for (Dlg d : dlgRol) {
+            if (d.texto != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Hay un dialogo DE LA ESCENA abierto (el de todos). En red no cuentan las charlas personales. */
+    protected boolean dialogoDeEscenaActivo() {
+        return enRed ? !grupos.isEmpty() : comun.texto != null;
+    }
+
+    /** Hay dialogo en ESTA pantalla (para dibujar y esconder el HUD). */
+    protected boolean dialogoVisible() {
+        return dlgVista().texto != null;
+    }
+
+    /** Ese jugador esta leyendo algo (en un solo PC: el dialogo comun). */
+    protected boolean dialogoActivoDe(Rol r) {
+        return enRed && r != null ? dlgRol[r.ordinal()].texto != null : comun.texto != null;
+    }
+
+    /** De quien es lo que se esta procesando (null = de todos). Lugar lo usa para decisiones, burbujas y avisos. */
+    protected Rol audiencia() {
+        return enRed ? audiencia : null;
+    }
+
+    /** Corre 'r' como si fuera de ese jugador (null = de todos): sus dialogos y decisiones le saldran solo a el. */
+    public void conAudiencia(Rol rol, Runnable r) {
+        Rol antes = audiencia;
+        audiencia = rol;
+        try {
+            r.run();
+        } finally {
+            audiencia = antes;
+        }
+    }
+
+    /** En red: ese jugador no se puede mover (Lugar: tiene una decision suya abierta). */
+    protected boolean congelado(Rol r) {
+        return false;
+    }
+
+    /** Nombres de los que todavia leen un dialogo de la escena que YO ya termine (o null). */
+    protected List<Rol> esperandoA() {
+        if (!enRed) {
+            return null;
+        }
+        Rol mi = Sincronia.miRol();
+        for (Grupo gr : grupos) {
+            if (!gr.faltan.isEmpty() && !gr.faltan.contains(mi) && dlgVista().texto == null) {
+                return new ArrayList<>(gr.faltan);
+            }
+        }
+        return null;
     }
 
     protected boolean estaBloqueado() {
@@ -303,8 +419,12 @@ public class EscenaMundo extends PanelDiseno {
         principal.actor = null;
         enRed = false;
         java.util.Arrays.fill(porRol, null);
-        cola.clear();
-        dlgTexto = null;
+        comun.vaciar();
+        for (Dlg d : dlgRol) {
+            d.vaciar();
+        }
+        grupos.clear();
+        audiencia = null;
     }
 
     public void bloquear(boolean b) {
@@ -339,77 +459,177 @@ public class EscenaMundo extends PanelDiseno {
     /**
      * Dialogo de texto. Cada linea es "Quien: texto". Al terminar llama a fin (puede ser null).
      * Ej: m.dialogo(() -> ..., "Dani: Hola!", "Yo: Que hay de nuevo?");
+     * En red: si lo provoco un jugador (audiencia) le sale solo a el; si no, a todos.
      */
     public void dialogo(Runnable fin, String... lineas) {
-        cola.clear();
+        List<String[]> ls = new ArrayList<>();
         for (String l : lineas) {
             int i = l.indexOf(": ");
             if (l.startsWith("img:")) {
-                cola.add(new String[]{"@img", l.substring(4)});
+                ls.add(new String[]{"@img", l.substring(4)});
             } else if (i > 0 && i < 24) {
-                cola.add(new String[]{l.substring(0, i), l.substring(i + 2)});
+                ls.add(new String[]{l.substring(0, i), l.substring(i + 2)});
             } else {
-                cola.add(new String[]{null, l});
+                ls.add(new String[]{null, l});
             }
         }
-        finCola = fin;
-        siguienteLinea();
-    }
-
-    private void siguienteLinea() {
-        if (cola.isEmpty()) {
-            dlgTexto = null;
-            dlgQuien = null;
-            // pausa cortita: la misma tecla que cierra el dialogo no lo vuelve a abrir
-            sinInteraccionHasta = tiempo + 0.45;
-            Runnable f = finCola;
-            finCola = null;
-            if (f != null) {
-                f.run();
+        if (!enRed) {
+            // un solo PC: como siempre (un dialogo nuevo reemplaza al que estaba)
+            comun.espera.clear();
+            empezar(comun, new Bloque(ls, fin, null, null));
+            return;
+        }
+        Rol a = audiencia;
+        if (a != null && porRol[a.ordinal()] != null) {
+            encolar(dlgRol[a.ordinal()], new Bloque(ls, fin, a, null));
+            return;
+        }
+        // de la escena: a los cuatro; 'fin' cuando todos terminen
+        Grupo gr = new Grupo(fin);
+        for (Rol r : Rol.values()) {
+            if (porRol[r.ordinal()] != null) {
+                gr.faltan.add(r);
+            }
+        }
+        if (gr.faltan.isEmpty()) {
+            if (fin != null) {
+                fin.run();
             }
             return;
         }
-        String[] l = cola.poll();
-        dlgQuien = l[0];
-        dlgTexto = l[1];
-        dlgChars = "@img".equals(l[0]) ? l[1].length() : 0;
-        for (Ctl c : ctls()) {
-            c.soltar();
+        grupos.add(gr);
+        for (Rol r : gr.faltan.toArray(new Rol[0])) {
+            encolar(dlgRol[r.ordinal()], new Bloque(ls, null, r, gr));
         }
     }
 
-    /** Hasta cuando no se puede volver a hablar (justo despues de cerrar un dialogo). */
-    private double sinInteraccionHasta = -1;
-
-    private void avanzarDialogo() {
-        if (dlgTexto == null) {
-            return;
-        }
-        if (dlgChars < dlgTexto.length()) {
-            dlgChars = dlgTexto.length();
+    private void encolar(Dlg d, Bloque b) {
+        if (d.actual == null && d.texto == null) {
+            empezar(d, b);
         } else {
-            siguienteLinea();
+            d.espera.add(b);
         }
+    }
+
+    private void empezar(Dlg d, Bloque b) {
+        d.actual = b;
+        d.cola.clear();
+        d.cola.addAll(b.lineas);
+        siguienteLinea(d);
+    }
+
+    private void siguienteLinea(Dlg d) {
+        if (d.cola.isEmpty()) {
+            d.texto = null;
+            d.quien = null;
+            // pausa cortita: la misma tecla que cierra el dialogo no lo vuelve a abrir
+            d.sinInteraccionHasta = tiempo + 0.45;
+            Bloque b = d.actual;
+            d.actual = null;
+            terminarBloque(b);
+            if (d.actual == null && d.texto == null && !d.espera.isEmpty()) {
+                empezar(d, d.espera.poll());
+            }
+            return;
+        }
+        String[] l = d.cola.poll();
+        d.quien = l[0];
+        d.texto = l[1];
+        d.chars = "@img".equals(l[0]) ? l[1].length() : 0;
+        if (d == comun) {
+            for (Ctl c : ctls()) {
+                c.soltar();
+            }
+        } else {
+            for (int i = 0; i < dlgRol.length; i++) {
+                if (dlgRol[i] == d && porRol[i] != null) {
+                    porRol[i].soltar();
+                }
+            }
+        }
+    }
+
+    private void terminarBloque(Bloque b) {
+        if (b == null) {
+            return;
+        }
+        if (b.grupo != null) {
+            b.grupo.faltan.remove(b.de);
+            if (b.grupo.faltan.isEmpty()) {
+                grupos.remove(b.grupo);
+                if (b.grupo.fin != null) {
+                    conAudiencia(null, b.grupo.fin);
+                }
+            }
+        } else if (b.fin != null) {
+            conAudiencia(b.de, b.fin);
+        }
+    }
+
+    private void avanzar(Dlg d) {
+        if (d.texto == null) {
+            return;
+        }
+        if (d.chars < d.texto.length()) {
+            d.chars = d.texto.length();
+        } else {
+            siguienteLinea(d);
+        }
+    }
+
+    private Rol rolDe(Ctl c) {
+        if (c != null) {
+            for (int i = 0; i < porRol.length; i++) {
+                if (porRol[i] == c) {
+                    return Rol.values()[i];
+                }
+            }
+        }
+        return null;
+    }
+
+    private Dlg dlgDe(Ctl c) {
+        if (!enRed) {
+            return comun;
+        }
+        Rol r = rolDe(c);
+        return r == null ? comun : dlgRol[r.ordinal()];
+    }
+
+    private Dlg dlgVista() {
+        return dlgDe(vista());
     }
 
     // ===================== ENTRADA =====================
 
     /** E (o Enter) sostenida: adelanta el dialogo rapidito. Las repeticiones del teclado no vuelven a hablar. */
-    private boolean eAbajo, eRepeticion;
-    private double eAbajoT, adelantoT;
+    // (en red cada rol lleva su propia E: indice = ordinal del rol; en un solo PC se usa el 0)
+    private final boolean[] eAbajoDe = new boolean[5];
+    private final double[] eAbajoTDe = new double[5];
+    private boolean eRepeticion;
 
-    /** true mientras se esta adelantando un dialogo con la E sostenida. */
+    private int quienE() {
+        return Sincronia.activa() && Sincronia.rolActual() != null ? Sincronia.rolActual().ordinal() : 0;
+    }
+
+    /** true mientras ESTA pantalla esta adelantando su dialogo con la E sostenida. */
     protected boolean adelantando() {
-        return eAbajo && eAbajoT > 0.35 && dlgTexto != null;
+        int i = 0;
+        if (enRed) {
+            Rol mi = Sincronia.miRol();
+            i = mi != null ? mi.ordinal() : 0;
+        }
+        return eAbajoDe[i] && eAbajoTDe[i] > 0.35 && dlgVista().texto != null;
     }
 
     void tecla(int k, boolean pres) {
         if (k == KeyEvent.VK_E || k == KeyEvent.VK_ENTER) {
-            eRepeticion = pres && eAbajo;
-            if (pres && !eAbajo) {
-                eAbajoT = 0;
+            int q = quienE();
+            eRepeticion = pres && eAbajoDe[q];
+            if (pres && !eAbajoDe[q]) {
+                eAbajoTDe[q] = 0;
             }
-            eAbajo = pres;
+            eAbajoDe[q] = pres;
         }
         if (teclaExtra(k, pres)) {
             return;
@@ -458,21 +678,27 @@ public class EscenaMundo extends PanelDiseno {
     }
 
     private void interactuar(Ctl c) {
-        if (dlgTexto != null) {
-            avanzarDialogo();
+        Dlg d = dlgDe(c);
+        if (d.texto != null) {
+            avanzar(d);
             return;
         }
-        if (bloqueado || c == null || tiempo < sinInteraccionHasta) {
+        Rol r = rolDe(c);
+        if (bloqueado || c == null || tiempo < d.sinInteraccionHasta || (enRed && congelado(r))) {
             return;
         }
         if (c.cerca != null && c.cerca.alInteractuar != null) {
             if (c.actor != null) {
                 c.cerca.mirandoIzquierda = c.actor.x < c.cerca.x;
             }
-            alInteractuarCon(c.cerca);
-            c.cerca.alInteractuar.run();
+            Actor quien = c.cerca;
+            conAudiencia(r, () -> {
+                alInteractuarCon(quien);
+                quien.alInteractuar.run();
+            });
         } else if (c.zonaCerca != null) {
-            c.zonaCerca.accion.run();
+            Zona z = c.zonaCerca;
+            conAudiencia(r, z.accion);
         }
     }
 
@@ -487,22 +713,18 @@ public class EscenaMundo extends PanelDiseno {
 
     @Override
     protected void actualizar(double dt) {
-        if (dlgTexto != null) {
-            dlgChars += dt * 60 * Ajustes.velocidadTexto();
-            if (eAbajo) {
-                eAbajoT += dt;
-                if (eAbajoT > 0.35) {
-                    dlgChars += dt * 500;
-                    if (dlgChars >= dlgTexto.length()) {
-                        adelantoT += dt;
-                        if (adelantoT > 0.16) {
-                            adelantoT = 0;
-                            avanzarDialogo();
-                        }
-                    }
-                }
+        for (int i = 0; i < eAbajoDe.length; i++) {
+            if (eAbajoDe[i]) {
+                eAbajoTDe[i] += dt;
             }
-            return;
+        }
+        if (enRed) {
+            for (int i = 0; i < dlgRol.length; i++) {
+                escribir(dlgRol[i], i, dt);
+            }
+        } else if (comun.texto != null) {
+            escribir(comun, 0, dt);
+            return;          // un solo PC: mientras se lee, nadie camina (como siempre)
         }
         List<Ctl> todos = ctls();
         if (todos.isEmpty()) {
@@ -523,6 +745,10 @@ public class EscenaMundo extends PanelDiseno {
 
         for (Ctl c : todos) {
             Actor a = c.actor;
+            if (parado(c)) {          // en red: este jugador esta leyendo o decidiendo (los demas siguen)
+                a.caminando = false;
+                continue;
+            }
             double dx = (c.der ? 1 : 0) - (c.izq ? 1 : 0);
             double dy = (c.abj ? 1 : 0) - (c.arr ? 1 : 0);
             a.caminando = dx != 0 || dy != 0;
@@ -540,6 +766,9 @@ public class EscenaMundo extends PanelDiseno {
         }
 
         for (Ctl c : todos) {
+            if (parado(c)) {
+                continue;
+            }
             for (Zona z : zonas) {
                 if (z.auto && !z.usada && z.r.contains(c.actor.x, c.actor.y)) {
                     z.usada = true;
@@ -549,6 +778,31 @@ public class EscenaMundo extends PanelDiseno {
                 }
             }
         }
+    }
+
+    /** Va escribiendo la linea del dialogo d (y la adelanta si su dueño tiene la E sostenida). */
+    private void escribir(Dlg d, int e, double dt) {
+        if (d.texto == null) {
+            return;
+        }
+        d.chars += dt * 60 * Ajustes.velocidadTexto();
+        if (eAbajoDe[e] && eAbajoTDe[e] > 0.35) {
+            d.chars += dt * 500;
+            if (d.chars >= d.texto.length()) {
+                d.adelantoT += dt;
+                if (d.adelantoT > 0.16) {
+                    d.adelantoT = 0;
+                    avanzar(d);
+                }
+            }
+        }
+    }
+
+    private boolean parado(Ctl c) {
+        if (!enRed) {
+            return false;
+        }
+        return dlgDe(c).texto != null || congelado(rolDe(c));
     }
 
     /** Gancho: en red, avisa quien causo la accion automatica (zonaAuto) para que el guion sepa "quien actua". */
@@ -651,7 +905,7 @@ public class EscenaMundo extends PanelDiseno {
     @Override
     protected void dibujar(Graphics2D g) {
         if (fondo != null) {
-            g.drawImage(fondo, 0, 0, W, H, null);
+            dibujarAPantalla(g, fondo, 0, 0, W, H);
         } else {
             fondoProvisional(g);
         }
@@ -668,9 +922,49 @@ public class EscenaMundo extends PanelDiseno {
             cajas(g);
         }
         dibujarCapas(g);
-        if (dlgTexto != null) {
-            dibujarDialogo(g);
+        Dlg d = dlgVista();
+        if (d.texto != null) {
+            dibujarDialogo(g, d);
+        } else {
+            dibujarEsperando(g);
         }
+    }
+
+    /** En red: "Esperando a que X termine de leer..." (ya leiste lo de la escena y faltan otros). */
+    private void dibujarEsperando(Graphics2D g) {
+        List<Rol> faltan = esperandoA();
+        if (faltan == null || faltan.isEmpty()) {
+            return;
+        }
+        StringBuilder sb = new StringBuilder("Esperando a que ");
+        for (int i = 0; i < faltan.size(); i++) {
+            if (i > 0) {
+                sb.append(i == faltan.size() - 1 ? " y " : ", ");
+            }
+            sb.append(nombreDe(faltan.get(i)));
+        }
+        sb.append(faltan.size() == 1 ? " termine de leer" : " terminen de leer");
+        int puntos = (int) (tiempo * 2.5) % 4;
+        sb.append(".".repeat(puntos));
+        String t = sb.toString();
+        g.setFont(Estilo.fuente(Font.BOLD, 22f));
+        FontMetrics fm = g.getFontMetrics();
+        int w = fm.stringWidth(t + "...") + 60, h = 48;
+        int x = (W - w) / 2, y = H - 190;
+        g.setColor(new Color(60, 35, 15, 40));
+        g.fillRoundRect(x + 2, y + 5, w, h, h, h);
+        g.setColor(new Color(255, 250, 240, 235));
+        g.fillRoundRect(x, y, w, h, h, h);
+        g.setColor(new Color(0xEAD7AE));
+        g.setStroke(new BasicStroke(2f));
+        g.drawRoundRect(x, y, w, h, h, h);
+        g.setColor(new Color(0x5A3B1F));
+        g.drawString(t, x + 30, y + 31);
+    }
+
+    /** Nombre para mostrar de un rol (Lugar lo cambia por el nombre del jugador). */
+    protected String nombreDe(Rol r) {
+        return r.nombre;
     }
 
     private void fondoProvisional(Graphics2D g) {
@@ -715,7 +1009,7 @@ public class EscenaMundo extends PanelDiseno {
     /** El actor con quien se puede hablar ahora mismo (el del letrerito "E Hablar con..."), o null. */
     protected Actor cercano() {
         Ctl v = vista();
-        return v != null && dlgTexto == null && !bloqueado ? v.cerca : null;
+        return v != null && dlgVista().texto == null && !bloqueado && !parado(v) ? v.cerca : null;
     }
 
     /** Gancho: se acaba de hablar con este actor (Lugar lleva la cuenta). */
@@ -734,7 +1028,7 @@ public class EscenaMundo extends PanelDiseno {
     private void placas(Graphics2D g) {
         Ctl v = vista();
         Actor yo = v != null ? v.actor : null;
-        if (yo == null || dlgTexto != null) {
+        if (yo == null || dlgVista().texto != null) {
             return;
         }
         g.setFont(Estilo.fuente(Font.BOLD, 20f));
@@ -776,11 +1070,12 @@ public class EscenaMundo extends PanelDiseno {
         if (v == null || v.actor == null) {
             return;
         }
-        if (v.cerca != null && dlgTexto == null && !bloqueado) {
+        boolean libre = dlgVista().texto == null && !bloqueado && !parado(v);
+        if (v.cerca != null && libre) {
             texto = v.cerca.etiqueta;
             cx = v.cerca.x;
             cy = v.cerca.y - v.cerca.alto - 24;
-        } else if (v.zonaCerca != null && dlgTexto == null && !bloqueado) {
+        } else if (v.zonaCerca != null && libre) {
             texto = v.zonaCerca.etiqueta;
             cx = v.actor.x;
             cy = v.actor.y - v.actor.alto - 24;
@@ -834,7 +1129,9 @@ public class EscenaMundo extends PanelDiseno {
         }
     }
 
-    private void dibujarDialogo(Graphics2D g) {
+    private void dibujarDialogo(Graphics2D g, Dlg d) {
+        String dlgQuien = d.quien, dlgTexto = d.texto;
+        double dlgChars = d.chars;
         if ("@img".equals(dlgQuien)) {
             BufferedImage img = Recursos.dialogo(dlgTexto);
             double esc = (W * 0.50) / img.getWidth();

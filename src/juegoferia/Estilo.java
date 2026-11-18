@@ -70,8 +70,17 @@ public final class Estilo {
                 }
             }
         }
-        return new Font(familia, estilo, Math.round(tam));
+        // (las letras se guardan: crear un Font nuevo en cada cuadro era de lo mas lento del HUD)
+        long clave = ((long) estilo << 32) | Math.round(tam);
+        Font f = FUENTES.get(clave);
+        if (f == null) {
+            f = new Font(familia, estilo, Math.round(tam));
+            FUENTES.put(clave, f);
+        }
+        return f;
     }
+
+    private static final java.util.Map<Long, Font> FUENTES = new java.util.HashMap<>();
 
     public static void suave(Graphics2D g) {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);

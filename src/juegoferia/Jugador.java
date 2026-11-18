@@ -19,6 +19,8 @@ public class Jugador {
 
     /** Mariposas amarillas: solo las ve quien las gano. */
     public int mariposas;
+    /** Modo feria: la mision secreta de este jugador (id, nombre corto y que hay que hacer). */
+    public String misionId, misionNombre, misionTexto;
 
     /** Piezas ganadas, por lugar (una por lugar). */
     private final Map<String, Pieza> piezas = new LinkedHashMap<>();

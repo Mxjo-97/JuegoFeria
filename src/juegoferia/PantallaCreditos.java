@@ -271,7 +271,7 @@ public class PantallaCreditos extends JPanel {
         g.setColor(new Color(0x6E4A2A));
         FontMetrics fm = g.getFontMetrics();
         double ly = y + 160;
-        for (String l : envolver("Por su paciencia infinita y darnos plazo hasta el martes",
+        for (String l : envolver("Por su paciencia infinita y por darnos plazo hasta el martes",
                 fm, r.width - 300)) {
             g.drawString(l, (float) tx, (float) ly);
             ly += fm.getHeight();

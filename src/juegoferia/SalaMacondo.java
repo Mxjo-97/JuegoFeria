@@ -121,6 +121,11 @@ public final class SalaMacondo implements RedMacondo.Servidor.Manejador, Closeab
                     elegirRol(id, c, Rol.de(m[1]));
                 }
                 break;
+            case "MODO":
+                if (!empezo && m.length > 1) {
+                    modo = m[1];
+                }
+                break;
             case "LISTO":
                 c.listo = true;
                 if (empezo && !corriendo && todosListos()) {
@@ -227,6 +232,9 @@ public final class SalaMacondo implements RedMacondo.Servidor.Manejador, Closeab
 
     // ===================== PARTIDA =====================
 
+    /** Que partida se juega (lo manda la anfitriona): "FERIA" o "COMPLETA". */
+    private String modo = "COMPLETA";
+
     private void empezar() {
         empezo = true;
         long semilla = System.nanoTime() & 0xFFFFFFFFFFL;
@@ -237,6 +245,8 @@ public final class SalaMacondo implements RedMacondo.Servidor.Manejador, Closeab
             campos.add(r.name());
             campos.add(cons.get(duenoDe(r)).nombre);
         }
+        campos.add("MODO");
+        campos.add(modo);
         servidor.difundir(campos.toArray());
     }
 

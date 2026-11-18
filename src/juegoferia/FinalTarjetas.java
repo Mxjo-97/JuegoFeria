@@ -29,6 +29,9 @@ final class FinalTarjetas implements EfectosCine.Capa {
         String nombre, rol, carpeta, titulo, emoji;
         Color color;
         int verifico, participo, confianza, bienestar, mariposas, total;
+        /** Modo feria: la mision secreta (null si no hubo) y si la cumplio. */
+        String mision;
+        boolean misionOk;
     }
 
     private final List<Ficha> fichas = new ArrayList<>();
@@ -55,6 +58,8 @@ final class FinalTarjetas implements EfectosCine.Capa {
             f.confianza = e.getOrDefault(EstadoJuego.CONFIANZA, 0);
             f.bienestar = e.getOrDefault(EstadoJuego.BIENESTAR, 0);
             f.mariposas = j.mariposas;
+            f.mision = j.misionNombre;
+            f.misionOk = j.tiene("mision_ok");
             f.total = f.verifico + f.participo + f.confianza + e.getOrDefault(EstadoJuego.CONVIVENCIA, 0) + f.mariposas * 2;
             String[][] titulos = {
                 {EstadoJuego.INFO_VERIFICADA, "Detective de la verdad"},
@@ -204,6 +209,22 @@ final class FinalTarjetas implements EfectosCine.Capa {
         barrita(g, "Verificó", f.verifico, 380, new Color(0x7FB2E0), tb);
         barrita(g, "Participó", f.participo, 420, new Color(0xF0A85C), tb);
         barrita(g, "Confianza", f.confianza, 460, new Color(0x9CC08A), tb);
+
+        // la mision secreta (modo feria): se revela despues de las barritas
+        if (f.mision != null && t > 1.9) {
+            double km = Math.min(1, (t - 1.9) / 0.3);
+            String txt = (f.misionOk ? "Misión cumplida: " : "Misión fallida: ") + f.mision;
+            g.setFont(Estilo.fuente(Font.BOLD, 15f));
+            FontMetrics fmm = g.getFontMetrics();
+            double mw = fmm.stringWidth(txt) + 30, mx = CW / 2.0 - mw / 2, my = 478;
+            Graphics2D gm = (Graphics2D) g.create();
+            gm.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, (float) km));
+            gm.setColor(f.misionOk ? new Color(0x9CC08A) : new Color(0xE3D6C2));
+            gm.fill(new RoundRectangle2D.Double(mx, my, mw, 28, 28, 28));
+            gm.setColor(f.misionOk ? Color.WHITE : SUAVE);
+            gm.drawString(txt, (float) (mx + 15), (float) (my + 19));
+            gm.dispose();
+        }
 
         // mariposas
         int nm = Math.min(8, f.mariposas);
