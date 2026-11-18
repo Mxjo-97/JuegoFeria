@@ -313,14 +313,14 @@ public final class DecisionGrupal {
 
         List<String> d = new ArrayList<>();
         if (empate) {
-            d.add("Narrador: Empate. Decide Doña Rosa.");
+            d.add("Ringo: Empate. Decide Doña Rosa.");
             d.add("DOÑA ROSA: Cuando no se ponen de acuerdo, se hace lo prudente.");
         }
-        d.add("Narrador: Gana la opción " + letra + ": " + opciones[ganador]);
+        d.add("Ringo: Gana la opción " + letra + ": " + opciones[ganador]);
         boolean unanime = votos.size() == p.jugadores().size() && max == votos.size() && votos.size() > 1;
         if (unanime) {
             l.efectoCompartido(Efecto.de(Partida.CONFIANZA_ROLES, 1), "Votación unánime");
-            d.add("Narrador: Los cuatro votaron lo mismo. La confianza entre ustedes sube.");
+            d.add("Ringo: Los cuatro votaron lo mismo. La confianza entre ustedes sube.");
         }
         List<Jugador> minoria = new ArrayList<>();
         for (Jugador j : p.jugadores()) {

@@ -191,8 +191,9 @@ public class Actor {
         }
         AffineTransform guardado = g.getTransform();
 
-        g.setColor(new Color(0, 0, 0, 60));
-        g.fill(new Ellipse2D.Double(x - ancho * 0.38, y - 10, ancho * 0.76, 20));
+        // sombra: una imagen hecha una vez por tamaño (rellenar una elipse suavizada cada cuadro cuesta mas)
+        java.awt.image.BufferedImage sombra = sombra(ancho);
+        g.drawImage(sombra, (int) Math.round(x - ancho * 0.38) - 2, (int) Math.round(y) - 12, null);
 
         double bob = !cuadros.isEmpty() && caminando ? 0
                 : caminando ? Math.abs(Math.sin(t * 10 + fase)) * 7 : Math.sin(t * 2 + fase) * 1.5;
@@ -207,6 +208,21 @@ public class Actor {
             figura(g, t, bob);
         }
         g.setTransform(guardado);
+    }
+
+    private static final java.util.Map<Integer, java.awt.image.BufferedImage> SOMBRAS = new java.util.HashMap<>();
+
+    private static java.awt.image.BufferedImage sombra(int ancho) {
+        return SOMBRAS.computeIfAbsent(ancho, a -> {
+            int w = (int) Math.ceil(a * 0.76) + 4, h = 24;
+            java.awt.image.BufferedImage im = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB_PRE);
+            Graphics2D g = im.createGraphics();
+            g.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+            g.setColor(new Color(0, 0, 0, 60));
+            g.fill(new Ellipse2D.Double(2, 2, a * 0.76, 20));
+            g.dispose();
+            return Recursos.compatible(im);
+        });
     }
 
     private void figura(Graphics2D g, double t, double bob) {

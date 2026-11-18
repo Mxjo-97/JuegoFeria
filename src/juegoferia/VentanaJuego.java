@@ -57,6 +57,17 @@ public class VentanaJuego extends JFrame {
             }
         });
 
+        // pausa -> "Salir al menu" (solo un PC; en red no se ofrece)
+        PanelDiseno.alSalirAlMenu = () -> {
+            AudioCine.detenerTodo(0.3);
+            Musica.parar();
+            if (juego != null) {
+                raiz.remove(juego);
+                juego = null;
+            }
+            irAlMenu();
+        };
+
         // menu
         PantallaInicio menu = new PantallaInicio(this::irAModo, this::irAInstrucciones,
                 () -> System.exit(0), this::irAMinijuegos);
@@ -125,6 +136,7 @@ public class VentanaJuego extends JFrame {
     }
 
     private void irAlMenu() {
+        PanelDiseno.quitarPausa();
         cartas.show(raiz, "menu");
     }
 
@@ -154,6 +166,7 @@ public class VentanaJuego extends JFrame {
     // ===================== UN SOLO PC =====================
 
     private void empezarPartida(Partida partida) {
+        PanelDiseno.quitarPausa();
         partida.feria = PantallaModo.feria;
         if (juego != null) {
             raiz.remove(juego);
@@ -167,6 +180,7 @@ public class VentanaJuego extends JFrame {
     // ===================== EN RED =====================
 
     private void empezarPartidaRed(Partida partida, Rol miRol, RedMacondo.Cliente red) {
+        PanelDiseno.quitarPausa();
         if (juego != null) {
             raiz.remove(juego);
         }

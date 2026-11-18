@@ -10,9 +10,13 @@ import java.util.Map;
  * MODO FERIA: la partida corta (unos 12-15 minutos) para la feria.
  *
  *   Intro corta (cinematica) -> PANADERIA: investigar (3 pistas + "Rastrea el audio")
- *   -> MALECON: decidir (respeto con Daniela + el celular y "¿Hasta donde llego?")
- *   -> JUNTA: cooperar (votacion de la casa + "Los faroles" entre los cuatro)
+ *   -> el grupo ESCOGE el orden: MALECON (respeto con Daniela + el celular) y JUNTA (votacion
+ *      con Doña Petra + "Los faroles" con Don Alirio). Dentro de cada lugar, las cosas se hacen
+ *      en el orden que quieran (cada una tiene su "!").
  *   -> FINAL: la cena, como quedo la isla y las tarjetas con titulos y misiones secretas.
+ *
+ * Al terminar un lugar queda un TIEMPO LIBRE (40 s) para hablar con quien quieran (si hablan con
+ * todos hay mariposa extra) y salir por la puerta. En red se sale cuando los cuatro llegan a ella.
  *
  * Cada lugar tiene 2:30 de juego (el contador solo corre cuando nadie esta leyendo ni decidiendo).
  * Si se acaba, el rumor se riega (+15) y el grupo pasa al siguiente lugar.
@@ -37,12 +41,65 @@ public final class GuionFeria {
     static final double RITMO_RUMOR = 0.14;
 
     public static Lugar crear(String lugar, Partida p, Lugar.Anfitrion h) {
+        p.poner("feria_visto_" + lugar);
         switch (lugar) {
             case PANADERIA: return panaderia(p, h);
             case MALECON: return malecon(p, h);
             case JUNTA: return junta(p, h);
             default:
                 throw new IllegalArgumentException("El modo feria no tiene el lugar " + lugar);
+        }
+    }
+
+    // =====================================================================================
+    // EL CAMINO: despues de la panaderia el grupo escoge a donde ir
+    // =====================================================================================
+
+    /** Los lugares que faltan por visitar (malecon y/o junta). */
+    static List<String> faltan(Partida p) {
+        List<String> f = new ArrayList<>();
+        for (String lg : new String[]{MALECON, JUNTA}) {
+            if (!p.bandera("feria_visto_" + lg)) {
+                f.add(lg);
+            }
+        }
+        return f;
+    }
+
+    /** La puerta del lugar: lleva a lo que falte (si faltan los dos, el grupo escoge) o a la cena. */
+    private static void puerta(Lugar l, Partida p, Lugar.Anfitrion h, int x, int y, int w, int alto) {
+        List<String> f = faltan(p);
+        String etiqueta = f.isEmpty() ? "Volver a la casa (la cena)"
+                : f.size() == 2 ? "Salir a la calle"
+                : f.get(0).equals(MALECON) ? "Ir al malecón" : "Subir a la Junta";
+        l.salidaHacia(x, y, w, alto, etiqueta, () -> seguir(l, p, h));
+    }
+
+    private static void seguir(Lugar l, Partida p, Lugar.Anfitrion h) {
+        List<String> f = faltan(p);
+        if (f.isEmpty()) {
+            h.terminarDia();
+            return;
+        }
+        if (f.size() == 1) {
+            h.ir(f.get(0));
+            return;
+        }
+        String[] ops = {
+            "Al malecón: dicen que van a sacar a los vendedores del río.",
+            "A la Junta: dicen que se robaron la plata del alcantarillado."};
+        if (Sincronia.activa()) {
+            DecisionGrupal.votacion(l, "¿A dónde vamos primero?", ops, 0, g -> h.ir(g == 0 ? MALECON : JUNTA));
+        } else {
+            l.decidir("¿A DÓNDE VAN PRIMERO?", "Hay dos rumores corriendo por la isla. Ustedes escogen el orden.", 0, null,
+                    Lugar.op(ops[0], () -> h.ir(MALECON)), Lugar.op(ops[1], () -> h.ir(JUNTA)));
+        }
+    }
+
+    /** Pone el "!" a un vecino para los cuatro. */
+    private static void marcar(Lugar l, String npc) {
+        for (Rol r : Rol.values()) {
+            l.marcarPrueba(npc, r);
         }
     }
 
@@ -69,7 +126,7 @@ public final class GuionFeria {
         GuionDia2.losCuatro(c, 280, 520, 240);
         GuionDia2.npcFinal(c, "rosa", 1300, 470, 230, 280);
         GuionDia2.npcFinal(c, "samuel", 1560, 540, 180, 220);
-        return c.titulo("Modo Feria", "Panadería · Malecón · Junta  —  ¡que no gane el rumor!");
+        return c.titulo("Modo Feria", "Panadería, y después ustedes escogen el camino  —  ¡que no gane el rumor!");
     }
 
     // =====================================================================================
@@ -229,6 +286,9 @@ public final class GuionFeria {
                 .interactuar("Hablar con Don Eliécer", () -> l.dialogo(null, "DON ELIÉCER: Si lo cierran, por algo será."));
 
         Pistas ps = new Pistas(3, () -> {
+            if (l.completado()) {
+                return;            // (se acabo el tiempo antes: ya no se juega el minijuego)
+            }
             l.completar("pistas");
             l.dialogo(() -> l.minijuegoFijo(Rol.CIUDADANO,
                     new MjRastreaAudio(true, p.bandera("lupa_" + PANADERIA)), res -> l.completar("minijuego")),
@@ -253,16 +313,18 @@ public final class GuionFeria {
             l.mostrarMarcas(true);
             l.toast("Hablen con los del ! para encontrar 3 pistas", new Color(0xFFD35C));
         }),
-                "Narrador: Los cuatro celulares vibran a la vez. Nubia reenvió un audio al grupo del barrio.",
+                "Ringo: Los cuatro celulares vibran a la vez. Nubia reenvió un audio al grupo del barrio.",
                 "NUBIA: (en el audio) Vecinos, dicen que cierran el colegio en enero.",
                 "SAMUEL: ¿Cierran mi colegio?",
                 "PERIODISTA: Cien mil vistas no es una fuente. Averigüemos de dónde salió.",
                 "CIUDADANO: Separémonos y preguntemos."));
 
-        l.alCompletar(() -> l.dialogo(() -> h.ir(MALECON),
+        l.alCompletar(() -> l.dialogo(() -> l.mostrarMarcas(false),
                 "RECTORA VISITACIÓN: (entra con un folder) Nadie ha anunciado cierre. Hay una revisión de programas, nada más.",
                 "SAMUEL: ¿Entonces mi colegio sigue?",
-                "DOÑA ROSA: Sigue. Y ahora, al malecón: allá también están diciendo cosas."));
+                "DOÑA ROSA: Sigue. Afuera hay dos rumores más: uno en el malecón y otro en la Junta.",
+                "DOÑA ROSA: Ustedes escogen por dónde empezar. La puerta es esa, la del tapete."));
+        puerta(l, p, h, 1480, 930, 280, 110);
         return l;
     }
 
@@ -271,7 +333,7 @@ public final class GuionFeria {
     // =====================================================================================
 
     private static Lugar malecon(Partida p, Lugar.Anfitrion h) {
-        Lugar l = new Lugar(p, h, MALECON, "Parque y malecón", Reloj.h(11, 0));
+        Lugar l = new Lugar(p, h, MALECON, "Parque y malecón", -1);
         l.fondo(Rutas.MALECON);
         l.caminable(60, 450, 1800, 380);
         l.obstaculo(1240, 700, 260, 80, "Banca");
@@ -295,15 +357,22 @@ public final class GuionFeria {
         l.npc("daniela", "Daniela", "la de las arepas", 430, 640, new Color(0x3F8EDC))
                 .interactuar("Hablar con Daniela", () -> l.dialogo(null,
                         "DANIELA: Las arepas las hago con huevo y con cariño. Y con mi nombre."));
-        l.npc("beatriz", "Doña Beatriz", "la señora", 1530, 520, new Color(0xD9A5EC));
+        Actor beatriz = l.npc("beatriz", "Doña Beatriz", "la señora", 1530, 520, new Color(0xD9A5EC));
         l.npc("julian", "Julián", "el muchacho", 1000, 540, new Color(0x7A6A5A))
                 .interactuar("Hablar con Julián", () -> l.dialogo(null, "JULIÁN: Yo solo puse me gusta. ¿Eso cuenta?"));
 
-        l.alPrimeraEntrada(() -> new Secuencia()
+        // lo de Daniela pasa cuando alguien se acerca a Doña Beatriz (en el orden que quieran)
+        boolean[] respetoVisto = {false};
+        beatriz.interactuar("Hablar con Doña Beatriz", () -> {
+            if (respetoVisto[0]) {
+                l.dialogo(null, "DOÑA BEATRIZ: Daniela. Ya me lo aprendí, mijo.");
+                return;
+            }
+            respetoVisto[0] = true;
+            l.quitarMarca("beatriz");
+            l.conAudiencia(null, () -> new Secuencia()
                 .paso(sig -> l.dialogo(sig,
-                        "Narrador: En la pared hay un papel: «Hay que limpiar el río. Los vendedores se van.»",
-                        "EMIRO: Limpio está bien. Lo malo es que «limpio» siempre empieza por sacarnos a nosotros.",
-                        "Narrador: Llega Daniela con su carrito azul.",
+                        "Ringo: Llega Daniela con su carrito azul.",
                         "DOÑA BEATRIZ: (sin bajar la voz) Y ahí viene el señor de las arepas…",
                         "DANIELA: Doña Beatriz. Ya se lo dije la otra vez."))
                 .paso(sig -> DecisionGrupal.respeto(l, "Doña Beatriz confunde a Daniela con «el señor de las arepas».",
@@ -320,7 +389,7 @@ public final class GuionFeria {
                                         "DANIELA: Gracias. Es lo único que pido."));
                             } else if (op == 1) {
                                 l.dialogo(null, GuionDia1.comoJugador(j, "JUGADOR: Y del río, ¿qué decía el papel?",
-                                        "Narrador: Daniela baja la mirada y se pone a limpiar su carrito."));
+                                        "Ringo: Daniela baja la mirada y se pone a limpiar su carrito."));
                                 l.completar("respeto");
                             } else {
                                 l.efecto(j, Efecto.de(EstadoJuego.CONVIVENCIA, -3, Partida.ANIMO, -1), "Respeto: se rió");
@@ -329,7 +398,7 @@ public final class GuionFeria {
                                     l.quitar(dn);
                                 }
                                 l.dialogo(null, GuionDia1.comoJugador(j, "JUGADOR: Ja, ja, son cosas de uno.",
-                                        "Narrador: Daniela agarra su carrito y se va.",
+                                        "Ringo: Daniela agarra su carrito y se va.",
                                         "CIUDADANO: Eso se arregla con una disculpa, pero hay que dar la cara."));
                                 l.completar("respeto");
                             }
@@ -337,10 +406,22 @@ public final class GuionFeria {
                         sumados -> {
                             GuionDia1.yoTambien(l, sumados);
                             l.completar("respeto");
-                            l.toast("Revisen el celular (Q): están compartiendo una publicación", new Color(0xFFD35C));
+                            if (!l.completado()) {
+                                l.toast("¿Ya revisaron el celular (Q)? Están compartiendo una publicación", new Color(0xFFD35C));
+                            }
                             sig.run();
                         }))
                 .iniciar());
+        });
+
+        l.alPrimeraEntrada(() -> l.dialogo(() -> {
+            marcar(l, "beatriz");
+            l.mostrarMarcas(true);
+            l.toast("Dos cosas en el malecón: Doña Beatriz (!) y el celular (Q). Ustedes escogen el orden", new Color(0xFFD35C));
+        },
+                "Ringo: En la pared hay un papel: «Hay que limpiar el río. Los vendedores se van.»",
+                "EMIRO: Limpio está bien. Lo malo es que «limpio» siempre empieza por sacarnos a nosotros.",
+                "CHELA: Y en el grupo del barrio ya están compartiendo una foto. Revisen el celular."));
 
         l.digital("Grupo del barrio",
                 "«Hay que limpiar el malecón. Fuera los puestos. ¿Quién apoya?» (con una foto del carrito de Emiro)",
@@ -367,11 +448,12 @@ public final class GuionFeria {
                         d.add("EMIRO: (cansado) Ya se está regando.");
                     }
                     d.add("SAMUEL: ¿Entonces no se va nadie del malecón?");
-                    d.add("CHELA: Por hoy, no. Suban a la Junta: allá también hay lío.");
+                    d.add(faltan(p).contains(JUNTA) ? "CHELA: Por hoy, no. Suban a la Junta: allá también hay lío."
+                            : "CHELA: Por hoy, no. Y ya va siendo hora de la cena: Doña Rosa los espera.");
                     l.dialogo(null, d.toArray(new String[0]));
                 });
 
-        l.alCompletar(() -> l.esperarYLuego(() -> h.ir(JUNTA)));
+        puerta(l, p, h, 1600, 450, 220, 110);
         return l;
     }
 
@@ -380,7 +462,7 @@ public final class GuionFeria {
     // =====================================================================================
 
     private static Lugar junta(Partida p, Lugar.Anfitrion h) {
-        Lugar l = new Lugar(p, h, JUNTA, "Junta de Acción Comunal", Reloj.h(14, 0));
+        Lugar l = new Lugar(p, h, JUNTA, "Junta de Acción Comunal", -1);
         l.fondo(Rutas.JUNTA);
         l.caminable(60, 640, 1800, 400);
         l.obstaculo(1200, 680, 220, 70, "Banca");
@@ -392,11 +474,10 @@ public final class GuionFeria {
         l.objetivo("faroles", "Prender los faroles (los cuatro)");
         l.tiempoFeria(SEGUNDOS_LUGAR, () -> tiempoAgotado(l));
 
-        l.npc("petra", "Doña Petra", "la presidenta", 1010, 720, new Color(0xC9553A))
-                .interactuar("Hablar con Doña Petra", () -> l.dialogo(null, "DOÑA PETRA: Leer no es lo mismo que comprobar, Wilson."));
+        Actor petra = l.npc("petra", "Doña Petra", "la presidenta", 1010, 720, new Color(0xC9553A));
         l.npc("wilson", "Wilson", "el muchacho", 1150, 800, new Color(0x4C8BD9))
                 .interactuar("Hablar con Wilson", () -> l.dialogo(null, "WILSON: Yo solo digo lo que leo."));
-        l.npc("alirio", "Don Alirio", "el señor", 700, 760, new Color(0x6A5ACD));
+        Actor alirio = l.npc("alirio", "Don Alirio", "el señor", 700, 760, new Color(0x6A5ACD));
         l.npc("amaranta", "Amaranta", "la secretaria", 1350, 880, new Color(0x2B2350));
 
         String[] ops = {
@@ -404,11 +485,25 @@ public final class GuionFeria {
             "Hacer un en vivo contando lo que sabemos.",
             "No meternos: no es asunto nuestro."};
         String[] votoLetra = {"A", "B", "C"};
+        // dos cosas, en el orden que quieran (pero una a la vez: las dos son de los cuatro)
+        boolean[] votoVisto = {false}, farolesVisto = {false}, enCurso = {false};
 
-        l.alPrimeraEntrada(() -> new Secuencia()
+        petra.interactuar("Hablar con Doña Petra", () -> {
+            if (votoVisto[0]) {
+                l.dialogo(null, "DOÑA PETRA: Leer no es lo mismo que comprobar, Wilson.");
+                return;
+            }
+            if (enCurso[0]) {
+                l.dialogo(null, "DOÑA PETRA: Primero terminen con los faroles, que sin luz no se lee nada.");
+                return;
+            }
+            votoVisto[0] = true;
+            enCurso[0] = true;
+            l.quitarMarca("petra");
+            l.conAudiencia(null, () -> new Secuencia()
                 .paso(sig -> l.dialogo(sig,
-                        "WILSON: Dicen que la Junta se robó la plata del alcantarillado. Lo leí en el grupo.",
-                        "DOÑA PETRA: Leer no es lo mismo que comprobar. Las cuentas están en ese papel que nadie ha leído.",
+                        "DOÑA PETRA: Las cuentas están en ese papel que nadie ha leído.",
+                        "WILSON: Pero en el grupo dicen que se robaron la plata.",
                         "CANDIDATO: Hay que decidir qué hacemos. Entre los cuatro."))
                 .paso(sig -> {
                     for (Jugador j : p.jugadores()) {
@@ -431,20 +526,58 @@ public final class GuionFeria {
                             l.dialogo(sig, "WILSON: Pues si nadie dice nada, será verdad.",
                                     "DOÑA PETRA: (suspira) Así se arman los rumores.");
                         }
-                        l.completar("voto");
                     });
                 })
+                .paso(sig -> {
+                    enCurso[0] = false;
+                    l.completar("voto");
+                    if (!farolesVisto[0]) {
+                        l.toast("Falta ayudar a Don Alirio con los faroles (!)", new Color(0xFFD35C));
+                    }
+                })
+                .iniciar());
+        });
+
+        alirio.interactuar("Hablar con Don Alirio", () -> {
+            if (farolesVisto[0]) {
+                l.dialogo(null, "DON ALIRIO: Con luz la gente sale a hablar. Y hablando se entiende.");
+                return;
+            }
+            if (enCurso[0]) {
+                l.dialogo(null, "DON ALIRIO: Terminen la votación primero. Yo aquí espero.");
+                return;
+            }
+            farolesVisto[0] = true;
+            enCurso[0] = true;
+            l.quitarMarca("alirio");
+            l.conAudiencia(null, () -> new Secuencia()
                 .paso(sig -> l.dialogo(sig,
-                        "Narrador: De pronto se va la luz. Los celulares se apagan. Afuera, los faroles titilan.",
+                        "Ringo: De pronto se va la luz. Los celulares se apagan. Afuera, los faroles titilan.",
+                        "DON ALIRIO: Otra vez. Y sin señal nadie se entera de nada.",
                         "CIUDADANO: Sin señal, la gente se cuenta las cosas a la cara. Prendamos los faroles, ¡los cuatro a la vez!"))
                 .paso(sig -> l.lanzar(new MjFaroles(), res -> {
                     l.efectoCompartido(res.efecto, "Los faroles");
+                    enCurso[0] = false;
                     l.completar("faroles");
+                    if (!votoVisto[0]) {
+                        l.toast("Falta la votación con Doña Petra (!)", new Color(0xFFD35C));
+                    }
                     sig.run();
                 }))
                 .iniciar());
+        });
 
-        l.alCompletar(() -> l.esperarYLuego(() -> h.terminarDia()));
+        l.alPrimeraEntrada(() -> l.dialogo(() -> {
+            marcar(l, "petra");
+            marcar(l, "alirio");
+            l.mostrarMarcas(true);
+            l.toast("Dos cosas en la Junta: la votación (Doña Petra) y los faroles (Don Alirio)", new Color(0xFFD35C));
+        },
+                "WILSON: Dicen que la Junta se robó la plata del alcantarillado. Lo leí en el grupo.",
+                "DOÑA PETRA: Leer no es lo mismo que comprobar.",
+                "CANDIDATO: Dos cosas: decidir con Doña Petra qué hacemos y ayudar a Don Alirio con la luz. ¿Por cuál empezamos?"));
+
+        puerta(l, p, h, 700, 990, 600, 60);
         return l;
     }
 

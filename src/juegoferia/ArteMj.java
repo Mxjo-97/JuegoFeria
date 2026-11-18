@@ -516,9 +516,13 @@ public final class ArteMj {
      * el marco queda vacio con la inicial del nombre.
      */
     public static void cara(Graphics2D g, double cx, double cy, double r, String quien, Color aro) {
+        caraDe(g, cx, cy, r, spriteOficial(quien), quien, aro);
+    }
+
+    /** Igual que cara(...), pero con la ruta del sprite ya elegida (ej: personajes/ciudadano/feliz.png). */
+    public static void caraDe(Graphics2D g, double cx, double cy, double r, String ruta, String quien, Color aro) {
         Ellipse2D c = new Ellipse2D.Double(cx - r, cy - r, r * 2, r * 2);
         sticker(g, c, aro == null ? CREMA : aro, (float) Math.max(3, r / 11));
-        String ruta = spriteOficial(quien);
         double ri = r - Math.max(3, r / 11) * 1.2;
         Ellipse2D dentro = new Ellipse2D.Double(cx - ri, cy - ri, ri * 2, ri * 2);
         g.setColor(CREMA);

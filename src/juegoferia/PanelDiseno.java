@@ -91,8 +91,84 @@ public abstract class PanelDiseno extends JPanel {
 
     /** Un paso de tiempo (visible para poder probar sin ventana). */
     void avanzar(double dt) {
+        if (pausado && conPausa()) {
+            tPausa += dt;          // en pausa no pasa NADA del juego (en red, igual en las cuatro)
+            return;
+        }
         tiempo += dt;
         actualizar(dt);
+    }
+
+    // ===================== PAUSA =====================
+    //
+    // ESC (o el boton || de abajo a la izquierda) pausa la partida. En red la pausa viaja como una
+    // tecla mas (VK_PAUSE), asi que las cuatro computadoras se detienen en el MISMO cuadro y
+    // cualquiera puede continuar. En pausa no avanzan ni el reloj, ni el rumor, ni los minijuegos.
+
+    private static boolean pausado;
+    private static double tPausa;
+    private static String pausoQuien;
+    private static int pausaHover = -1;
+    /** Lo pone VentanaJuego: que hacer con "Salir al menú" (solo un PC). */
+    public static Runnable alSalirAlMenu;
+
+    private static final java.awt.Rectangle BOTON_PAUSA = new java.awt.Rectangle(84, 1010, 52, 52);
+    private static final java.awt.Rectangle P_CONTINUAR = new java.awt.Rectangle(W / 2 - 230, 640, 460, 84);
+    private static final java.awt.Rectangle P_SALIR = new java.awt.Rectangle(W / 2 - 150, 744, 300, 54);
+
+    public static boolean pausado() {
+        return pausado;
+    }
+
+    /** Al empezar o terminar una partida. */
+    public static void quitarPausa() {
+        pausado = false;
+        pausoQuien = null;
+    }
+
+    /** true = esta pantalla se puede pausar (por defecto: las de la partida). */
+    protected boolean conPausa() {
+        return conAjustes();
+    }
+
+    /** false en las cinematicas: ahi ESC sirve para saltar (se pausa con el boton). */
+    protected boolean pausaConEscape() {
+        return true;
+    }
+
+    /** Al entrar en pausa (para soltar las teclas de caminar, etc.). */
+    protected void alPausar() {
+    }
+
+    private boolean esTeclaPausa(int code) {
+        return code == KeyEvent.VK_PAUSE || (code == KeyEvent.VK_ESCAPE && (pausaConEscape() || pausado));
+    }
+
+    private void alternarPausa() {
+        pausado = !pausado;
+        tPausa = 0;
+        pausaHover = -1;
+        if (pausado) {
+            Rol r = Sincronia.inyectando() ? Sincronia.rolActual() : null;
+            pausoQuien = r != null ? Sincronia.nombreDe(r) : null;
+            alPausar();
+        }
+        Ajustes.sfx("/sonidos/click.wav", "/sonidos/tecla.wav");
+        repaint();
+    }
+
+    /** Pausar / continuar desde esta computadora (en red se avisa a todos). */
+    private void pedirPausa() {
+        if (Sincronia.activa()) {
+            Sincronia.pulsar(KeyEvent.VK_PAUSE);
+        } else {
+            alternarPausa();
+        }
+    }
+
+    /** Sincronia pregunta: este evento de otro jugador tiene que llegar aunque la pantalla no sea "suya". */
+    boolean esDePausa(String tipo, int codigo) {
+        return conPausa() && (tipo.equals("KD") || tipo.equals("KU")) && esTeclaPausa(codigo);
     }
 
     // ===================== ESCALA =====================
@@ -116,6 +192,11 @@ public abstract class PanelDiseno extends JPanel {
     @Override
     protected void processKeyEvent(KeyEvent e) {
         if (Sincronia.activa() && !Sincronia.inyectando()) {
+            if (pausado && conPausa() && e.getKeyCode() != KeyEvent.VK_ESCAPE && e.getKeyCode() != KeyEvent.VK_PAUSE
+                    && e.getID() == KeyEvent.KEY_PRESSED) {
+                e.consume();       // en pausa no se manda nada (salvo continuar)
+                return;
+            }
             if (teclaSoloLocal(e.getKeyCode())) {
                 super.processKeyEvent(e);
             } else {
@@ -124,12 +205,66 @@ public abstract class PanelDiseno extends JPanel {
             e.consume();
             return;
         }
+        if (conPausa() && e.getID() != KeyEvent.KEY_TYPED) {
+            if (esTeclaPausa(e.getKeyCode())) {
+                if (e.getID() == KeyEvent.KEY_PRESSED) {
+                    alternarPausa();
+                }
+                e.consume();
+                return;
+            }
+            if (pausado) {
+                if (e.getID() == KeyEvent.KEY_RELEASED) {
+                    super.processKeyEvent(e);     // soltar si: que nadie quede caminando solo
+                }
+                e.consume();
+                return;
+            }
+        }
         super.processKeyEvent(e);
+    }
+
+    /** Clics del boton de pausa y de la tarjeta de pausa (son de esta pantalla; continuar viaja por red). */
+    private boolean ratonDePausa(MouseEvent e) {
+        if (!conPausa()) {
+            return false;
+        }
+        if (Sincronia.inyectando()) {
+            return pausado;            // los clics de otros no le llegan al juego mientras esta en pausa
+        }
+        Point d = aDisenoReal(e.getPoint());
+        int id = e.getID();
+        if (!pausado) {
+            if (id == MouseEvent.MOUSE_PRESSED && BOTON_PAUSA.contains(d)) {
+                pedirPausa();
+                e.consume();
+                return true;
+            }
+            return false;
+        }
+        if (id == MouseEvent.MOUSE_MOVED || id == MouseEvent.MOUSE_DRAGGED) {
+            int antes = pausaHover;
+            pausaHover = P_CONTINUAR.contains(d) || BOTON_PAUSA.contains(d) ? 0
+                    : !Sincronia.activa() && alSalirAlMenu != null && P_SALIR.contains(d) ? 1 : -1;
+            if (antes != pausaHover) {
+                repaint();
+            }
+        } else if (id == MouseEvent.MOUSE_PRESSED) {
+            if (P_CONTINUAR.contains(d) || BOTON_PAUSA.contains(d)) {
+                pedirPausa();
+            } else if (!Sincronia.activa() && alSalirAlMenu != null && P_SALIR.contains(d)) {
+                quitarPausa();
+                Ajustes.sfx("/sonidos/click.wav", "/sonidos/tecla.wav");
+                alSalirAlMenu.run();
+            }
+        }
+        e.consume();
+        return true;
     }
 
     @Override
     protected void processMouseEvent(MouseEvent e) {
-        if (ratonDeAjustes(e)) {
+        if (ratonDeAjustes(e) || ratonDePausa(e)) {
             return;
         }
         if (Sincronia.activa() && !Sincronia.inyectando()) {
@@ -145,7 +280,7 @@ public abstract class PanelDiseno extends JPanel {
 
     @Override
     protected void processMouseMotionEvent(MouseEvent e) {
-        if (ratonDeAjustes(e)) {
+        if (ratonDeAjustes(e) || ratonDePausa(e)) {
             return;
         }
         if (Sincronia.activa() && !Sincronia.inyectando()) {
@@ -207,15 +342,126 @@ public abstract class PanelDiseno extends JPanel {
         Estilo.suave(g);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
         dibujar(g);
+        if (conPausa()) {
+            if (pausado) {
+                dibujarPausa(g);
+            }
+            dibujarBotonPausa(g);
+        }
         if (conAjustes()) {
             Ajustes.dibujar(g, 1 / 60.0);
         }
     }
 
-    /**
-     * OPTIMIZACION: dibuja una imagen grande (un fondo) ya achicada al tamaño REAL de la ventana.
-     * Se achica una sola vez (y otra vez solo si cambia el tamaño de la ventana); despues es copiar pixeles.
-     */
+    private static final Color PAUSA_CREMA = new Color(255, 250, 240, 240);
+    private static final Color PAUSA_BORDE = new Color(0xEAD7AE);
+    private static final Color PAUSA_TEXTO = new Color(0x5A3B1F);
+    private static final Color PAUSA_SUAVE = new Color(0xA88B6A);
+
+    /** El botoncito || al lado del parlante. */
+    private void dibujarBotonPausa(Graphics2D g0) {
+        Graphics2D g = (Graphics2D) g0.create();
+        int cx = BOTON_PAUSA.x + 26, cy = BOTON_PAUSA.y + 26, r = 26;
+        g.setComposite(java.awt.AlphaComposite.getInstance(java.awt.AlphaComposite.SRC_OVER, pausado ? 1f : 0.82f));
+        g.setColor(new Color(60, 35, 15, 40));
+        g.fillOval(cx - r + 1, cy - r + 3, r * 2, r * 2);
+        g.setColor(PAUSA_CREMA);
+        g.fillOval(cx - r, cy - r, r * 2, r * 2);
+        g.setColor(pausado ? Estilo.DORADO : PAUSA_BORDE);
+        g.setStroke(new java.awt.BasicStroke(pausado ? 2.4f : 1.6f));
+        g.drawOval(cx - r, cy - r, r * 2, r * 2);
+        g.setColor(PAUSA_TEXTO);
+        if (pausado) {
+            g.fill(new Path2D.Double() {
+                {
+                    moveTo(cx - 7, cy - 11);
+                    lineTo(cx + 12, cy);
+                    lineTo(cx - 7, cy + 11);
+                    closePath();
+                }
+            });
+        } else {
+            g.fill(new RoundRectangle2D.Double(cx - 10, cy - 11, 7, 22, 4, 4));
+            g.fill(new RoundRectangle2D.Double(cx + 3, cy - 11, 7, 22, 4, 4));
+        }
+        g.dispose();
+    }
+
+    /** La tarjeta de pausa: continuar, controles y (en un solo PC) salir al menu. */
+    private void dibujarPausa(Graphics2D g0) {
+        Graphics2D g = (Graphics2D) g0.create();
+        double a = Math.min(1, tPausa / 0.12 + 0.6);
+        g.setColor(new Color(40, 24, 10, (int) (120 * a)));
+        g.fillRect(0, 0, W, H);
+        int cw = 760, ch = 590, x = (W - cw) / 2, y = 225;
+        g.setColor(new Color(60, 35, 15, 50));
+        g.fill(new RoundRectangle2D.Double(x + 2, y + 8, cw, ch, 44, 44));
+        g.setColor(PAUSA_CREMA);
+        g.fill(new RoundRectangle2D.Double(x, y, cw, ch, 44, 44));
+        g.setColor(PAUSA_BORDE);
+        g.setStroke(new java.awt.BasicStroke(2f));
+        g.draw(new RoundRectangle2D.Double(x, y, cw, ch, 44, 44));
+        // Ringo asomado
+        if (Recursos.existe("/imagenes/ringo.png")) {
+            java.awt.image.BufferedImage rg = Recursos.escalada("/imagenes/ringo.png", 230, 230);
+            int bob = (int) (Math.sin((System.nanoTime() / 1e9) * 2) * 4);
+            g.drawImage(rg, x + cw - 170, y - 150 + bob, 230, 230, null);
+        }
+        g.setFont(Estilo.fuente(java.awt.Font.BOLD, 54f));
+        g.setColor(PAUSA_TEXTO);
+        g.drawString("Pausa", x + 56, y + 86);
+        g.setFont(Estilo.fuente(java.awt.Font.BOLD, 18f));
+        g.setColor(PAUSA_SUAVE);
+        String sub = Sincronia.activa()
+                ? (pausoQuien != null ? "La pausó " + pausoQuien + " · " : "") + "es para los cuatro: cualquiera puede continuar"
+                : "El rumor también se detiene. Respira.";
+        g.drawString(sub, x + 60, y + 120);
+
+        // controles
+        String[][] ctl = {
+            {"WASD", "caminar"}, {"E", "hablar / seguir"}, {"Q", "celular"}, {"R", "emociones"},
+            {"H", "habilidad"}, {"F", "frases"}, {"TAB", "misiones"}, {Sincronia.activa() ? "ESC" : "1-4", Sincronia.activa() ? "pausa" : "cambiar personaje"}};
+        g.setFont(Estilo.fuente(java.awt.Font.BOLD, 17f));
+        FontMetrics fm = g.getFontMetrics();
+        for (int i = 0; i < ctl.length; i++) {
+            int col = i % 2, fila = i / 2;
+            int tx = x + 64 + col * 330, ty = y + 170 + fila * 52;
+            int kw = Math.max(40, fm.stringWidth(ctl[i][0]) + 22);
+            g.setColor(new Color(0xFFFDF7));
+            g.fill(new RoundRectangle2D.Double(tx, ty, kw, 38, 12, 12));
+            g.setColor(PAUSA_BORDE);
+            g.setStroke(new java.awt.BasicStroke(1.6f));
+            g.draw(new RoundRectangle2D.Double(tx, ty, kw, 38, 12, 12));
+            g.setColor(PAUSA_TEXTO);
+            g.drawString(ctl[i][0], tx + (kw - fm.stringWidth(ctl[i][0])) / 2, ty + 26);
+            g.setColor(PAUSA_SUAVE);
+            g.drawString(ctl[i][1], tx + kw + 14, ty + 26);
+        }
+        // botones
+        java.awt.Rectangle c = P_CONTINUAR;
+        boolean h0 = pausaHover == 0;
+        g.setPaint(new java.awt.GradientPaint(c.x, c.y, Estilo.DORADO_CLARO, c.x, c.y + c.height, Estilo.DORADO));
+        g.fill(new RoundRectangle2D.Double(c.x, c.y - (h0 ? 3 : 0), c.width, c.height, c.height, c.height));
+        g.setColor(new Color(0xC98A12));
+        g.setStroke(new java.awt.BasicStroke(2f));
+        g.draw(new RoundRectangle2D.Double(c.x, c.y - (h0 ? 3 : 0), c.width, c.height, c.height, c.height));
+        g.setFont(Estilo.fuente(java.awt.Font.BOLD, 32f));
+        g.setColor(PAUSA_TEXTO);
+        centrado(g, "Continuar  (ESC)", c.x + c.width / 2, c.y + 55 - (h0 ? 3 : 0));
+        if (!Sincronia.activa() && alSalirAlMenu != null) {
+            java.awt.Rectangle s = P_SALIR;
+            g.setColor(pausaHover == 1 ? new Color(0xFBE3DC) : new Color(0xFFFDF7));
+            g.fill(new RoundRectangle2D.Double(s.x, s.y, s.width, s.height, s.height, s.height));
+            g.setColor(new Color(0xE0B4A4));
+            g.draw(new RoundRectangle2D.Double(s.x, s.y, s.width, s.height, s.height, s.height));
+            g.setFont(Estilo.fuente(java.awt.Font.BOLD, 20f));
+            g.setColor(new Color(0xB5473A));
+            centrado(g, "Salir al menú", s.x + s.width / 2, s.y + 35);
+        }
+        g.dispose();
+    }
+
+
     public static void dibujarAPantalla(Graphics2D g, java.awt.image.BufferedImage img, int x, int y, int w, int h) {
         java.awt.geom.AffineTransform t = g.getTransform();
         if (t.getShearX() != 0 || t.getShearY() != 0) {

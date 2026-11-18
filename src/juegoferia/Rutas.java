@@ -142,12 +142,34 @@ public final class Rutas {
                 }
             }
             n.add(camel.toString());
+            // "santa_sofia" -> "Santa_Sofia" (cada palabra con mayuscula, sin quitar el guion bajo)
+            StringBuilder titulo = new StringBuilder();
+            for (String parte : x.split("_", -1)) {
+                if (titulo.length() > 0) {
+                    titulo.append('_');
+                }
+                if (!parte.isEmpty()) {
+                    titulo.append(Character.toUpperCase(parte.charAt(0))).append(parte.substring(1).toLowerCase());
+                }
+            }
+            n.add(titulo.toString());
         }
         for (String carpeta : n) {
             for (String archivo : n) {
                 String r = PERSONAJE_ESTATICO + carpeta + "/" + archivo + ".png";
                 if (Recursos.existe(r)) {
                     return r;
+                }
+            }
+        }
+        // si solo hay una version con apellido ("Kevin_celular.png"), se usa esa
+        for (String carpeta : n) {
+            for (String archivo : n) {
+                for (String extra : new String[]{"_celular", "_ig", "_objeto", "_cansado"}) {
+                    String r = PERSONAJE_ESTATICO + carpeta + "/" + archivo + extra + ".png";
+                    if (Recursos.existe(r)) {
+                        return r;
+                    }
                 }
             }
         }

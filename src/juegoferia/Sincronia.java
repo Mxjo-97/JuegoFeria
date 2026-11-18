@@ -243,7 +243,8 @@ public final class Sincronia {
             return;
         }
         boolean suelta = tipo.equals("KU") || tipo.equals("MU");
-        if (!suelta && !p.aceptaEntradaDe(r)) {
+        boolean pausa = f.length > 2 && p.esDePausa(tipo, Integer.parseInt(f[2]));
+        if (!suelta && !pausa && !PanelDiseno.pausado() && !p.aceptaEntradaDe(r)) {
             return;
         }
         Partida pa = partida.get();
@@ -316,6 +317,19 @@ public final class Sincronia {
             default:
                 break;
         }
+    }
+
+    /** Una tecla "de un toque" generada por un boton (ej: el boton de pausa). */
+    static void pulsar(int code) {
+        enviar("KD", code, 0, 0);
+        enviar("KU", code, 0, 0);
+    }
+
+    /** El nombre del jugador de ese rol (para avisos como "La pausó Leo"). */
+    static String nombreDe(Rol r) {
+        Partida pa = partida.get();
+        Jugador j = pa != null ? pa.jugador(r) : null;
+        return j != null ? j.nombre : r.nombre;
     }
 
     /** Si la ventana pierde el foco, se sueltan todas las teclas para que nadie quede caminando solo. */

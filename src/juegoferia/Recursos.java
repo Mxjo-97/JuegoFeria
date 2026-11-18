@@ -49,8 +49,11 @@ public class Recursos {
 
     /** true si el archivo existe en los recursos (sirve para usar texto mientras falta la imagen). */
     public static boolean existe(String ruta) {
-        return ruta != null && Recursos.class.getResource(ruta) != null;
+        // OPTIMIZACION: buscar un archivo dentro del .jar cuesta; se pregunta una sola vez por ruta
+        return ruta != null && EXISTE.computeIfAbsent(ruta, r -> Recursos.class.getResource(r) != null);
     }
+
+    private static final Map<String, Boolean> EXISTE = new java.util.concurrent.ConcurrentHashMap<>();
 
     private static BufferedImage recortarTransparencia(BufferedImage src) {
         if (!src.getColorModel().hasAlpha()) {

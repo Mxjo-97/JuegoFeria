@@ -150,8 +150,8 @@ public final class GuionDia2 {
             empezarDia(p);
             new Secuencia()
                     .paso(sig -> l.dialogo(sig,
-                            "Narrador: Día 2 de 2. Mañana es la elección.",
-                            "Narrador: Los Letreros del Día 1 siguen colgados. En los lugares sin Letrero todavía queda un poco de bruma. Doña Rosa ya abrió la panadería."))
+                            "Ringo: Día 2 de 2. Mañana es la elección.",
+                            "Ringo: Los Letreros del Día 1 siguen colgados. En los lugares sin Letrero todavía queda un poco de bruma. Doña Rosa ya abrió la panadería."))
                     .paso(sig -> mananaSegunLaPelea(l, sig))
                     .paso(sig -> l.dialogo(sig,
                             "INFLUENCER: ¿Alguien más soñó con el audio?",
@@ -159,18 +159,18 @@ public final class GuionDia2 {
                             "CANDIDATO: ¿Y?",
                             "PERIODISTA: Y nada. Nadie sabe.",
                             "CIUDADANO: Bajemos. Doña Rosa ya abrió.",
-                            "Narrador: Samuel baja sin levantar la vista del cuaderno.",
+                            "Ringo: Samuel baja sin levantar la vista del cuaderno.",
                             "SAMUEL: Cinco minutos más. Salomé me dice que en el colegio van a revisar los celulares. ¿Es verdad que se los van a quitar?"))
                     .paso(sig -> {
                         if (p.bandera("origen_audio_A")) {
                             l.dialogo(sig, "DOÑA ROSA: (desde abajo) Ya lo sé. Y ya desayunaron sin esconderme nada, así que les toca pan doble.",
-                                    "Narrador: Ánimo +1. La panadería de hoy empieza con menos desinformación.");
+                                    "Ringo: Ánimo +1. La panadería de hoy empieza con menos desinformación.");
                         } else if (p.bandera("origen_audio_B")) {
                             l.dialogo(sig, "DOÑA ROSA: (seca) Me enteré por Vlado. Qué curioso, en mi propia casa.",
-                                    "Narrador: Ánimo -1. «Las cinco de una noticia» arranca con un campo más marcado.");
+                                    "Ringo: Ánimo -1. «Las cinco de una noticia» arranca con un campo más marcado.");
                         } else if (p.bandera("origen_audio_C")) {
-                            l.dialogo(sig, "Narrador: Doña Rosa pone el pan sin preguntar nada. Se nota que algo falta por decir.",
-                                    "Narrador: La panadería de hoy empieza con más desinformación.");
+                            l.dialogo(sig, "Ringo: Doña Rosa pone el pan sin preguntar nada. Se nota que algo falta por decir.",
+                                    "Ringo: La panadería de hoy empieza con más desinformación.");
                         } else {
                             sig.run();
                         }
@@ -193,27 +193,27 @@ public final class GuionDia2 {
         if (hubo && p.bandera("pelea_d1_reparo")) {
             l.efectoCompartido(Efecto.de(Partida.ANIMO, 1), "Mañana: pelea reparada");
             p.confianza.bloquear(agresor, afectado, false);
-            l.dialogo(fin, "Narrador: Los dos se encuentran en la escalera.",
+            l.dialogo(fin, "Ringo: Los dos se encuentran en la escalera.",
                     agresor.name() + ": Ya lo hice. Está bajado.",
                     afectado.name() + ": Gracias. Yo también tengo que decir algo: no te expliqué antes.",
-                    "Narrador: Se saludan, un poco torpes. Pueden prestarse habilidades.");
+                    "Ringo: Se saludan, un poco torpes. Pueden prestarse habilidades.");
         } else if (hubo && p.bandera("pelea_d1_se_fue")) {
             l.efectoCompartido(Efecto.de(Partida.ANIMO, -1), "Mañana: se evitan");
             p.confianza.bloquear(agresor, afectado, true);
-            l.dialogo(fin, "Narrador: Los dos se evitan en el pasillo. Uno mira por la ventana, el otro baja por la escalera sin esperar.",
+            l.dialogo(fin, "Ringo: Los dos se evitan en el pasillo. Uno mira por la ventana, el otro baja por la escalera sin esperar.",
                     "DOÑA ROSA: (desde abajo) Si van a evitarse, al menos háganlo con un pan de los míos en la mano.",
-                    "Narrador: Hoy no pueden prestarse habilidades.");
+                    "Ringo: Hoy no pueden prestarse habilidades.");
         } else if (hubo && p.bandera("pelea_d1_abierta")) {
-            l.dialogo(fin, "Narrador: Los dos hablan con frases muy cortas.",
+            l.dialogo(fin, "Ringo: Los dos hablan con frases muy cortas.",
                     agresor.name() + ": Buenos días.",
                     afectado.name() + ": Buenos días.",
                     "DOÑA ROSA: Cuando quieran, esa conversación me la cuentan con tinto.",
-                    "Narrador: La pelea vuelve esta noche, más fuerte, si no se resuelve antes.");
+                    "Ringo: La pelea vuelve esta noche, más fuerte, si no se resuelve antes.");
         } else if (hubo) {
-            l.dialogo(fin, "Narrador: Los dos se cruzan en la escalera. Ninguno dice nada de anoche.");
+            l.dialogo(fin, "Ringo: Los dos se cruzan en la escalera. Ninguno dice nada de anoche.");
         } else {
             l.efectoCompartido(Efecto.de(Partida.ANIMO, 1), "Mañana: sin pelea");
-            l.dialogo(fin, "Narrador: Sobre la mesa hay una bandeja de pan caliente y una nota de Doña Rosa: «Para los cuatro.»",
+            l.dialogo(fin, "Ringo: Sobre la mesa hay una bandeja de pan caliente y una nota de Doña Rosa: «Para los cuatro.»",
                     "DOÑA ROSA: (desde abajo) ¡Se comen todo!");
         }
     }
@@ -267,7 +267,7 @@ public final class GuionDia2 {
                         "DON LEONEL: Antes uno sabía el chisme porque lo oía en la esquina. Ahora el chisme lo sigue a uno hasta el baño.",
                         "DOÑA ÚRSULA: Esto ya lo viví, aunque no sabría decir cuándo. Siempre hay algo que dicen que van a quitar.",
                         "CECILIA: Hoy llegó más gente que ayer. Todos con el celular en la mano.",
-                        "Narrador: En el grupo del barrio circula un audio de una voz de mujer, sin nombre: «En el colegio van a revisar todos los celulares a la entrada.» Ya tiene cuarenta pulgares arriba.",
+                        "Ringo: En el grupo del barrio circula un audio de una voz de mujer, sin nombre: «En el colegio van a revisar todos los celulares a la entrada.» Ya tiene cuarenta pulgares arriba.",
                         "VLADO: (voz de la tele) Nos llegan videos de padres alarmados: se dice que el colegio revisará los celulares de los estudiantes a la entrada. Repito: revisará los celulares.",
                         "MATEO: (en la fila, apretando el celular) Doña Rosa, ¿sí vio? Mi hermanita tiene doce años y guarda ahí hasta los dibujos. Si alguien se los ve, se muere de la pena.",
                         "DOÑA NELLY: Yo a mi hijo le leo todo y no por eso me quiere menos.",
@@ -276,7 +276,7 @@ public final class GuionDia2 {
                         "CIUDADANO: Yo creo que depende de cada casa.",
                         "PERIODISTA: Yo creo que depende de qué diga la citación.",
                         "CANDIDATO: Yo creo que depende de quién pregunte.",
-                        "Narrador: Mateo se queda callado, apretando el celular contra el pecho."))
+                        "Ringo: Mateo se queda callado, apretando el celular contra el pecho."))
                 .paso(sig -> respetoMateo(l))
                 .iniciar());
 
@@ -303,13 +303,13 @@ public final class GuionDia2 {
         c.prueba("mateo", Rol.CIUDADANO, "carton_rosa_d2", "Cartón de Doña Rosa",
                 "CIUDADANO: Mateo, ¿qué dice tu hermanita?",
                 "MATEO: Que no le da pena guardarlo. Le da pena que se lo vean.",
-                "Narrador: Doña Rosa le entrega otro cartón escrito con carbón.");
+                "Ringo: Doña Rosa le entrega otro cartón escrito con carbón.");
         c.prueba("visitacion", Rol.PERIODISTA, "citacion", "Citación",
                 "PERIODISTA: ¿Me puede dar la citación?",
                 "RECTORA VISITACIÓN: Aquí está. Dice «guardar», no «revisar».");
         c.prueba("rosa", Rol.INFLUENCER, "pintura_carbon_d2", "Pintura de carbón",
                 "INFLUENCER: Va el aviso.",
-                "Narrador: Pinta con carbón: «La regla es guardar el celular, no revisarlo.»");
+                "Ringo: Pinta con carbón: «La regla es guardar el celular, no revisarlo.»");
         c.prueba("visitacion", Rol.CANDIDATO, "firma_panaderia_d2", "Firma de Candidato",
                 "CANDIDATO: Me comprometo a no pedir celulares de estudiantes en mi campaña.",
                 "RECTORA VISITACIÓN: Eso sí se agradece.");
@@ -336,12 +336,12 @@ public final class GuionDia2 {
                         GuionDia1.respetoA(l, j, 2);
                         l.dialogo(null, GuionDia1.unir(GuionDia1.comoJugador(j,
                                 "JUGADOR: Mateo, los dibujos de tu hermanita son de ella. A nadie le gusta que se los miren sin permiso.",
-                                "Narrador: Mateo levanta la cara.",
+                                "Ringo: Mateo levanta la cara.",
                                 "MATEO: ¿De verdad? Gracias. A veces no sé cómo decírselo a ella."), GuionDia1.reacciones(j, reacA)));
                     } else if (op == 1) {
                         l.dialogo(null, GuionDia1.comoJugador(j,
                                 "JUGADOR: Veamos de dónde salió el audio, a ver si es cierto.",
-                                "Narrador: Mateo baja la cabeza y guarda el celular."));
+                                "Ringo: Mateo baja la cabeza y guarda el celular."));
                         l.completar("respeto");
                     } else {
                         l.efecto(j, Efecto.de(EstadoJuego.CONVIVENCIA, -3, Partida.ANIMO, -1), "Respeto: revisar todo");
@@ -349,7 +349,7 @@ public final class GuionDia2 {
                         String quien = j.rol == Rol.CIUDADANO ? "PERIODISTA" : "CIUDADANO";
                         l.dialogo(null, GuionDia1.comoJugador(j,
                                 "JUGADOR: Tiene razón, Don Eliécer. Los padres tienen que saber qué hay en el celular.",
-                                "Narrador: Mateo mira al piso.",
+                                "Ringo: Mateo mira al piso.",
                                 quien + ": A la hermanita de Mateo le tocaba decidir sobre sus dibujos. No a nosotros."));
                         l.completar("respeto");
                     }
@@ -370,7 +370,7 @@ public final class GuionDia2 {
             d.add("RECTORA VISITACIÓN: Gracias por preguntar antes de repartir.");
         }
         if (el.containsValue(Lugar.B)) {
-            d.add("Narrador: El audio queda marcado y baja en el grupo.");
+            d.add("Ringo: El audio queda marcado y baja en el grupo.");
         }
         if (el.containsValue(Lugar.C)) {
             d.add("DOÑA ROSA: Tinto para quien respira antes de reenviar.");
@@ -383,7 +383,7 @@ public final class GuionDia2 {
         if (el.containsValue(Lugar.A)) {
             d.add("CIUDADANO: Eso es seguir el hilo.");
         }
-        d.add("Narrador: La rectora Visitación saca un papel roto en seis pedazos.");
+        d.add("Ringo: La rectora Visitación saca un papel roto en seis pedazos.");
         d.add("RECTORA VISITACIÓN: Si usted arma bien este papel, sabe más que el audio.");
 
         boolean pistaQuien = el.containsValue(Lugar.A);
@@ -451,14 +451,14 @@ public final class GuionDia2 {
                             if (g == 0) {
                                 p.sumarDesinfo(ALCALDIA, -5);
                                 l.dialogo(sig, "CIUDADANO: Entramos callados y escuchamos la fila primero.",
-                                        "Narrador: La Alcaldía arranca con menos desinformación.");
+                                        "Ringo: La Alcaldía arranca con menos desinformación.");
                             } else if (g == 1) {
                                 l.efecto(p.jugador(Rol.CANDIDATO), Efecto.de(EstadoJuego.ALCANCE, 1), "Votación: Candidato abre");
                                 l.dialogo(sig, "CANDIDATO: Yo abro, ustedes completan.");
                             } else {
                                 l.efectoCompartido(Efecto.de(Partida.CONFIANZA_ROLES, -1), "Votación: cada uno por su lado");
                                 l.dialogo(sig, "INFLUENCER: Cada quien por su lado y nos vemos en el patio.",
-                                        "Narrador: En el minijuego de la circular, los otros tres no van a poder aconsejar.");
+                                        "Ringo: En el minijuego de la circular, los otros tres no van a poder aconsejar.");
                             }
                         }))
                 .paso(sig -> {
@@ -467,11 +467,11 @@ public final class GuionDia2 {
                     if (lider != null) {
                         lider.objetos.add("Bolsa de pan de Samuel");
                     }
-                    l.dialogo(sig, "Narrador: Samuel los alcanza corriendo.",
+                    l.dialogo(sig, "Ringo: Samuel los alcanza corriendo.",
                             "SAMUEL: Mi abuela dice que vayan con cuidado.",
                             "INFLUENCER: ¿Y tú qué dices?",
                             "SAMUEL: Que lleven pan.",
-                            "Narrador: Samuel les da una bolsa de pan y regresa corriendo.");
+                            "Ringo: Samuel les da una bolsa de pan y regresa corriendo.");
                 })
                 .hacer(() -> {
                     Actor s = l.actor("samuel");
@@ -532,19 +532,19 @@ public final class GuionDia2 {
 
         l.alPrimeraEntrada(() -> new Secuencia()
                 .paso(sig -> l.dialogo(sig,
-                        "Narrador: Edificio de dos pisos con una escalera de mármol, una fila en el primer piso, la ventanilla de Marisol y el despacho de Quiroga. Un cartel dice «Trámites en línea» y, en letra pequeña, «Atención presencial martes y jueves».",
+                        "Ringo: Edificio de dos pisos con una escalera de mármol, una fila en el primer piso, la ventanilla de Marisol y el despacho de Quiroga. Un cartel dice «Trámites en línea» y, en letra pequeña, «Atención presencial martes y jueves».",
                         "DON TEÓFILO: Yo no sé usar eso. Me dijeron que lo hiciera por la aplicación. Mi nieta me ayuda pero hoy no está.",
                         "DON RAMIRO: Yo llevo veinte años aquí y no sé si me quedo.",
                         "KEVIN: Una candidatura dice números claros y me asusta. Otra dice continuidad y me asusta más.",
                         "BRAYAN: La Alcaldía debería tener un intérprete de señas. Mi hermana Lucía es sorda y nunca ha podido hacer un trámite sola.",
-                        "Narrador: En el primer piso todos los celulares suenan a la vez: un audio sin nombre, reenviado por alguien que no lo escuchó entero.",
+                        "Ringo: En el primer piso todos los celulares suenan a la vez: un audio sin nombre, reenviado por alguien que no lo escuchó entero.",
                         "AUDIO: «Nos van a revisar los celulares a todos, y al que dé me gusta a un candidato lo botan.»",
                         p.bandera("rumor_alcaldia_adelantado")
-                                ? "Narrador: Ya lo reenviaron noventa veces. Y el rumor llegó desde anoche: alguien lo contó en el apagón."
-                                : "Narrador: Ya lo reenviaron noventa veces.",
+                                ? "Ringo: Ya lo reenviaron noventa veces. Y el rumor llegó desde anoche: alguien lo contó en el apagón."
+                                : "Ringo: Ya lo reenviaron noventa veces.",
                         "MARISOL: (en voz baja, solo para ti) Esto me tiene muerta. Mi contrato vence en tres semanas y nadie me ha dicho si me renuevan.",
                         "MAURICIO: (entrando al patio, con la camisa amarilla) Yo llevé esa circular a todos los pisos. Nadie me preguntó qué decía. Hoy me preguntan los de todos los pisos.",
-                        "Narrador: Marisol parece a punto de llorar."))
+                        "Ringo: Marisol parece a punto de llorar."))
                 .paso(sig -> DecisionGrupal.respeto(l, "Marisol parece a punto de llorar.",
                         new String[]{"Decirle que su trabajo importa.", "Preguntar por la circular y seguir.",
                             "Decirle que mejor no hable de eso aquí."},
@@ -553,16 +553,16 @@ public final class GuionDia2 {
                                 GuionDia1.respetoA(l, j, 2);
                                 l.dialogo(null, GuionDia1.comoJugador(j,
                                         "JUGADOR: Tu trabajo importa y no debería depender de a quién le des un me gusta.",
-                                        "Narrador: Marisol respira hondo y asiente.",
+                                        "Ringo: Marisol respira hondo y asiente.",
                                         "MARISOL: Gracias. Hacía días que nadie me decía eso."));
                             } else if (op == 1) {
                                 l.dialogo(sig, GuionDia1.comoJugador(j, "JUGADOR: ¿Y la circular qué dice?",
-                                        "Narrador: Marisol se limpia los ojos y responde por trámite."));
+                                        "Ringo: Marisol se limpia los ojos y responde por trámite."));
                                 l.completar("marisol");
                             } else {
                                 l.efecto(j, Efecto.de(EstadoJuego.CONVIVENCIA, -3, Partida.ANIMO, -1), "Respeto: que no hable");
                                 l.dialogo(sig, GuionDia1.comoJugador(j, "JUGADOR: Mejor no hables de eso aquí.",
-                                        "Narrador: Marisol se queda callada, vuelve a su ventanilla y no levanta la vista."));
+                                        "Ringo: Marisol se queda callada, vuelve a su ventanilla y no levanta la vista."));
                                 l.completar("marisol");
                             }
                         },
@@ -572,13 +572,13 @@ public final class GuionDia2 {
                             sig.run();
                         }))
                 .paso(sig -> l.dialogo(sig,
-                        "Narrador: Más adelante en la fila, Lorena y Ximena discuten con otra funcionaria.",
+                        "Ringo: Más adelante en la fila, Lorena y Ximena discuten con otra funcionaria.",
                         "DOÑA CLEMENCIA: Es que el formulario pide nombre del padre y de la madre. No puedo dejar uno en blanco.",
                         "XIMENA: Es que no tiene padre. Tiene dos madres. Está en la ley.",
                         "DOÑA CLEMENCIA: (incómoda) Es que el sistema no tiene casilla…",
-                        "Narrador: Marisol se asoma desde su ventanilla.",
+                        "Ringo: Marisol se asoma desde su ventanilla.",
                         "MARISOL: Escriba acudiente en las dos casillas. Yo después arreglo el sistema.",
-                        "Narrador: Lorena respira. Ximena mira a Marisol y asiente."))
+                        "Ringo: Lorena respira. Ximena mira a Marisol y asiente."))
                 .paso(sig -> DecisionGrupal.respeto(l, "A Lorena y Ximena les trancan el registro de su hija porque el sistema no tiene casilla para dos madres.",
                         new String[]{"Acercarte y decirle a la funcionaria que el sistema debería recibir dos madres.",
                             "Quedarte en tu fila."},
@@ -625,14 +625,14 @@ public final class GuionDia2 {
                         d.add("PERIODISTA: Ahora sí tenemos por dónde empezar.");
                     }
                     if (el.containsValue(Lugar.B)) {
-                        d.add("Narrador: El audio queda marcado.");
+                        d.add("Ringo: El audio queda marcado.");
                     }
                     if (el.containsValue(Lugar.E)) {
-                        d.add("Narrador: Marisol lo ve en su celular.");
+                        d.add("Ringo: Marisol lo ve en su celular.");
                         d.add("MARISOL: (en voz baja) Ahora sí me van a botar.");
                         d.add("CANDIDATO: Eso no se hace con quien trabaja ahí.");
                     }
-                    d.add("Narrador: Mauricio le entrega a {INFLUENCER} un tablero con los pisos de la Alcaldía.");
+                    d.add("Ringo: Mauricio le entrega a {INFLUENCER} un tablero con los pisos de la Alcaldía.");
                     d.add("MAURICIO: Cada copia tapa una oficina y las que le quedan al lado. El audio va saltando de piso en piso. Usted decide dónde poner las copias.");
                     boolean pista = el.containsValue(Lugar.A);
                     boolean solos = p.bandera("entrada_alcaldia_C");
@@ -654,15 +654,15 @@ public final class GuionDia2 {
 
         c.prueba("mauricio", Rol.CIUDADANO, "carton_mauricio", "Cartón de Mauricio",
                 "CIUDADANO: ¿Qué entendiste de la circular?",
-                "Narrador: La fila responde con tres versiones distintas.",
-                "Narrador: Mauricio le entrega un cartón pintado con brocha.");
+                "Ringo: La fila responde con tres versiones distintas.",
+                "Ringo: Mauricio le entrega un cartón pintado con brocha.");
         c.prueba("quiroga", Rol.PERIODISTA, "circular_marcada", "Circular marcada",
                 "PERIODISTA: ¿Puedo leer la circular completa?",
                 "QUIROGA: Léala. Es de tres párrafos.",
-                "Narrador: {PERIODISTA} marca la línea sobre recursos públicos.");
+                "Ringo: {PERIODISTA} marca la línea sobre recursos públicos.");
         c.prueba("mauricio", Rol.INFLUENCER, "pintura_brocha", "Pintura de brocha",
                 "INFLUENCER: Va el mensaje, en grande.",
-                "Narrador: Pinta con letras grandes y goteos de brocha: «La circular no habla de celulares.»");
+                "Ringo: Pinta con letras grandes y goteos de brocha: «La circular no habla de celulares.»");
         c.prueba("quiroga", Rol.CANDIDATO, "firma_alcaldia", "Firma de Candidato",
                 "CANDIDATO: Si piden explicaciones, doy la cara.",
                 "QUIROGA: Eso es lo que yo quería oír.");
@@ -730,17 +730,17 @@ public final class GuionDia2 {
         l.alPrimeraEntrada(() -> new Secuencia()
                 .paso(sig -> {
                     List<String> d = new ArrayList<>();
-                    d.add("Narrador: Los cuatro cruzan la plaza.");
+                    d.add("Ringo: Los cuatro cruzan la plaza.");
                     d.add("INFLUENCER: ¿Ya vieron que Samuel nos sigue de lejos?");
                     d.add("CIUDADANO: Que venga. Que vea cómo se hace.");
-                    d.add("Narrador: Samuel se les une con una sonrisa enorme.");
-                    d.add("Narrador: Mediodía. Chela está en el muro. Emiro acomoda su carrito de jugos. En un poste, Orlando, el técnico, revisa una cámara blanca. Hay otra, más lejos, junto al muro del conjunto.");
+                    d.add("Ringo: Samuel se les une con una sonrisa enorme.");
+                    d.add("Ringo: Mediodía. Chela está en el muro. Emiro acomoda su carrito de jugos. En un poste, Orlando, el técnico, revisa una cámara blanca. Hay otra, más lejos, junto al muro del conjunto.");
                     if (danielaNoVino) {
                         d.add("EMIRO: Daniela hoy no vino.");
                     } else {
-                        d.add("Narrador: Daniela llega empujando su carrito azul y se queda mirando la cámara del poste.");
+                        d.add("Ringo: Daniela llega empujando su carrito azul y se queda mirando la cámara del poste.");
                     }
-                    d.add("Narrador: En la pantalla del celular: «La Alcaldía instaló cámaras con reconocimiento facial en el malecón para identificar a los vendedores sin permiso.»");
+                    d.add("Ringo: En la pantalla del celular: «La Alcaldía instaló cámaras con reconocimiento facial en el malecón para identificar a los vendedores sin permiso.»");
                     d.add("CHELA: Esas cámaras llevan años ahí. Nadie dijo nunca para qué.");
                     d.add("DOÑA BEATRIZ: ¿A ustedes no les da más seguridad que haya cámaras?");
                     d.add("EMIRO: Segura o no, yo ya me veo en el noticiero.");
@@ -760,22 +760,22 @@ public final class GuionDia2 {
                                 List<String> d = new ArrayList<>();
                                 d.add("JUGADOR: Las cámaras no son malas, pero si no sabemos quién las ve ni cuánto guardan, tampoco cuidan a nadie.");
                                 if (danielaNoVino) {
-                                    d.add("Narrador: Doña Beatriz se queda pensando. Emiro asiente despacio.");
+                                    d.add("Ringo: Doña Beatriz se queda pensando. Emiro asiente despacio.");
                                 } else {
-                                    d.add("Narrador: Doña Beatriz se queda pensando. Daniela levanta la vista.");
+                                    d.add("Ringo: Doña Beatriz se queda pensando. Daniela levanta la vista.");
                                     d.add("DANIELA: Eso era lo que quería decir y no encontraba cómo.");
                                 }
                                 l.dialogo(null, GuionDia1.comoJugador(j, d.toArray(new String[0])));
                             } else if (op == 1) {
                                 l.dialogo(sig, danielaNoVino
-                                        ? "Narrador: Emiro mira la cámara. Doña Beatriz asiente como si hubiera ganado."
-                                        : "Narrador: Daniela mira la cámara. Doña Beatriz asiente como si hubiera ganado.");
+                                        ? "Ringo: Emiro mira la cámara. Doña Beatriz asiente como si hubiera ganado."
+                                        : "Ringo: Daniela mira la cámara. Doña Beatriz asiente como si hubiera ganado.");
                                 l.completar("respeto");
                             } else {
                                 l.efecto(j, Efecto.de(EstadoJuego.CONVIVENCIA, -2, Partida.ANIMO, -1), "Respeto: dejar las cámaras");
                                 l.dialogo(sig, GuionDia1.comoJugador(j,
                                         "JUGADOR: Hay que dejar las cámaras. Así uno sabe quién anda por aquí.",
-                                        danielaNoVino ? "Narrador: Emiro se aleja." : "Narrador: Daniela se queda quieta. Emiro se aleja."));
+                                        danielaNoVino ? "Ringo: Emiro se aleja." : "Ringo: Daniela se queda quieta. Emiro se aleja."));
                                 l.completar("respeto");
                             }
                         },
@@ -806,11 +806,11 @@ public final class GuionDia2 {
                     registrarDigital(p, MALECON, el);
                     List<String> d = new ArrayList<>();
                     if (el.containsValue(Lugar.A)) {
-                        d.add("Narrador: Se descubre que la subió Julián.");
+                        d.add("Ringo: Se descubre que la subió Julián.");
                         d.add("JULIÁN: Era un chiste… Bueno, la bajo.");
                     }
                     if (el.containsValue(Lugar.B)) {
-                        d.add("Narrador: La foto queda marcada.");
+                        d.add("Ringo: La foto queda marcada.");
                     }
                     if (el.containsValue(Lugar.C)) {
                         d.add("EMIRO: Este va por la casa.");
@@ -826,7 +826,7 @@ public final class GuionDia2 {
                     if (el.containsValue(Lugar.E)) {
                         d.add("EMIRO: (serio) Esa soy yo en la foto, y no me preguntaron.");
                     }
-                    d.add("Narrador: Orlando le entrega a {CANDIDATO} un tablero con piezas.");
+                    d.add("Ringo: Orlando le entrega a {CANDIDATO} un tablero con piezas.");
                     d.add("ORLANDO: Arme el camino de la grabación. Hay dos cámaras. Cada una tiene su recorrido.");
                     l.dialogo(() -> l.minijuegoFijo(Rol.CANDIDATO, new MjQuienMira(el.containsValue(Lugar.A)).dialogoFinal(nv -> {
                         String[] r = nv == Minijuego.BIEN
@@ -848,19 +848,19 @@ public final class GuionDia2 {
             c.prueba("emiro", Rol.CIUDADANO, "tabla_chela_d2", "Tabla de Chela",
                     "CIUDADANO: Emiro, ¿cómo se siente con la cámara?",
                     "EMIRO: De día, tranquila. De noche, preocupada. Lo que quiero es saber quién mira.",
-                    "Narrador: Chela le entrega otra tabla.");
+                    "Ringo: Chela le entrega otra tabla.");
         } else {
             c.prueba("daniela", Rol.CIUDADANO, "tabla_chela_d2", "Tabla de Chela",
                     "CIUDADANO: Daniela, ¿cómo te sientes con la cámara?",
                     "DANIELA: Tranquila de día, preocupada de noche. Quiero saber quién mira.",
-                    "Narrador: Chela le entrega otra tabla.");
+                    "Ringo: Chela le entrega otra tabla.");
         }
         c.prueba("orlando", Rol.PERIODISTA, "explicacion_orlando", "Explicación de Orlando",
                 "PERIODISTA: ¿Me puede explicar qué hacen las cámaras?",
                 "ORLANDO: Graban treinta días y no reconocen caras.");
         c.prueba("chela", Rol.INFLUENCER, "pintura_botes_d2", "Pintura de botes",
                 "INFLUENCER: Va el mensaje.",
-                "Narrador: Pinta con la pintura de los botes: «La cámara ve, pero no reconoce.»");
+                "Ringo: Pinta con la pintura de los botes: «La cámara ve, pero no reconoce.»");
         c.prueba("orlando", Rol.CANDIDATO, "firma_malecon_d2", "Firma de Candidato",
                 "CANDIDATO: Me comprometo a pedir que digan quién ve las grabaciones.",
                 "ORLANDO: Ojalá lo cumpla. Nadie me lo ha preguntado.");
@@ -941,8 +941,8 @@ public final class GuionDia2 {
 
         l.alPrimeraEntrada(() -> new Secuencia()
                 .paso(sig -> l.dialogo(sig,
-                        "Narrador: Salón del segundo piso. Se oye el reloj de la Junta, que adelanta siete minutos.",
-                        "Narrador: En el grupo «Vecinos Unidos» alguien escribió que la Junta vendió la lista de teléfonos de los vecinos a una campaña.",
+                        "Ringo: Salón del segundo piso. Se oye el reloj de la Junta, que adelanta siete minutos.",
+                        "Ringo: En el grupo «Vecinos Unidos» alguien escribió que la Junta vendió la lista de teléfonos de los vecinos a una campaña.",
                         "AMARANTA: (sin levantar la vista) La lista tiene una fecha: la del día en que se armó el grupo. Lo que no tiene es una línea que diga quién dio permiso.",
                         "DOÑA PETRA: (sosteniendo la carpeta con fuerza) Esto ya lo viví, aunque no sabría decir cuándo. Una lista sin dueño es un libro sin autor: cualquiera lo lee y nadie responde.",
                         "DON ALIRIO: (en la entrada, mirando la escalera) Otra reunión arriba. ¿Y yo?",
@@ -962,11 +962,11 @@ public final class GuionDia2 {
                                 p.poner("junta_en_la_cocina");
                                 l.dialogo(null, GuionDia1.comoJugador(j,
                                         "JUGADOR: ¿Y si bajamos la reunión a la cocina? Así Don Alirio participa sin esperar a que lo suban.",
-                                        "Narrador: Don Alirio levanta la cabeza. Don Gustavo le aprieta el hombro.",
+                                        "Ringo: Don Alirio levanta la cabeza. Don Gustavo le aprieta el hombro.",
                                         "DON ALIRIO: Dos años pidiendo una rampa y lo resuelven en un minuto.",
                                         "DOÑA PETRA: Que baje todo el mundo. Sofía, ¿hay tinto para ocho?"));
                             } else {
-                                l.dialogo(sig, "Narrador: Don Alirio se queda en la entrada. Don Gustavo sube a representarlo.");
+                                l.dialogo(sig, "Ringo: Don Alirio se queda en la entrada. Don Gustavo sube a representarlo.");
                                 l.completar("respeto");
                             }
                         },
@@ -1000,7 +1000,7 @@ public final class GuionDia2 {
                         d.add("DOÑA PETRA: Esa es la pregunta: ¿quién lo creó y para qué?");
                     }
                     if (el.containsValue(Lugar.B)) {
-                        d.add("Narrador: El grupo queda señalado.");
+                        d.add("Ringo: El grupo queda señalado.");
                     }
                     if (el.containsValue(Lugar.C)) {
                         d.add("SANTA SOFÍA: Con calma, que lo urgente casi nunca es lo importante.");
@@ -1008,7 +1008,7 @@ public final class GuionDia2 {
                     if (el.containsValue(Lugar.E)) {
                         d.add("AMARANTA: (sin levantar la vista) Ahora hay una dirección más que alguien sabe.");
                     }
-                    d.add("Narrador: Amaranta le entrega a {CIUDADANO} la lista de afiliados.");
+                    d.add("Ringo: Amaranta le entrega a {CIUDADANO} la lista de afiliados.");
                     d.add("AMARANTA: Mire el nombre, mire la hoja de permisos. Si el nombre no está, no dio permiso.");
                     l.dialogo(() -> l.minijuegoFijo(Rol.CIUDADANO, new MjListaPermiso(el.containsValue(Lugar.A)).dialogoFinal(nv -> {
                         String[] r = nv == Minijuego.BIEN
@@ -1029,13 +1029,13 @@ public final class GuionDia2 {
         c.prueba("sofia", Rol.CIUDADANO, "hoja_amaranta_d2", "Hoja de Amaranta",
                 "CIUDADANO: ¿Dieron permiso para que los pusieran en el grupo?",
                 "SANTA SOFÍA: Nadie me preguntó.",
-                "Narrador: Amaranta le entrega otra hoja de carpeta.");
+                "Ringo: Amaranta le entrega otra hoja de carpeta.");
         c.prueba("amaranta", Rol.PERIODISTA, "registro_grupo", "Registro del grupo",
                 "PERIODISTA: ¿Puedo ver cómo se armó el grupo?",
                 "AMARANTA: Mire la fecha. Es de hace dos semanas.");
         c.prueba("amaranta", Rol.INFLUENCER, "pintura_letra_firme_d2", "Pintura de letra firme",
                 "INFLUENCER: Va el aviso.",
-                "Narrador: Copia con letra pequeña y firme: «Tu número no se vendió. Nadie preguntó.»");
+                "Ringo: Copia con letra pequeña y firme: «Tu número no se vendió. Nadie preguntó.»");
         c.prueba("petra", Rol.CANDIDATO, "firma_junta_d2", "Firma de Candidato",
                 "CANDIDATO: Me comprometo a no usar listas sin permiso.",
                 "DOÑA PETRA: Y a decir de dónde las saca.",
@@ -1064,7 +1064,7 @@ public final class GuionDia2 {
                     } else if (g == 1) {
                         l.efectoCompartido(Efecto.de(Partida.DESINFO_LUGAR, -3), "Votación: salir del grupo");
                         l.dialogo(fin, "INFLUENCER: Salimos juntos y listo.",
-                                "Narrador: Los vecinos que no saben salir se quedan adentro sin ayuda.");
+                                "Ringo: Los vecinos que no saben salir se quedan adentro sin ayuda.");
                     } else {
                         l.dialogo(fin, "CANDIDATO: No es nuestro grupo. No nos toca.");
                     }
@@ -1086,23 +1086,23 @@ public final class GuionDia2 {
 
         l.alPrimeraEntrada(() -> {
             Runnable aLaCena = () -> l.dialogo(() -> h.ir(CENA),
-                    "Narrador: Doña Rosa pone cuatro tazas sobre la mesa. Es hora de la cena.");
+                    "Ringo: Doña Rosa pone cuatro tazas sobre la mesa. Es hora de la cena.");
             Secuencia s = new Secuencia()
                     .paso(sig -> l.dialogo(sig,
-                            "Narrador: Los cuatro celulares suenan a la vez. Es el audio del colegio, ahora con noventa reenvíos.",
-                            "Narrador: El origen se rastrea entre los cuatro."));
+                            "Ringo: Los cuatro celulares suenan a la vez. Es el audio del colegio, ahora con noventa reenvíos.",
+                            "Ringo: El origen se rastrea entre los cuatro."));
             if (alguienDifundio(p)) {
                 List<Jugador> fueron = quienesDifundieron(p);
                 p.poner("cena_dura");
                 s.paso(sig -> {
                     List<String> d = new ArrayList<>();
-                    d.add("Narrador: La tele se enciende sola. Vlado aparece con papeles en la mano.");
+                    d.add("Ringo: La tele se enciende sola. Vlado aparece con papeles en la mano.");
                     d.add("VLADO: El audio que se multiplicó noventa veces salió de un celular de la casa de Doña Rosa.");
-                    d.add("Narrador: Doña Rosa, en la puerta de la cocina, se queda quieta. Los cuatro se miran.");
+                    d.add("Ringo: Doña Rosa, en la puerta de la cocina, se queda quieta. Los cuatro se miran.");
                     d.add(fueron.get(0).rol.name() + ": " + (fueron.size() > 1 ? "Fuimos varios. Lo mandamos sin verificar." : "Fui yo. Lo mandé sin verificar."));
                     d.add("DOÑA ROSA: (se limpia las manos en el delantal) Yo no los eché a la calle cuando llegaron. No me hagan arrepentirme.");
                     if (fueron.size() > 1) {
-                        d.add("Narrador: La cena de hoy va a ser más dura.");
+                        d.add("Ringo: La cena de hoy va a ser más dura.");
                     }
                     l.dialogo(sig, d.toArray(new String[0]));
                 }).paso(sig -> DecisionGrupal.votacion(l, "¿Lo decimos nosotros primero?",
@@ -1117,7 +1117,7 @@ public final class GuionDia2 {
                                 for (Jugador j : fueron) {
                                     l.efecto(j, Efecto.de(EstadoJuego.CONFIANZA, -1), "Votación: lo dice quien difundió");
                                 }
-                                l.dialogo(sig, "Narrador: Quien difundió respira hondo.");
+                                l.dialogo(sig, "Ringo: Quien difundió respira hondo.");
                             } else {
                                 l.efectoCompartido(Efecto.de(Partida.ANIMO, -1), "Votación: callar");
                                 l.dialogo(sig, "PERIODISTA: Si nadie pregunta, no hay nada que decir.");
@@ -1130,7 +1130,7 @@ public final class GuionDia2 {
                             "VLADO: El audio sale de una cuenta que usan varias manos. No se puede saber cuáles.",
                             "PERIODISTA: Entonces no fuimos nosotros.",
                             "CIUDADANO: Pero tampoco ayudamos a frenarlo del todo.",
-                            "Narrador: La cena va a ser de reflexión.");
+                            "Ringo: La cena va a ser de reflexión.");
                 });
             }
             s.hacer(aLaCena).iniciar();
@@ -1156,8 +1156,8 @@ public final class GuionDia2 {
 
         l.alPrimeraEntrada(() -> new Secuencia()
                 .paso(sig -> l.dialogo(sig,
-                        "Narrador: La casa. Cuatro tazas de tinto. Samuel en su silla. Cada jugador pone sus pruebas sobre la mesa.",
-                        p.bandera("cena_dura") ? "Narrador: Nadie se atreve a servir primero." : "Narrador: Huele a pan y a tinto recién hecho.",
+                        "Ringo: La casa. Cuatro tazas de tinto. Samuel en su silla. Cada jugador pone sus pruebas sobre la mesa.",
+                        p.bandera("cena_dura") ? "Ringo: Nadie se atreve a servir primero." : "Ringo: Huele a pan y a tinto recién hecho.",
                         "DOÑA ROSA: Hoy no pregunto qué hicieron. Pregunto qué piensan hacer mañana."))
                 .paso(sig -> GuionDia1.armarLetreros(l, sig))
                 .paso(sig -> {
@@ -1181,29 +1181,29 @@ public final class GuionDia2 {
                     }
                     l.npc("melquiades", "Melquíades", "el gitano", 1790, 600, new Color(0x7A3A8A));
                     l.dialogo(sig,
-                            "Narrador: Entra Melquíades. Deja el papel junto al tinto.",
-                            compartieron ? "Narrador: Compartieron las pruebas: el papel está escrito, pero roto en cinco pedazos."
-                                    : "Narrador: El papel está casi en blanco: solo se ven cinco pedazos sueltos.",
-                            "Narrador: Esta noche lo arma {CIUDADANO}.");
+                            "Ringo: Entra Melquíades. Deja el papel junto al tinto.",
+                            compartieron ? "Ringo: Compartieron las pruebas: el papel está escrito, pero roto en cinco pedazos."
+                                    : "Ringo: El papel está casi en blanco: solo se ven cinco pedazos sueltos.",
+                            "Ringo: Esta noche lo arma {CIUDADANO}.");
                 })
                 .paso(sig -> l.minijuegoFijo(Rol.CIUDADANO, new MjPergaminos(2).dialogoFinal(nv -> nv == Minijuego.BIEN
                         ? new String[]{"MELQUÍADES: Eso es lo que yo escribí. Y lo que ustedes acaban de leer.",
-                            "Narrador: «Dirá la isla que lo vio todo y no habrá mirado a nadie. Guardará cada número en una lista sin dueño, y aun así olvidará el rostro de quien le abrió la puerta. Quien hoy pida permiso antes de mirar, mañana no tendrá que pedir que lo dejen en paz.»"}
+                            "Ringo: «Dirá la isla que lo vio todo y no habrá mirado a nadie. Guardará cada número en una lista sin dueño, y aun así olvidará el rostro de quien le abrió la puerta. Quien hoy pida permiso antes de mirar, mañana no tendrá que pedir que lo dejen en paz.»"}
                         : nv == Minijuego.REGULAR
                                 ? new String[]{"MELQUÍADES: Falta una frase."}
-                                : new String[]{"Narrador: Melquíades termina de leerlo él. El pergamino queda incompleto."}), res -> sig.run()))
+                                : new String[]{"Ringo: Melquíades termina de leerlo él. El pergamino queda incompleto."}), res -> sig.run()))
                 .paso(sig -> l.dialogo(sig,
-                        "Narrador: Melquíades se queda de pie. Es la primera vez que habla de más.",
+                        "Ringo: Melquíades se queda de pie. Es la primera vez que habla de más.",
                         "MELQUÍADES: Anoche revisé mi aparato. El rumor del colegio no nació de una persona. Nació de un calendario.",
                         "MELQUÍADES: Alguien escribió horas cada siete minutos: quién habla, qué dice, qué se repite. Hay un turno de las siete y siete, y hay una cuenta que usan varias manos.",
-                        "Narrador: Silencio.",
+                        "Ringo: Silencio.",
                         "DOÑA ÚRSULA: Esto ya lo viví. Y lo que no se pone en nombre se vuelve de nadie.",
                         "MELQUÍADES: Nadie lo escribió. Y todos lo repartieron. Eso es Macondo despierta.",
                         "PERIODISTA: Entonces no hay un culpable.",
                         "CIUDADANO: Hay cuatro de nosotros que podemos no repartirlo.",
                         "SAMUEL: ¿Entonces el audio no era de nadie?",
                         "DOÑA ROSA: Era de quien lo repartió, mijo.",
-                        "Narrador: La bruma vuelve a bajar por el río. Esta vez es más espesa."))
+                        "Ringo: La bruma vuelve a bajar por el río. Esta vez es más espesa."))
                 .paso(sig -> decisionFinal(l, sig))
                 .paso(sig -> laNiebla(l, sig))
                 .hacer(() -> h.terminarDia())
@@ -1225,7 +1225,7 @@ public final class GuionDia2 {
                         }
                         l.dialogo(fin, "CANDIDATO: Convoco a la plaza. Les cuento lo que sabemos.",
                                 "INFLUENCER: Yo pongo el megáfono.",
-                                "Narrador: Se juntan Convocatoria y Megáfono. La plaza se llena.");
+                                "Ringo: Se juntan Convocatoria y Megáfono. La plaza se llena.");
                     } else if (g == 1) {
                         l.dialogo(fin, "PERIODISTA: Tengo que comprobarlo con el calendario completo.");
                     } else {
@@ -1244,7 +1244,7 @@ public final class GuionDia2 {
     private static void laNiebla(Lugar l, Runnable fin) {
         Partida p = l.partida();
         List<String> d = new ArrayList<>();
-        d.add("Narrador: La campana suena una sola vez. La bruma baja por el río hacia la Panadería, la Alcaldía, el Malecón y la Junta.");
+        d.add("Ringo: La campana suena una sola vez. La bruma baja por el río hacia la Panadería, la Alcaldía, el Malecón y la Junta.");
         List<String> protegidos = new ArrayList<>();
         List<String> sinProteger = new ArrayList<>();
         for (String lu : LUGARES_FINAL) {
@@ -1265,7 +1265,7 @@ public final class GuionDia2 {
             }
             sinProteger.remove(mejor);
             protegidos.add(mejor);
-            d.add("Narrador: Lo que se contó en la plaza protege " + nombreLugar(mejor) + ".");
+            d.add("Ringo: Lo que se contó en la plaza protege " + nombreLugar(mejor) + ".");
         } else if (p.bandera("final_C") && !protegidos.isEmpty()) {
             String peor = protegidos.get(0);
             for (String lu : protegidos) {
@@ -1275,20 +1275,20 @@ public final class GuionDia2 {
             }
             protegidos.remove(peor);
             sinProteger.add(peor);
-            d.add("Narrador: Como nadie lo contó, la niebla alcanza " + nombreLugar(peor) + ".");
+            d.add("Ringo: Como nadie lo contó, la niebla alcanza " + nombreLugar(peor) + ".");
         }
         for (String lu : LUGARES_FINAL) {
             if (protegidos.contains(lu)) {
                 p.nieblaOff(lu);
                 p.poner("protegido_" + lu);
-                d.add("Narrador: " + nombreLugar(lu) + ": la niebla se detiene en la puerta. Una mariposa se posa en el letrero.");
+                d.add("Ringo: " + nombreLugar(lu) + ": la niebla se detiene en la puerta. Una mariposa se posa en el letrero.");
             } else {
                 p.nieblaOn(lu);
-                d.add("Narrador: " + nombreLugar(lu) + ": la niebla entra. Los vecinos no encuentran el nombre de las cosas.");
+                d.add("Ringo: " + nombreLugar(lu) + ": la niebla entra. Los vecinos no encuentran el nombre de las cosas.");
             }
         }
         p.poner("protegidos_" + protegidos.size());
-        d.add("Narrador: Lugares protegidos: " + protegidos.size() + " de 4. Ánimo de la casa: " + p.animo + ".");
+        d.add("Ringo: Lugares protegidos: " + protegidos.size() + " de 4. Ánimo de la casa: " + p.animo + ".");
         l.dialogo(fin, d.toArray(new String[0]));
     }
 
@@ -1412,9 +1412,9 @@ public final class GuionDia2 {
             cine.cuadro(F_CASA,
                     "Amanece. La bruma cubre casi todo. Los letreros están ahí, pero nadie los lee.",
                     "DOÑA ROSA: ¿Quién era usted? ¿Qué hacía aquí?",
-                    "Narrador: Doña Rosa los mira como si los viera por primera vez.",
+                    "Ringo: Doña Rosa los mira como si los viera por primera vez.",
                     "SAMUEL: Yo sí me acuerdo.",
-                    "Narrador: Samuel les entrega un letrero chiquito que él mismo dibujó: ESTOS SON LOS CUATRO.")
+                    "Ringo: Samuel les entrega un letrero chiquito que él mismo dibujó: ESTOS SON LOS CUATRO.")
                     .camara(1.00, 1.10, 0, 0)
                     .musica("/sonidos/musica_isla.wav", 0.35, 2.0)
                     .niebla()

@@ -58,7 +58,7 @@ public final class GestorPeleas {
                     "INFLUENCER: Vi que todos lo reenviaban. ¿Qué querías, que me quedara en silencio?",
                     "PERIODISTA: Sí. En silencio, o preguntándome primero. Como lo haría alguien con sentido común.",
                     "INFLUENCER: Me dijiste que no me metiera en tus fuentes.",
-                    "Narrador: Doña Rosa se asoma."},
+                    "Ringo: Doña Rosa se asoma."},
                 new String[]{
                     "INFLUENCER: Lo hice porque me daba miedo que me dejaran de ver.",
                     "PERIODISTA: Y yo porque me da miedo equivocarme."},
@@ -79,7 +79,7 @@ public final class GestorPeleas {
                     "CIUDADANO: Les prometí discreción. Hablaste en mi nombre.",
                     "CANDIDATO: No di nombres.",
                     "CIUDADANO: No hacía falta. Todos sabían quién los había escuchado.",
-                    "Narrador: Doña Rosa deja el cucharón."},
+                    "Ringo: Doña Rosa deja el cucharón."},
                 new String[]{
                     "CANDIDATO: Quería que me creyeran. No supe cómo.",
                     "CIUDADANO: Yo quería que me creyeran a mí, y tampoco supe cómo."},
@@ -91,7 +91,7 @@ public final class GestorPeleas {
                     "CIUDADANO: Hay vecinos que me contaron cosas a mí. Y esas cosas aparecieron en tu discurso.",
                     "CANDIDATO: Eso me ayudó a que me escucharan.",
                     "CIUDADANO: Te escucharon porque yo estaba al lado. Eso no es tuyo.",
-                    "Narrador: Doña Rosa deja el cucharón sobre la mesa.",
+                    "Ringo: Doña Rosa deja el cucharón sobre la mesa.",
                     "DOÑA ROSA: Dos días de pan y todavía no aprenden a pedirse permiso."},
                     new String[]{"Reparar: «Mañana aclaro con los vecinos que lo que dije fue mío. Y te pido permiso antes de nombrar a quien me cuente algo.»",
                         "Defenderse: «Es una campaña. Hay cosas que se cuentan.»",
@@ -104,7 +104,7 @@ public final class GestorPeleas {
                     "PERIODISTA: Es información de interés público.",
                     "CIUDADANO: Los vecinos me creyeron a mí, y ahora no confían en mí.",
                     "PERIODISTA: Tampoco puedo tapar todo lo que me cuentan.",
-                    "Narrador: Doña Rosa sirve tinto, sin decir nada."},
+                    "Ringo: Doña Rosa sirve tinto, sin decir nada."},
                 new String[]{
                     "PERIODISTA: Debí preguntarte antes. No lo hice porque pensé que me lo ibas a negar.",
                     "CIUDADANO: Y lo habría negado. Pero igual debías preguntar."},
@@ -116,7 +116,7 @@ public final class GestorPeleas {
                     "CIUDADANO: Para quien la cuenta. Para quien la vive es su casa.",
                     "PERIODISTA: Si me callo, quien tiene el poder gana.",
                     "CIUDADANO: Si hablas sin avisar, el vecino pierde la confianza. Y yo con él.",
-                    "Narrador: Samuel, en la punta de la mesa, deja de comer.",
+                    "Ringo: Samuel, en la punta de la mesa, deja de comer.",
                     "SAMUEL: ¿Se están peleando por mí?",
                     "DOÑA ROSA: No, mijo. Por un nombre."},
                     new String[]{"Reparar: «Voy a quitar el nombre y a preguntarle al vecino si quiere que lo cuente. Contigo presente.»",
@@ -140,7 +140,7 @@ public final class GestorPeleas {
                     "{AFECTADO}: Una pieza guardada no protege nada. Una pieza puesta, sí.",
                     "{AGRESOR}: Y si la ponen mal, ¿quién responde?",
                     "{AFECTADO}: Los cuatro. Para eso la mesa tiene cuatro huecos.",
-                    "Narrador: Doña Rosa se sienta por primera vez en la mesa.",
+                    "Ringo: Doña Rosa se sienta por primera vez en la mesa.",
                     "DOÑA ROSA: Nadie les pide que no tengan miedo. Les pido que lo traigan a la mesa."},
                     new String[]{"Reparar: «Hoy pongo mi pieza primero y miro cómo la usan.»",
                         "Defenderse: «La pieza era mía.»",
@@ -154,7 +154,7 @@ public final class GestorPeleas {
                     "CIUDADANO: Y mi cama sin hacer.",
                     "INFLUENCER: Son tres segundos. Nadie se va a fijar.",
                     "PERIODISTA: No tenías derecho a mostrar eso.",
-                    "Narrador: Doña Rosa deja de lavar la taza."},
+                    "Ringo: Doña Rosa deja de lavar la taza."},
                 new String[]{
                     "INFLUENCER: No pensé que importaba. Para mí enseñar es parte de contar.",
                     "PERIODISTA: Contar es una cosa. Mostrar sin permiso es otra."},
@@ -167,7 +167,7 @@ public final class GestorPeleas {
                     "CIUDADANO: Y la bolsa de pan de Doña Rosa, que no te dio permiso.",
                     "INFLUENCER: Es contenido. A la gente le gusta ver cómo vivimos.",
                     "PERIODISTA: A la gente le gusta ver. A nosotros nos toca decidir qué se muestra.",
-                    "Narrador: Doña Rosa apaga la estufa.",
+                    "Ringo: Doña Rosa apaga la estufa.",
                     "DOÑA ROSA: Mi cocina no es un escenario."},
                     new String[]{"Reparar: «Lo bajo ahora. Y desde hoy lo que grabo en la casa pasa por ustedes antes.»",
                         "Defenderse: «Es mi cuenta.»",
@@ -288,7 +288,7 @@ public final class GestorPeleas {
             ls.add(s.replace("{AGRESOR}", agresor.rol.name()).replace("{AFECTADO}", afectado.rol.name()));
         }
         if (repetida) {
-            ls.add("Narrador: Es la segunda vez. Si esto se rompe, se rompe también la ayuda entre los dos para el final.");
+            ls.add("Ringo: Es la segunda vez. Si esto se rompe, se rompe también la ayuda entre los dos para el final.");
         }
         final String[] lineas = ls.toArray(new String[0]);
         // lo recuerda la manana siguiente (GuionDia2) y la cena del Dia 2
@@ -424,21 +424,21 @@ public final class GestorPeleas {
         p.poner("pelea_buena_hecha");
         List<Jugador> otros = p.otros(verifico.rol, tinto.rol);
         String v = verifico.rol.name(), t = tinto.rol.name();
-        String o1 = otros.size() > 0 ? otros.get(0).rol.name() : "Narrador";
-        String o2 = otros.size() > 1 ? otros.get(1).rol.name() : "Narrador";
+        String o1 = otros.size() > 0 ? otros.get(0).rol.name() : "Ringo";
+        String o2 = otros.size() > 1 ? otros.get(1).rol.name() : "Ringo";
         List<Jugador> dos = new ArrayList<>();
         dos.add(verifico);
         dos.add(tinto);
         final boolean[] seEscucharon = {false};
         new Secuencia()
                 .paso(sig -> l.dialogo(sig,
-                        "Narrador: La cena, sin agravio.",
+                        "Ringo: La cena, sin agravio.",
                         v + ": Hoy tú te tomaste un tinto y yo me puse a verificar. ¿Cuál estuvo mejor?",
                         t + ": Yo creo que el tinto. Si no respiro, me equivoco.",
                         v + ": Y yo creo que si no verifico, otros se equivocan por mí.",
                         o1 + ": Los dos tienen algo de razón.",
                         o2 + ": Eso no vale. Escojan.",
-                        "Narrador: Doña Rosa sirve más tinto y se sienta a escuchar."))
+                        "Ringo: Doña Rosa sirve más tinto y se sienta a escuchar."))
                 .paso(sig -> DecisionGrupal.algunos(l, otros, "La pelea buena. ¿Qué haces?",
                         new String[]{"Mediar: «Cada uno hace lo que necesita. Pero hoy es mejor sumarlo.»",
                             "Apoyar a " + verifico.rol.nombre, "Apoyar a " + tinto.rol.nombre, "Callar y escuchar"},
@@ -481,7 +481,7 @@ public final class GestorPeleas {
         l.dialogo(fin,
                 "DOÑA ROSA: Les cuento algo. Hoy, en la panadería, un niño intentó comprar pan con una piedra de río.",
                 "DOÑA ROSA: Le dije que era muy bonita, pero que el pan se paga con plata.",
-                "Narrador: Los cuatro se ríen. Samuel se ríe más fuerte.");
+                "Ringo: Los cuatro se ríen. Samuel se ríe más fuerte.");
     }
 
     /** Para la consola / la demo: que peleas estarian activas. */

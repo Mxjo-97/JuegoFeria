@@ -709,6 +709,14 @@ public class EscenaMundo extends PanelDiseno {
         }
     }
 
+    @Override
+    protected void alPausar() {
+        for (Ctl c : ctls()) {
+            c.soltar();
+        }
+        java.util.Arrays.fill(eAbajoDe, false);
+    }
+
     // ===================== LOGICA =====================
 
     @Override
@@ -1044,23 +1052,43 @@ public class EscenaMundo extends PanelDiseno {
             }
             float alfa = (float) Math.max(0, Math.min(1, (DIST_PLACA - d) / 70.0));
             boolean elegido = v.cerca == a;
+            BufferedImage placa = placa(n, elegido, hayNiebla(), fm);
+            int x = (int) (a.x - (placa.getWidth() - 4) / 2.0), y = (int) a.y + 14;
+            if (alfa >= 0.99f) {
+                g.drawImage(placa, x, y, null);
+            } else {
+                java.awt.Composite c = g.getComposite();
+                g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alfa));
+                g.drawImage(placa, x, y, null);
+                g.setComposite(c);
+            }
+        }
+    }
+
+    /** OPTIMIZACION: cada placa (nombre + pildora) se dibuja una sola vez y se guarda. */
+    private static final java.util.Map<String, BufferedImage> PLACAS = new java.util.HashMap<>();
+
+    private static BufferedImage placa(String n, boolean elegido, boolean niebla, FontMetrics fm) {
+        return PLACAS.computeIfAbsent(n + "|" + elegido + "|" + niebla, k -> {
             int w = fm.stringWidth(n) + 38, h = 30;
-            int x = (int) (a.x - w / 2.0), y = (int) a.y + 14;
-            Graphics2D gg = (Graphics2D) g.create();
-            gg.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alfa));
+            BufferedImage im = new BufferedImage(w + 4, h + 6, BufferedImage.TYPE_INT_ARGB_PRE);
+            Graphics2D gg = im.createGraphics();
+            Estilo.suave(gg);
+            gg.setFont(fm.getFont());
             gg.setColor(new Color(40, 24, 12, 60));
-            gg.fill(new RoundRectangle2D.Double(x + 1, y + 3, w, h, h, h));
+            gg.fill(new RoundRectangle2D.Double(1 + 1, 3 + 1, w, h, h, h));
             gg.setColor(new Color(255, 250, 238, 238));
-            gg.fill(new RoundRectangle2D.Double(x, y, w, h, h, h));
+            gg.fill(new RoundRectangle2D.Double(1, 1, w, h, h, h));
             gg.setColor(elegido ? Estilo.DORADO : new Color(0xE6D09B));
             gg.setStroke(new BasicStroke(elegido ? 2.5f : 1.5f));
-            gg.draw(new RoundRectangle2D.Double(x, y, w, h, h, h));
+            gg.draw(new RoundRectangle2D.Double(1, 1, w, h, h, h));
             gg.setColor(elegido ? Estilo.DORADO : new Color(0xE9A9B8));
-            gg.fillOval(x + 11, y + h / 2 - 4, 8, 8);
-            gg.setColor(hayNiebla() ? Estilo.TEXTO_SUAVE : Estilo.TEXTO);
-            gg.drawString(n, x + 25, y + 21);
+            gg.fillOval(1 + 11, 1 + h / 2 - 4, 8, 8);
+            gg.setColor(niebla ? Estilo.TEXTO_SUAVE : Estilo.TEXTO);
+            gg.drawString(n, 1 + 25, 1 + 21);
             gg.dispose();
-        }
+            return Recursos.compatible(im);
+        });
     }
 
     private void indicador(Graphics2D g) {
@@ -1129,6 +1157,27 @@ public class EscenaMundo extends PanelDiseno {
         }
     }
 
+    /** Ruta del sprite de quien habla (para su carita en el dialogo), o null. Lugar la cambia para los jugadores. */
+    protected String spriteDeQuien(String quien) {
+        return ArteMj.spriteOficial(quien);
+    }
+
+    private static final java.util.Map<String, BufferedImage> CARAS_DLG = new java.util.HashMap<>();
+
+    private BufferedImage caraDialogo(String quien) {
+        String ruta = spriteDeQuien(quien);
+        if (ruta == null || !Recursos.existe(ruta)) {
+            return null;
+        }
+        return CARAS_DLG.computeIfAbsent(ruta, r -> {
+            BufferedImage im = new BufferedImage(116, 116, BufferedImage.TYPE_INT_ARGB_PRE);
+            Graphics2D gg = im.createGraphics();
+            ArteMj.caraDe(gg, 58, 56, 52, r, quien, null);
+            gg.dispose();
+            return Recursos.compatible(im);
+        });
+    }
+
     private void dibujarDialogo(Graphics2D g, Dlg d) {
         String dlgQuien = d.quien, dlgTexto = d.texto;
         double dlgChars = d.chars;
@@ -1156,10 +1205,16 @@ public class EscenaMundo extends PanelDiseno {
         }
 
         if (dlgQuien != null) {
-            Estilo.madera(g, bx + 50, by - 34, 330, 64, 28);
+            BufferedImage cara = caraDialogo(dlgQuien);
+            int tx = cara != null ? bx + 118 : bx + 50;
+            Estilo.madera(g, tx, by - 34, 330, 64, 28);
             g.setFont(Estilo.fuente(Font.BOLD, 34f));
             g.setColor(new Color(0xFFF3D6));
-            centrado(g, dlgQuien, bx + 50 + 165, by + 10);
+            centrado(g, dlgQuien, tx + 165, by + 10);
+            if (cara != null) {
+                // carita de quien habla (Ringo cuando narra), hecha una sola vez
+                g.drawImage(cara, bx + 4, by - 70, null);
+            }
         }
 
         g.setFont(Estilo.fuente(Font.PLAIN, 40f));

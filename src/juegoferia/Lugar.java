@@ -25,21 +25,6 @@ import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/**
- * Un lugar jugable (panaderia, malecon, junta, plaza, casa). Es un EscenaMundo (se camina y se
- * habla con los vecinos) mas las reglas del guion, ahora para CUATRO jugadores juntos:
- *
- *   - EQUIPO: uno camina (el lider) y los otros tres lo siguen. 1-4 cambian quien camina.
- *   - DECISION DIGITAL (Q): las cinco opciones A-E son siempre las mismas; eligen los cuatro,
- *     uno por uno, y el chat "Los de Dona Rosa" anuncia lo que hizo cada uno.
- *   - DECISION DE RESPETO: responde quien quiera primero; si elige A, los otros pueden "Yo tambien".
- *   - PIEZAS del Letrero, MINIJUEGO FIJO y ESPORADICOS (opcionales).
- *   - HABILIDADES (H), PRESTAR habilidad (P) y FRASES RAPIDAS (F).
- *   - DESINFORMACION del lugar (empieza en 40); si pasa de 70 entra la NIEBLA.
- *   - RELOJ: corre mientras caminan y se detiene con dialogos y decisiones.
- *
- * Los textos y posiciones de cada lugar se arman en GuionDia1 / GuionDia2.
- */
 public class Lugar extends EscenaMundo {
 
     /** Lo que Lugar necesita del juego que lo contiene (JuegoMacondo). */
@@ -154,6 +139,8 @@ public class Lugar extends EscenaMundo {
 
     // equipo
     private final Map<Rol, Actor> equipo = new EnumMap<>(Rol.class);
+    /** Emotes de los jugadores (R + 1-4). */
+    private final Emociones emociones = new Emociones();
     private final LinkedList<double[]> rastro = new LinkedList<>();
     private static final int PASOS_ENTRE_SEGUIDORES = 14;
 
@@ -419,8 +406,21 @@ public class Lugar extends EscenaMundo {
 
     /** Puerta hacia otro lugar (se usa con E). */
     public Lugar salida(int x, int y, int w, int h, String destino, String etiqueta) {
-        salidas.add(new Rectangle(x, y, w, h));
-        zona(x, y, w, h, etiqueta, () -> salir(destino));
+        return salidaHacia(x, y, w, h, etiqueta, () -> {
+            int m = partida.mapa.minutos(id, destino);
+            if (m > 0) {
+                partida.reloj.sumarMinutos(m);
+            }
+            anfitrion.ir(destino);
+        });
+    }
+
+    /** Puerta que al cruzarla hace 'irse' (ej: preguntar a donde van). En red espera a los cuatro. */
+    public Lugar salidaHacia(int x, int y, int w, int h, String etiqueta, Runnable irse) {
+        Rectangle r = new Rectangle(x, y, w, h);
+        salidas.add(r);
+        accionSalida.put(r, irse);
+        zona(x, y, w, h, etiqueta, () -> salir(r, irse));
         return this;
     }
 
@@ -467,6 +467,8 @@ public class Lugar extends EscenaMundo {
 
     /** El anfitrion lo llama cada vez que el grupo llega a este lugar. */
     public void entrar() {
+        saliendo = false;
+        enPuerta.clear();
         mostrarMisionesUnRato(6);
         Musica.ambienteJuego(partida.hayNiebla(id));
         if (hora >= 0) {
@@ -493,7 +495,10 @@ public class Lugar extends EscenaMundo {
         }
     }
 
-    private void salir(String destino) {
+    private void salir(Rectangle puerta, Runnable irse) {
+        if (saliendo) {
+            return;            // ya van saliendo (ej: estan votando a donde ir)
+        }
         if (!objetivos.isEmpty() && !completadoTodo) {
             for (Objetivo o : objetivos) {
                 if (!o.hecho) {
@@ -502,12 +507,127 @@ public class Lugar extends EscenaMundo {
                 }
             }
         }
-        int m = partida.mapa.minutos(id, destino);
-        if (m > 0) {
-            partida.reloj.sumarMinutos(m);
+        Rol r = rolEntrada();
+        if (!modoRed() || r == null) {
+            irPorPuerta(irse);
+            return;
         }
-        anfitrion.ir(destino);
+        // EN RED: nadie arrastra a nadie. Quien llega a la puerta queda "listo" y se espera a los demas
+        enPuerta.add(r);
+        puertaAccion = irse;
+        puertaRect = puerta;
+        if (todosEnPuerta()) {
+            irPorPuerta(irse);
+        } else {
+            Ajustes.sfx("/sonidos/click.wav", "/sonidos/tecla.wav");
+            toast("¡Listo! Esperando a los demás en la salida (" + enPuerta.size() + "/" + equipo.size() + ")",
+                    new Color(0x9CC08A));
+        }
     }
+
+    // ---- la puerta en red: se sale cuando los cuatro estan en ella ----
+    private final java.util.EnumSet<Rol> enPuerta = java.util.EnumSet.noneOf(Rol.class);
+    private Runnable puertaAccion;
+    private Rectangle puertaRect;
+    /** Modo feria: segundos que quedan para que el grupo siga solo (al terminar el lugar). -1 = no corre. */
+    private double cuentaSalida = -1;
+    static final double SEGUNDOS_PARA_SALIR = 40;
+
+    private boolean todosEnPuerta() {
+        for (Rol r : equipo.keySet()) {
+            if (!enPuerta.contains(r)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void irPorPuerta(Runnable irse) {
+        enPuerta.clear();
+        puertaAccion = null;
+        cuentaSalida = -1;
+        saliendo = true;       // la puerta se "cierra" hasta que se vayan (no se vota dos veces)
+        conAudiencia(null, irse);
+    }
+
+    /** true desde que el grupo cruzo la puerta hasta que llega al otro lugar. */
+    private boolean saliendo;
+
+    /** Si alguien que estaba "listo" se aleja de la puerta, deja de estarlo. */
+    private void revisarPuerta(double dt) {
+        if (!enPuerta.isEmpty() && puertaRect != null) {
+            Rectangle cerca = new Rectangle(puertaRect.x - 170, puertaRect.y - 170, puertaRect.width + 340, puertaRect.height + 340);
+            enPuerta.removeIf(r -> {
+                Actor a = equipo.get(r);
+                return a == null || !cerca.contains(a.x, a.y);
+            });
+        }
+        // juego completo en red: si alguien ya espera en la puerta, los demas tienen 45 s para llegar
+        // (asi nadie se queda trancado si un jugador se distrae)
+        if (!partida.feria && modoRed() && !saliendo) {
+            if (!enPuerta.isEmpty() && cuentaSalida < 0) {
+                cuentaSalida = 45;
+            } else if (enPuerta.isEmpty() && cuentaSalida >= 0) {
+                cuentaSalida = -1;
+            }
+        }
+        // modo feria: terminado el lugar, el grupo tiene un ratico libre y luego sigue solo
+        if (partida.feria && completadoTodo && !saliendo && !salidas.isEmpty() && cuentaSalida < 0 && puertaAccion == null) {
+            cuentaSalida = SEGUNDOS_PARA_SALIR;
+        }
+        boolean quieto = dialogoDeEscenaActivo() || hayDecision() || redActiva();
+        if (cuentaSalida > 0 && !quieto && pendientes.isEmpty()) {
+            cuentaSalida -= dt;
+            if (cuentaSalida <= 0) {
+                cuentaSalida = 0;
+                Runnable f = puertaAccion != null ? puertaAccion : accionSalida.get(salidas.get(0));
+                if (f != null) {
+                    toast("¡Se acabó el ratico! El grupo sigue.", new Color(0xFFE08A));
+                    irPorPuerta(f);
+                }
+            }
+        }
+    }
+
+    // ---- encargo opcional de cada lugar: hablar con todos los vecinos ----
+    private boolean conocidosPremiado;
+
+    /** {con cuantos vecinos ya hablaron, cuantos hay} (los que tienen "E Hablar"). */
+    private int[] conocidos() {
+        int total = 0, hechos = 0;
+        for (Actor a : getActores()) {
+            if (a.alInteractuar != null && a.nombre != null && a.id != null && !equipo.containsValue(a)) {
+                total++;
+                if (hablados.contains(a.id)) {
+                    hechos++;
+                }
+            }
+        }
+        return new int[]{hechos, total};
+    }
+
+    private void revisarConocidos() {
+        if (conocidosPremiado || cine) {
+            return;
+        }
+        int[] c = conocidos();
+        if (c[1] >= 3 && c[0] >= c[1]) {
+            conocidosPremiado = true;
+            for (Jugador j : partida.jugadores()) {
+                j.mariposas++;
+            }
+            Actor yo = getJugador();
+            if (yo != null) {
+                lluvia(yo.x, yo.y - yo.alto * 0.6, 26, 1);
+            }
+            Ajustes.sfx("/sonidos/todos_listos.wav", "/sonidos/noticia.wav");
+            conAudiencia(null, () -> toast("Encargo extra: ¡hablaron con todo el mundo aquí! +1 mariposa para cada uno",
+                    new Color(0xFFD35C)));
+        }
+    }
+
+    /** Lo que hace cada puerta (para cuando el grupo sigue solo). */
+    private final Map<Rectangle, Runnable> accionSalida = new java.util.HashMap<>();
 
     public void completar(String objetivoId) {
         boolean todos = true;
@@ -652,7 +772,9 @@ public class Lugar extends EscenaMundo {
     // ===================== CELULAR (DECISION DIGITAL) =====================
 
     public void abrirCelular() {
-        if (hayDecision() || dialogoActivo() || estaBloqueado()) {
+        // (en red solo cuenta si TU estas leyendo: que otro charle con un vecino no te bloquea el celular)
+        boolean leyendo = modoRed() ? dialogoActivoDe(rolEntrada()) : dialogoActivo();
+        if (hayDecision() || leyendo || estaBloqueado()) {
             return;
         }
         if (digOpciones == null || digitalHecho) {
@@ -868,13 +990,24 @@ public class Lugar extends EscenaMundo {
     private void activarNiebla() {
         partida.nieblaOn(id);
         Funciones.reproducirSonido("/sonidos/noticia.wav");
-        dialogo(null, "Narrador: " + nieblaPantalla, nieblaLinea);
+        dialogo(null, "Ringo: " + nieblaPantalla, nieblaLinea);
     }
 
     /** Las misiones (TAB / M) son de tu pantalla: en red no viajan a los demas. */
     @Override
     protected boolean teclaSoloLocal(int codigo) {
         return super.teclaSoloLocal(codigo) || codigo == KeyEvent.VK_TAB || codigo == KeyEvent.VK_M;
+    }
+
+    @Override
+    protected String spriteDeQuien(String quien) {
+        // en los dialogos los jugadores salen con su nombre ("Ana"): su carita es la de su rol
+        for (Jugador j : partida.jugadores()) {
+            if (j.nombre.equals(quien)) {
+                return ArteMj.spriteOficial(j.rol);
+            }
+        }
+        return super.spriteDeQuien(quien);
     }
 
     @Override
@@ -1037,8 +1170,45 @@ public class Lugar extends EscenaMundo {
 
     // ===================== ENTRADA =====================
 
+    /** Quien pone la emocion con la tecla/clic que se esta procesando (un solo PC: el que camina). */
+    private Rol rolEmote() {
+        Rol r = rolEntrada();
+        if (r == null && partida.lider() != null) {
+            r = partida.lider().rol;
+        }
+        return r != null && equipo.get(r) != null ? r : null;
+    }
+
+    private static int numeroDe(int k) {
+        if (k >= KeyEvent.VK_1 && k <= KeyEvent.VK_9) {
+            return k - KeyEvent.VK_1;
+        }
+        if (k >= KeyEvent.VK_NUMPAD1 && k <= KeyEvent.VK_NUMPAD9) {
+            return k - KeyEvent.VK_NUMPAD1;
+        }
+        return -1;
+    }
+
     @Override
     protected boolean teclaExtra(int k, boolean pres) {
+        // EMOCIONES: en cualquier momento (incluso conversando o decidiendo)
+        if (k == KeyEvent.VK_R) {
+            Rol r = rolEmote();
+            if (pres && r != null) {
+                emociones.alternar(r);
+            }
+            return true;
+        }
+        Rol re = rolEmote();
+        if (emociones.abierto(re)) {
+            int i = numeroDe(k);
+            if (i >= 0 && i < Emociones.IDS.length) {
+                if (pres) {
+                    emociones.poner(re, i);
+                }
+                return true;
+            }
+        }
         if (redActiva()) {
             if (pres && (k == KeyEvent.VK_E || k == KeyEvent.VK_ENTER) && redT > 0.8) {
                 terminarPropagacion();
@@ -1131,6 +1301,15 @@ public class Lugar extends EscenaMundo {
 
     @Override
     protected boolean ratonExtra(int tipo, Point p) {
+        Rol re = rolEmote();
+        if (tipo == 1 && emociones.abierto(re)) {
+            int i = emociones.opcionEn(equipo.get(re), p);
+            if (i >= 0) {
+                emociones.poner(re, i);
+                return true;
+            }
+            emociones.cerrar(re);
+        }
         Decision d = decisionDeEntrada();
         if (d == null) {
             if (tipo == 1 && RECT_CELULAR.contains(p)) {
@@ -1198,6 +1377,9 @@ public class Lugar extends EscenaMundo {
         }
 
         moverSeguidores();
+        emociones.actualizar(dt, equipo);
+        revisarPuerta(dt);
+        revisarConocidos();
 
         boolean ocupado = dialogoActivo() || hayDecision() || redActiva();
         // (el tiempo del modo feria solo se detiene por lo que es de todos: en red, que alguien
@@ -1505,6 +1687,28 @@ public class Lugar extends EscenaMundo {
         return r == Rol.CIUDADANO ? 1 : r == Rol.INFLUENCER ? 2 : r == Rol.PERIODISTA ? 3 : 4;
     }
 
+    private static java.awt.image.BufferedImage MARCA_ORO;
+
+    /** El circulo dorado con "!" (se dibuja una vez). */
+    private static java.awt.image.BufferedImage marcaOro() {
+        if (MARCA_ORO == null) {
+            java.awt.image.BufferedImage im = new java.awt.image.BufferedImage(50, 50, java.awt.image.BufferedImage.TYPE_INT_ARGB_PRE);
+            Graphics2D g = im.createGraphics();
+            Estilo.suave(g);
+            g.setPaint(new GradientPaint(25, 3, Estilo.DORADO_CLARO, 25, 47, Estilo.DORADO));
+            g.fill(new Ellipse2D.Double(3, 3, 44, 44));
+            g.setColor(Color.WHITE);
+            g.setStroke(new BasicStroke(3f));
+            g.draw(new Ellipse2D.Double(3, 3, 44, 44));
+            g.setColor(HUD_TEXTO);
+            g.setFont(Estilo.fuente(Font.BOLD, 30f));
+            centrado(g, "!", 25, 36);
+            g.dispose();
+            MARCA_ORO = Recursos.compatible(im);
+        }
+        return MARCA_ORO;
+    }
+
     private void dibujarMarcas(Graphics2D g) {
         if (!marcasActivas || dialogoVisible() || decisionVista() != null) {
             return;
@@ -1525,14 +1729,7 @@ public class Lugar extends EscenaMundo {
                 double p = 0.5 + 0.5 * Math.sin(tiempo * 5);
                 g.setColor(new Color(255, 211, 92, (int) (70 + 60 * p)));
                 g.fill(new Ellipse2D.Double(cx - 30, cy - 30, 60, 60));
-                g.setPaint(new GradientPaint((float) cx, (float) (cy - 22), Estilo.DORADO_CLARO, (float) cx, (float) (cy + 22), Estilo.DORADO));
-                g.fill(new Ellipse2D.Double(cx - 22, cy - 22, 44, 44));
-                g.setColor(Color.WHITE);
-                g.setStroke(new BasicStroke(3f));
-                g.draw(new Ellipse2D.Double(cx - 22, cy - 22, 44, 44));
-                g.setColor(HUD_TEXTO);
-                g.setFont(Estilo.fuente(Font.BOLD, 30f));
-                centrado(g, "!", (int) cx, (int) cy + 11);
+                g.drawImage(marcaOro(), (int) Math.round(cx) - 25, (int) Math.round(cy) - 25, null);
             } else {
                 // de otro: circulito crema con el numero de quien lo tiene que hacer
                 StringBuilder sb = new StringBuilder();
@@ -1554,7 +1751,7 @@ public class Lugar extends EscenaMundo {
     }
 
     private void dibujarSalidas(Graphics2D g) {
-        if (!completadoTodo || cine) {
+        if (!completadoTodo || cine || saliendo) {
             return;
         }
         for (Rectangle r : salidas) {
@@ -1583,10 +1780,36 @@ public class Lugar extends EscenaMundo {
                 chevron(g, ax, ay, dx, dy, new Color(255, 255, 255, (int) (230 * al)), new Color(201, 138, 18, (int) (230 * al)));
             }
         }
+        // en red: quienes ya estan listos en la puerta (palomita encima) y a quienes se espera
+        if (modoRed() && !enPuerta.isEmpty()) {
+            StringBuilder sb = new StringBuilder();
+            for (Rol r : enPuerta) {
+                Actor a = equipo.get(r);
+                if (a != null) {
+                    double cx = a.x, cy = a.y - a.alto - 22;
+                    g.setColor(HUD_SALVIA);
+                    g.fill(new Ellipse2D.Double(cx - 16, cy - 16, 32, 32));
+                    g.setColor(Color.WHITE);
+                    g.setStroke(new BasicStroke(3.4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+                    g.draw(new Line2D.Double(cx - 7, cy, cx - 2, cy + 6));
+                    g.draw(new Line2D.Double(cx - 2, cy + 6, cx + 8, cy - 6));
+                }
+                sb.append(sb.length() > 0 ? ", " : "").append(nombreDe(r));
+            }
+            boolean yoListo = enPuerta.contains(Sincronia.miRol());
+            String t = "Listos en la salida: " + sb + " (" + enPuerta.size() + "/" + equipo.size() + ")"
+                    + (yoListo ? "  ·  esperando a los demás" : "  ·  ve a la salida y pulsa E")
+                    + (cuentaSalida >= 0 ? "  ·  salen en " + reloj(cuentaSalida) : "");
+            g.setFont(Estilo.fuente(Font.BOLD, 18f));
+            int w = g.getFontMetrics().stringWidth(t) + 40;
+            pastilla(g, (W - w) / 2.0, H - 170, w, 36, 36);
+            g.setColor(HUD_TEXTO);
+            g.drawString(t, (W - w) / 2f + 20, H - 145);
+        }
         // pastillita "Sigue por aqui"
         if (!salidas.isEmpty() && !dialogoVisible() && decisionVista() == null) {
             Rectangle r = salidas.get(0);
-            String t = "¡Sigue por aquí!";
+            String t = cuentaSalida >= 0 ? "Salida · el grupo sigue en " + reloj(cuentaSalida) : "¡Sigue por aquí!";
             g.setFont(Estilo.fuente(Font.BOLD, 18f));
             int w = g.getFontMetrics().stringWidth(t) + 30;
             double x = Math.max(20, Math.min(W - w - 20, r.getCenterX() - w / 2.0));
@@ -1972,6 +2195,7 @@ public class Lugar extends EscenaMundo {
         dibujarSalidas(g);
         dibujarMarcas(g);
         dibujarBurbujas(g);
+        emociones.dibujar(g, equipo, modoRed() ? Sincronia.miRol() : (partida.lider() != null ? partida.lider().rol : null), tiempo);
         if (!cine) {
             dibujarHud(g);
             if (!dialogoVisible() && decisionVista() == null) {
@@ -2217,21 +2441,96 @@ public class Lugar extends EscenaMundo {
     private void dibujarHud(Graphics2D g) {
         Graphics2D gg = (Graphics2D) g.create();
         gg.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-        dibujarRelojHud(gg);
+        // OPTIMIZACION: las partes del HUD que casi no cambian se dibujan UNA vez en una imagen
+        // (ya del tamaño de la pantalla) y se vuelven a dibujar solo cuando cambia lo que muestran.
+        capa(gg, 0, claveReloj(), 0, 0, 800, 100, this::dibujarRelojHud);
         dibujarMisiones(gg);
-        dibujarAnillos(gg);
-        dibujarBotonCelular(gg);
-        dibujarBarraInferior(gg);
+        boolean pop = anilloPop[0] > 0 || anilloPop[1] > 0 || anilloPop[2] > 0;
+        if (pop) {
+            dibujarAnillos(gg);
+        } else {
+            capa(gg, 1, claveAnillos(), 1380, 0, 420, 150, this::dibujarAnillos);
+        }
+        if (!digitalHecho && digOpciones != null) {
+            dibujarBotonCelular(gg);            // con animacion (hay algo nuevo)
+        } else {
+            capa(gg, 2, "cel" + digitalHecho, 1780, 0, 140, 160, this::dibujarBotonCelular);
+        }
+        dibujarBarraInferiorRapida(gg);
         gg.dispose();
     }
+
+    // ---- capas cacheadas del HUD ----
+    private final String[] capaClave = new String[4];
+    private final java.awt.image.BufferedImage[] capaImg = new java.awt.image.BufferedImage[4];
+
+    /** Dibuja 'pintar' (en coordenadas de diseño) desde una imagen guardada; la rehace si cambia 'clave'. */
+    private void capa(Graphics2D g, int i, String clave, int x, int y, int w, int h, java.util.function.Consumer<Graphics2D> pintar) {
+        if (capaImg[i] == null || !clave.equals(capaClave[i])) {
+            java.awt.image.BufferedImage im = new java.awt.image.BufferedImage(w, h, java.awt.image.BufferedImage.TYPE_INT_ARGB_PRE);
+            Graphics2D gi = im.createGraphics();
+            Estilo.suave(gi);
+            gi.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            gi.translate(-x, -y);
+            pintar.accept(gi);
+            gi.dispose();
+            capaImg[i] = im;      // imagen nueva: dibujarAPantalla la vuelve a escalar una sola vez
+            capaClave[i] = clave;
+        }
+        dibujarAPantalla(g, capaImg[i], x, y, w, h);
+    }
+
+    private String claveReloj() {
+        boolean apurado = partida.feria && feriaRestante >= 0 && feriaRestante < 30 && !completadoTodo;
+        return partida.reloj.minutos() + "|" + (int) Math.ceil(feriaRestante) + "|" + (int) Math.ceil(cuentaSalida) + "|"
+                + (apurado && (int) (tiempo * 3) % 2 == 0) + partida.dia;
+    }
+
+    private String claveAnillos() {
+        return partida.animo + "|" + partida.confianza.promedio() + "|" + (rumor != null ? (int) partida.desinfo(id) : -1)
+                + "|" + (tiempo < rumorPausaHasta);
+    }
+
+    /** La barra de abajo: lo fijo sale de una imagen guardada; encima solo el brillo que late. */
+    private void dibujarBarraInferiorRapida(Graphics2D g) {
+        boolean red = Sincronia.activa();
+        Jugador lider = red ? partida.jugador(Sincronia.miRol()) : partida.lider();
+        if (lider == null || dialogoVisible()) {
+            return;
+        }
+        boolean listo = !partida.bandera("hab_" + id + "_" + lider.rol.name());
+        StringBuilder k = new StringBuilder().append(lider.rol).append(listo).append(red);
+        for (Jugador j : partida.jugadores()) {
+            k.append(j.nombre).append(j.mariposas);
+        }
+        barraAnimada = false;
+        capa(g, 3, k.toString(), 0, H - 100, W, 100, this::dibujarBarraInferior);
+        barraAnimada = true;
+        // lo que late: aro del personaje activo y la tecla H cuando la habilidad esta lista
+        double p = 0.5 + 0.5 * Math.sin(tiempo * 3);
+        Color c = lider.rol.color;
+        g.setColor(new Color(c.getRed(), c.getGreen(), c.getBlue(), (int) (70 + 90 * p)));
+        g.setStroke(new BasicStroke(4f));
+        g.drawOval(barraCaraX - barraCaraR - 5, barraCaraY - barraCaraR - 5, (barraCaraR + 5) * 2, (barraCaraR + 5) * 2);
+        if (listo && barraHw > 0) {
+            g.setColor(new Color(242, 176, 30, (int) (60 * p)));
+            g.fill(new RoundRectangle2D.Double(barraHx - 5, barraCaraY - 17, barraHw, 34, 34, 34));
+        }
+    }
+
+    /** false mientras la barra se dibuja en su imagen guardada (sin lo que late). */
+    private boolean barraAnimada = true;
+    private int barraCaraX, barraCaraY, barraCaraR, barraHx, barraHw;
 
     // ---- arriba a la izquierda: dia, hora y lugar ----
     private void dibujarRelojHud(Graphics2D g) {
         String hora = partida.reloj.texto();
         String dia = partida.feria ? "MODO FERIA" : "DÍA " + partida.dia + " DE " + Partida.DIAS;
-        if (partida.feria && feriaRestante >= 0) {
-            int sg = (int) Math.ceil(feriaRestante);
-            hora = sg / 60 + ":" + (sg % 60 < 10 ? "0" : "") + sg % 60;
+        if (partida.feria && cuentaSalida >= 0) {
+            hora = reloj(cuentaSalida);
+            dia = "TIEMPO LIBRE";
+        } else if (partida.feria && feriaRestante >= 0) {
+            hora = reloj(feriaRestante);
         }
         String lugar = titulo.toUpperCase();
         g.setFont(Estilo.fuente(Font.BOLD, 26f));
@@ -2274,6 +2573,11 @@ public class Lugar extends EscenaMundo {
         g.setFont(Estilo.fuente(Font.BOLD, 14f));
         g.setColor(HUD_SUAVE);
         g.drawString(lugar, x + 85, y + 54);
+    }
+
+    private static String reloj(double seg) {
+        int sg = (int) Math.ceil(Math.max(0, seg));
+        return sg / 60 + ":" + (sg % 60 < 10 ? "0" : "") + sg % 60;
     }
 
     // ---- misiones: chip pequeñito; la lista solo cuando se pide (o un ratico) ----
@@ -2327,7 +2631,13 @@ public class Lugar extends EscenaMundo {
         for (Objetivo o : objetivos) {
             wl = Math.max(wl, fm.stringWidth(o.texto));
         }
-        int cw = wl + 76, ch = 22 + objetivos.size() * 36;
+        int[] cn = conocidos();
+        boolean opcional = cn[1] >= 3;
+        String textoOpc = "Extra: hablar con todos (" + Math.min(cn[0], cn[1]) + "/" + cn[1] + ")";
+        if (opcional) {
+            wl = Math.max(wl, fm.stringWidth(textoOpc));
+        }
+        int cw = wl + 76, ch = 22 + (objetivos.size() + (opcional ? 1 : 0)) * 36;
         Graphics2D c = (Graphics2D) g.create();
         c.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) Math.min(1, misionesAnim)));
         int cy = y + h + 8 - (int) ((1 - misionesAnim) * 12);
@@ -2358,6 +2668,13 @@ public class Lugar extends EscenaMundo {
                 c.drawLine(x + 52, ly - 6, x + 52 + fm.stringWidth(o.texto), ly - 6);
             }
             ly += 36;
+        }
+        if (opcional) {
+            boolean ok = conocidosPremiado;
+            dibujarDestello(c, x + 30, ly - 6, 9, ok ? HUD_SALVIA : Estilo.DORADO);
+            c.setFont(Estilo.fuente(Font.BOLD, 18f));
+            c.setColor(ok ? HUD_SUAVE : new Color(0xB07A1E));
+            c.drawString(textoOpc, x + 52, ly);
         }
         c.dispose();
     }
@@ -2505,6 +2822,7 @@ public class Lugar extends EscenaMundo {
             teclas.add(new String[]{"P", "Prestar"});
         }
         teclas.add(new String[]{"F", "Frases"});
+        teclas.add(new String[]{"R", "Emoción"});
 
         // medidas
         int caraR = 22, caraActivaR = 28, hueco = 12;
@@ -2514,6 +2832,8 @@ public class Lugar extends EscenaMundo {
         }
         g.setFont(Estilo.fuente(Font.BOLD, 18f));
         int wNombre = g.getFontMetrics().stringWidth(lider.nombre) + 10;
+        g.setFont(Estilo.fuente(Font.BOLD, 12f));
+        wNombre = Math.max(wNombre, g.getFontMetrics().stringWidth(lider.rol.nombre.toUpperCase()) + 6);
         g.setFont(Estilo.fuente(Font.BOLD, 15f));
         FontMetrics fm = g.getFontMetrics();
         int wTeclas = 0;
@@ -2533,7 +2853,12 @@ public class Lugar extends EscenaMundo {
             boolean act = j == lider;
             int r = act ? caraActivaR : caraR;
             cx += r;
-            retrato(g, j, cx, cy, r, act);
+            if (act) {
+                barraCaraX = cx;
+                barraCaraY = cy;
+                barraCaraR = r;
+            }
+            retrato(g, j, cx, cy, r, act && barraAnimada);
             if (!red) {
                 int num = java.util.Arrays.asList(orden).indexOf(j.rol) + 1;
                 g.setColor(act ? j.rol.color : new Color(0xFFFDF7));
@@ -2569,6 +2894,10 @@ public class Lugar extends EscenaMundo {
             double kw = anchoTeclita(t[0], 12);
             boolean brilla = "H".equals(t[0]) && listo;
             if (brilla) {
+                barraHx = cx;
+                barraHw = (int) (kw + 8 + fm.stringWidth(t[1]) + 12);
+            }
+            if (brilla && barraAnimada) {
                 double a = 0.35 + 0.35 * Math.sin(tiempo * 3);
                 g.setColor(new Color(242, 176, 30, (int) (90 * a)));
                 g.fill(new RoundRectangle2D.Double(cx - 5, cy - 17, kw + 8 + fm.stringWidth(t[1]) + 12, 34, 34, 34));

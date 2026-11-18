@@ -24,14 +24,7 @@ import java.util.List;
 import javax.swing.JPanel;
 import javax.swing.Timer;
 
-/**
- * CREDITOS: las cuatro creadoras (con su fotito y lo que hizo cada una), la profe Katherine
- * y los ayudantes sin sueldo. Hecho con amor.
- *
- * Las fotos van en /imagenes/creditos/ (o directo en /imagenes/):
- *   isa.png, mary.png, valen.png, majo.png y katherine.png
- * Si una foto no esta, sale un circulito con la inicial (no se rompe nada).
- */
+
 public class PantallaCreditos extends JPanel {
 
     private static final int W = 1920, H = 1080;
@@ -146,7 +139,7 @@ public class PantallaCreditos extends JPanel {
         Acogedor.fondo(g, "/imagenes/fondoinicio.png", 0.7f);
         Acogedor.petalos(g, t, 30);
 
-        Acogedor.cartel(g, W / 2.0, 22, "Créditos", "Hecho con muchísimo amor", t);
+        Acogedor.cartel(g, W / 2.0, 22, "Créditos", "Hecho", t);
         Rectangle rv = zonaVolver();
         Acogedor.pastilla(g, rv.x, rv.y, rv.width, rv.height, "Volver", rv.contains(mouse) ? 1 : 0, Acogedor.ROSA);
 

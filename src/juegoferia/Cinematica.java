@@ -25,6 +25,11 @@ public class Cinematica extends PanelDiseno {
 
     /** El boton del parlante (volumen) tambien esta aqui. */
     @Override
+    protected boolean pausaConEscape() {
+        return false;          // aqui ESC salta la cinematica; se pausa con el boton ||
+    }
+
+    @Override
     protected boolean conAjustes() {
         return true;
     }
